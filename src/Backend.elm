@@ -45,8 +45,16 @@ update msg model =
             case model.game of
                 BackendWaitingForPlayers players ->
                     let
+                        disconnectedPlayers = model.disconnectedPlayers
+                        existingPlayer = List.head (List.filter (\player -> player.clientId == clientId) disconnectedPlayers)
                         newPlayers =
-                            players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]
+                            case existingPlayer of
+                                Just player ->
+                                    players ++ [player]
+                                Nothing ->
+                                    players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]
+                        newDisconnectedPlayers =
+                            List.filter (\player -> player.clientId /= clientId) disconnectedPlayers
 
                         newGame =
                             BackendWaitingForPlayers newPlayers
@@ -78,7 +86,8 @@ update msg model =
                                 , shuffleDrawPile
                                 ]
                             )
-
+    , disconnectedPlayers : List BackendPlayer
+                            , disconnectedPlayers = newDisconnectedPlayers
                         _ ->
                             ( model
                             , Cmd.none
@@ -97,7 +106,19 @@ update msg model =
                     else
                         let
                             newModel =
-                                { model | game = BackendGameInProgress drawPile discardPile (players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]) }
+                            let
+                                disconnectedPlayers = model.disconnectedPlayers
+                                existingPlayer = List.head (List.filter (\player -> player.clientId == clientId) disconnectedPlayers)
+                                newPlayers =
+                                    case existingPlayer of
+                                        Just player ->
+                                            players ++ [player]
+                                        Nothing ->
+                                            players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]
+                                newDisconnectedPlayers =
+                                    List.filter (\player -> player.clientId /= clientId) disconnectedPlayers
+                            in
+                            { model | game = BackendGameInProgress drawPile discardPile newPlayers, disconnectedPlayers = newDisconnectedPlayers }
 
                             frontendGame =
                                 backendGameToFrontendGame newModel.game
