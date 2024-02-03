@@ -56,6 +56,7 @@ type alias BackendPlayer =
     { name : String
     , hand : List Card
     , clientId : ClientId
+    , isConnected : Bool -- New field to track connection state
     }
 
 
