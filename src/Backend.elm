@@ -42,7 +42,16 @@ update msg model =
             ( model, Cmd.none )
 
         GotUserConnected sessionId clientId ->
-            case model.game of
+            let
+                playerExists = List.any (\p -> p.clientId == clientId) (case model.game of
+                    BackendWaitingForPlayers players -> players
+                    BackendGameInProgress _ _ players -> players
+                    BackendGameEnded _ -> [])
+            in
+            if playerExists then
+                ( model, Cmd.none )
+            else
+                case model.game of
                 BackendWaitingForPlayers players ->
                     let
                         newPlayers =
