@@ -121,8 +121,11 @@ update msg model =
                         BackendWaitingForPlayers players ->
                             let
                                 disconnectedPlayer = List.head (List.filter (\player -> player.clientId == clientId) players)
+                                -- Temporarily store the disconnected player with a timestamp for potential removal after a timeout.
+                                timestampedDisconnectedPlayer = (Time.now, Maybe.toList disconnectedPlayer)
+                                updatedDisconnectedPlayers = model.disconnectedPlayers ++ timestampedDisconnectedPlayer
                             in
-                            { model | game = BackendWaitingForPlayers (List.filter (\player -> player.clientId /= clientId) players), disconnectedPlayers = model.disconnectedPlayers ++ Maybe.toList disconnectedPlayer }
+                            { model | game = BackendWaitingForPlayers (List.filter (\player -> player.clientId /= clientId) players), disconnectedPlayers = updatedDisconnectedPlayers }
 
                         BackendGameInProgress drawPile discardPile players ->
                             { model | game = BackendGameInProgress drawPile discardPile (List.filter (\player -> player.clientId /= clientId) players) }
