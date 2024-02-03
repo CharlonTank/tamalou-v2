@@ -137,10 +137,22 @@ update msg model =
                 newModel =
                     case model.game of
                         BackendWaitingForPlayers players ->
-                            { model | game = BackendWaitingForPlayers (List.filter (\player -> player.clientId /= clientId) players) }
+                            let
+                                disconnectedPlayer = List.head (List.filter (\player -> player.clientId == clientId) players)
+                                newDisconnectedPlayers = case disconnectedPlayer of
+                                    Just player -> model.disconnectedPlayers ++ [player]
+                                    Nothing -> model.disconnectedPlayers
+                            in
+                            { model | game = BackendWaitingForPlayers (List.filter (\player -> player.clientId /= clientId) players), disconnectedPlayers = newDisconnectedPlayers }
 
                         BackendGameInProgress drawPile discardPile players ->
-                            { model | game = BackendGameInProgress drawPile discardPile (List.filter (\player -> player.clientId /= clientId) players) }
+                            let
+                                disconnectedPlayer = List.head (List.filter (\player -> player.clientId == clientId) players)
+                                newDisconnectedPlayers = case disconnectedPlayer of
+                                    Just player -> model.disconnectedPlayers ++ [player]
+                                    Nothing -> model.disconnectedPlayers
+                            in
+                            { model | game = BackendGameInProgress drawPile discardPile (List.filter (\player -> player.clientId /= clientId) players), disconnectedPlayers = newDisconnectedPlayers }
 
                         BackendGameEnded _ ->
                             model
@@ -168,7 +180,6 @@ update msg model =
 
                 drawPile =
                     shuffledDeck
-
                 ( newDrawPile, newPlayers ) =
                     List.foldl
                         (\player ( drawPile_, players_ ) ->
