@@ -44,9 +44,12 @@ update msg model =
         GotUserConnected sessionId clientId ->
             case model.game of
                 BackendWaitingForPlayers players ->
-                    let
-                        newPlayers =
-                            players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]
+                    case List.filter (\player -> player.clientId == clientId) disconnectedPlayers of
+                        [rejoiningPlayer] ->
+                            let
+                                newPlayers = players ++ [rejoiningPlayer]
+                                updatedDisconnectedPlayers = List.filter (\player -> player.clientId /= clientId) disconnectedPlayers
+                            in
 
                         newGame =
                             BackendWaitingForPlayers newPlayers
@@ -116,7 +119,10 @@ update msg model =
                 newModel =
                     case model.game of
                         BackendWaitingForPlayers players ->
-                            { model | game = BackendWaitingForPlayers (List.filter (\player -> player.clientId /= clientId) players) }
+                            let
+                                disconnectedPlayer = List.head (List.filter (\player -> player.clientId == clientId) players)
+                            in
+                            { model | game = BackendWaitingForPlayers (List.filter (\player -> player.clientId /= clientId) players), disconnectedPlayers = model.disconnectedPlayers ++ Maybe.toList disconnectedPlayer }
 
                         BackendGameInProgress drawPile discardPile players ->
                             { model | game = BackendGameInProgress drawPile discardPile (List.filter (\player -> player.clientId /= clientId) players) }
