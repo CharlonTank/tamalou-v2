@@ -44,6 +44,21 @@ update msg model =
         GotUserConnected sessionId clientId ->
             case model.game of
                 BackendWaitingForPlayers players ->
+                    let
+                        updatePlayer player =
+                            if player.clientId == clientId then
+                                { player | isConnected = True }
+                            else
+                                player
+
+                        updatedPlayers = List.map updatePlayer players
+                        newGame = BackendWaitingForPlayers updatedPlayers
+                        frontendGame = backendGameToFrontendGame newGame
+                    in
+                        ( { model | game = newGame }
+                        , Cmd.batch [ Lamdera.broadcast (UpdateGame frontendGame) ]
+                        )
+                BackendWaitingForPlayers players ->
                     if List.any (\player -> player.clientId == clientId) players then
                         ( model
                         , Cmd.none
@@ -118,6 +133,25 @@ update msg model =
 
         GotUserDisconnected sessionId clientId ->
             let
+                markAsDisconnected player =
+                    if player.clientId == clientId then
+                        { player | isConnected = False }
+                    else
+                        player
+
+                newGame =
+                    case model.game of
+                        BackendWaitingForPlayers players ->
+                            BackendWaitingForPlayers (List.map markAsDisconnected players)
+
+                        BackendGameInProgress drawPile discardPile players ->
+                            BackendGameInProgress drawPile discardPile (List.map markAsDisconnected players)
+
+                        BackendGameEnded _ ->
+                            model.game
+
+                newModel = { model | game = newGame }
+            in
                 newModel =
                     case model.game of
                         BackendWaitingForPlayers players ->
