@@ -6,8 +6,7 @@ sandbox:
     # Additional setup commands can go here, if necessary
 
   check:
-    # Use `lamdera check` for project-wide error checking
-    - lamdera check
+    - lamdera make src/Frontend.elm src/Backend.elm
 
 # Sweep AI turns bugs & feature requests into code changes (https://sweep.dev)
 # For details on our config file, check out our docs at https://docs.sweep.dev/usage/config
@@ -21,7 +20,7 @@ rules:
 branch: "master"
 
 # By default Sweep will read the logs and outputs from your existing Github Actions. To disable this, set this to false.
-gha_enabled: False
+# gha_enabled: False
 
 # This is the description of your project. It will be used by sweep when creating PRs. You can tell Sweep what's unique about your project, what frameworks you use, or anything else you want.
 #
