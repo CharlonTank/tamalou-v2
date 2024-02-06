@@ -44,8 +44,13 @@ update msg model =
         GotUserConnected sessionId clientId ->
             case model.game of
                 BackendWaitingForPlayers players ->
-                    let
-                        newPlayers =
+                    if List.any (\player -> player.clientId == clientId) players then
+                        ( model
+                        , Cmd.none
+                        )
+                    else
+                        let
+                            newPlayers =
                             players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]
 
                         newGame =
