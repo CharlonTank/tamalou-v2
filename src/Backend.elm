@@ -45,7 +45,27 @@ update msg model =
             case model.game of
                 BackendWaitingForPlayers players ->
                     let
-                        newPlayers =
+                        updatePlayer player =
+                            if player.clientId == clientId then
+                                { player | isConnected = True }
+                            else
+                                player
+
+                        updatedPlayers = List.map updatePlayer players
+                        newGame = BackendWaitingForPlayers updatedPlayers
+                        frontendGame = backendGameToFrontendGame newGame
+                    in
+                        ( { model | game = newGame }
+                        , Cmd.batch [ Lamdera.broadcast (UpdateGame frontendGame) ]
+                        )
+                BackendWaitingForPlayers players ->
+                    if List.any (\player -> player.clientId == clientId) players then
+                        ( model
+                        , Cmd.none
+                        )
+                    else
+                        let
+                            newPlayers =
                             players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]
 
                         newGame =
@@ -113,6 +133,25 @@ update msg model =
 
         GotUserDisconnected sessionId clientId ->
             let
+                markAsDisconnected player =
+                    if player.clientId == clientId then
+                        { player | isConnected = False }
+                    else
+                        player
+
+                newGame =
+                    case model.game of
+                        BackendWaitingForPlayers players ->
+                            BackendWaitingForPlayers (List.map markAsDisconnected players)
+
+                        BackendGameInProgress drawPile discardPile players ->
+                            BackendGameInProgress drawPile discardPile (List.map markAsDisconnected players)
+
+                        BackendGameEnded _ ->
+                            model.game
+
+                newModel = { model | game = newGame }
+            in
                 newModel =
                     case model.game of
                         BackendWaitingForPlayers players ->
