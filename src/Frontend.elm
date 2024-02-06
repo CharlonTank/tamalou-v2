@@ -73,6 +73,14 @@ updateFromBackend msg model =
             ( { model | gameFrontend = frontendGame, clientId = Just clientId }, Cmd.none )
 
         UpdateGame game ->
+            case game of
+                FrontendWaitingForPlayers players ->
+                    let
+                        updatedPlayers = List.map (\p -> if Just p.clientId == model.clientId then { p | isConnected = True } else p) players
+                        updatedGame = FrontendWaitingForPlayers updatedPlayers
+                    in
+                        ( { model | gameFrontend = updatedGame }, Cmd.none )
+                _ -> ( model, Cmd.none )
             ( { model | gameFrontend = game }, Cmd.none )
 
 
