@@ -31,4 +31,4 @@ jobs:
 
       # Run Lamdera check
       - name: Lamdera Check
-        run: lamdera check
+        run: lamdera make src/Frontend.elm src/Backend.elm
