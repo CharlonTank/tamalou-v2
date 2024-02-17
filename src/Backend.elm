@@ -46,7 +46,7 @@ update msg model =
                 BackendWaitingForPlayers players ->
                     let
                         newPlayers =
-                            players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]
+                            players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId, age = 0 } ]
 
                         newGame =
                             BackendWaitingForPlayers newPlayers
@@ -97,7 +97,7 @@ update msg model =
                     else
                         let
                             newModel =
-                                { model | game = BackendGameInProgress drawPile discardPile (players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId } ]) }
+                                { model | game = BackendGameInProgress drawPile discardPile (players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId, age = 0 } ]) }
 
                             frontendGame =
                                 backendGameToFrontendGame newModel.game

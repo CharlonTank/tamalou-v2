@@ -1,0 +1,18 @@
+#!/usr/bin/expect
+
+# Set timeout
+set timeout -1
+
+# Spawn the command
+spawn lamdera check
+
+# Wait for the specific prompt
+expect {
+    "Shall I `git add` for you?" {
+        send "n\r"
+    }
+}
+
+# Wait for the process to complete
+expect eof
+

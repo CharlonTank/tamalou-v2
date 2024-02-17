@@ -56,6 +56,7 @@ type alias BackendPlayer =
     { name : String
     , hand : List Card
     , clientId : ClientId
+    , age : Int
     }
 
 
