@@ -5,6 +5,7 @@ import Browser.Navigation as Nav
 import Card
 import Element exposing (..)
 import Element.Background as Background
+import Element.Input as Input
 import Html
 import Html.Attributes as Attr
 import Lamdera exposing (ClientId, SessionId)
@@ -105,15 +106,32 @@ displayGame model =
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
                 (text "Waiting for players"
-                    :: List.map displayPlayer players
+                    :: List.map displayPlayerDebug players
                 )
 
-        FrontendGameInProgress drawPile discardPile players maybeTimer ->
+        FrontendGameInProgress drawPile discardPile players (TimerRunning timer) ->
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ Element.text "Game in progress"
-                , displayTimer maybeTimer
+                [ Element.text "Game in progress during timer"
+                , displayTimer timer
                 , displayPlayerView model.sessionId players
+                ]
+
+        FrontendGameInProgress drawPile discardPile players (PlayerToPlay sessionId) ->
+            let
+                currentPlayer =
+                    List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
+            in
+            column
+                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                [ Element.text "Game in progress after timer"
+                , text sessionId
+                , displayPlayerView model.sessionId players
+                , if Maybe.map .sessionId currentPlayer == Just sessionId then
+                    Input.button [] { onPress = Nothing, label = text "Draw" }
+
+                  else
+                    none
                 ]
 
         FrontendGameEnded clientId ->
@@ -124,34 +142,34 @@ displayGame model =
                 ]
 
 
-displayTimer : Maybe Int -> Element FrontendMsg
-displayTimer maybeTimer =
+displayTimer : Int -> Element FrontendMsg
+displayTimer timer =
     text <|
-        case maybeTimer of
-            Just 5 ->
+        case timer of
+            5 ->
                 "5"
 
-            Just 4 ->
+            4 ->
                 "4"
 
-            Just 3 ->
+            3 ->
                 "3"
 
-            Just 2 ->
+            2 ->
                 "2"
 
-            Just 1 ->
+            1 ->
                 "1"
 
-            Just 0 ->
+            0 ->
                 "GOOOO"
 
             _ ->
                 ""
 
 
-displayPlayer : FrontendPlayer -> Element FrontendMsg
-displayPlayer player =
+displayPlayerDebug : FrontendPlayer -> Element FrontendMsg
+displayPlayerDebug player =
     column
         [ width fill, spacing 12 ]
         [ text player.name
@@ -166,7 +184,7 @@ displayPlayerView sessionId players =
     case List.Extra.find (\p -> Just p.sessionId == sessionId) players of
         Just player ->
             column []
-                [ displayPlayer player
+                [ displayPlayerDebug player
 
                 -- , column [] <| List.map displayPlayer players
                 ]
@@ -174,5 +192,5 @@ displayPlayerView sessionId players =
         Nothing ->
             column []
                 [ text "A skip je joue pas ?"
-                , column [] <| List.map displayPlayer players
+                , column [] <| List.map displayPlayerDebug players
                 ]

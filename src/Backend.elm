@@ -32,7 +32,7 @@ subscriptions model =
 launchTimer : BackendGame -> Sub BackendMsg
 launchTimer game =
     case game of
-        BackendGameInProgress _ _ _ (Just _) ->
+        BackendGameInProgress _ _ _ (TimerRunning _) ->
             Time.every 1000 TimerTick
 
         _ ->
@@ -190,7 +190,7 @@ update msg model =
                         players
 
                 newGame =
-                    BackendGameInProgress newDrawPile discardPile newPlayers (Just 5)
+                    BackendGameInProgress newDrawPile discardPile newPlayers (TimerRunning 5)
 
                 newModel =
                     { model | game = newGame }
@@ -204,12 +204,16 @@ update msg model =
             let
                 newGame =
                     case model.game of
-                        BackendGameInProgress a b players (Just nb) ->
+                        BackendGameInProgress a b (p1 :: players) (TimerRunning nb) ->
                             if (nb - 1) < 0 then
-                                BackendGameInProgress a b (stopDisplayCards players) Nothing
+                                let
+                                    newPlayers =
+                                        stopDisplayCards (p1 :: players)
+                                in
+                                BackendGameInProgress a b newPlayers (PlayerToPlay p1.sessionId)
 
                             else
-                                BackendGameInProgress a b players (Just <| nb - 1)
+                                BackendGameInProgress a b (p1 :: players) (TimerRunning <| nb - 1)
 
                         _ ->
                             model.game

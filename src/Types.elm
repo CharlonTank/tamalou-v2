@@ -51,7 +51,7 @@ type ToFrontend
 
 type BackendGame
     = BackendWaitingForPlayers (List BackendPlayer)
-    | BackendGameInProgress DrawPile DiscardPile (List BackendPlayer) (Maybe Int)
+    | BackendGameInProgress DrawPile DiscardPile (List BackendPlayer) GameInProgressStatus
     | BackendGameEnded ClientId
 
 
@@ -65,8 +65,13 @@ type alias BackendPlayer =
 
 type FrontendGame
     = FrontendWaitingForPlayers (List FrontendPlayer)
-    | FrontendGameInProgress DrawPile DiscardPile (List FrontendPlayer) (Maybe Int)
+    | FrontendGameInProgress DrawPile DiscardPile (List FrontendPlayer) GameInProgressStatus
     | FrontendGameEnded ClientId
+
+
+type GameInProgressStatus
+    = TimerRunning Int
+    | PlayerToPlay SessionId
 
 
 type alias FrontendPlayer =
