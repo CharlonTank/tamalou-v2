@@ -7,6 +7,7 @@ import Element.Border as Border
 type alias Card =
     { suit : Suit
     , rank : Rank
+    , show : Bool
     }
 
 
@@ -35,7 +36,12 @@ type Rank
 
 displayCard : Card -> Element msg
 displayCard card =
-    image [ Border.rounded 100, width <| px 128 ] { src = "src/cardImages/" ++ cardToString card ++ ".png", description = cardToString card }
+    image [ Border.rounded 100, width <| px 128 ] <|
+        if card.show then
+            { src = "src/cardImages/" ++ cardToString card ++ ".png", description = cardToString card }
+
+        else
+            { src = "src/cardImages/BackCovers/Pomegranate.png", description = "back" }
 
 
 cardToString : Card -> String
@@ -104,63 +110,63 @@ rankToString rank =
 
 sampleCard : Card
 sampleCard =
-    { suit = Clubs, rank = Ace }
+    { suit = Clubs, rank = Ace, show = False }
 
 
 nonShuffledDeck : List Card
 nonShuffledDeck =
-    [ { suit = Clubs, rank = Ace }
-    , { suit = Clubs, rank = Two }
-    , { suit = Clubs, rank = Three }
-    , { suit = Clubs, rank = Four }
-    , { suit = Clubs, rank = Five }
-    , { suit = Clubs, rank = Six }
-    , { suit = Clubs, rank = Seven }
-    , { suit = Clubs, rank = Eight }
-    , { suit = Clubs, rank = Nine }
-    , { suit = Clubs, rank = Ten }
-    , { suit = Clubs, rank = Jack }
-    , { suit = Clubs, rank = Queen }
-    , { suit = Clubs, rank = King }
-    , { suit = Diamonds, rank = Ace }
-    , { suit = Diamonds, rank = Two }
-    , { suit = Diamonds, rank = Three }
-    , { suit = Diamonds, rank = Four }
-    , { suit = Diamonds, rank = Five }
-    , { suit = Diamonds, rank = Six }
-    , { suit = Diamonds, rank = Seven }
-    , { suit = Diamonds, rank = Eight }
-    , { suit = Diamonds, rank = Nine }
-    , { suit = Diamonds, rank = Ten }
-    , { suit = Diamonds, rank = Jack }
-    , { suit = Diamonds, rank = Queen }
-    , { suit = Diamonds, rank = King }
-    , { suit = Hearts, rank = Ace }
-    , { suit = Hearts, rank = Two }
-    , { suit = Hearts, rank = Three }
-    , { suit = Hearts, rank = Four }
-    , { suit = Hearts, rank = Five }
-    , { suit = Hearts, rank = Six }
-    , { suit = Hearts, rank = Seven }
-    , { suit = Hearts, rank = Eight }
-    , { suit = Hearts, rank = Nine }
-    , { suit = Hearts, rank = Ten }
-    , { suit = Hearts, rank = Jack }
-    , { suit = Hearts, rank = Queen }
-    , { suit = Hearts, rank = King }
-    , { suit = Spades, rank = Ace }
-    , { suit = Spades, rank = Two }
-    , { suit = Spades, rank = Three }
-    , { suit = Spades, rank = Four }
-    , { suit = Spades, rank = Five }
-    , { suit = Spades, rank = Six }
-    , { suit = Spades, rank = Seven }
-    , { suit = Spades, rank = Eight }
-    , { suit = Spades, rank = Nine }
-    , { suit = Spades, rank = Ten }
-    , { suit = Spades, rank = Jack }
-    , { suit = Spades, rank = Queen }
-    , { suit = Spades, rank = King }
+    [ { suit = Clubs, rank = Ace, show = False }
+    , { suit = Clubs, rank = Two, show = False }
+    , { suit = Clubs, rank = Three, show = False }
+    , { suit = Clubs, rank = Four, show = False }
+    , { suit = Clubs, rank = Five, show = False }
+    , { suit = Clubs, rank = Six, show = False }
+    , { suit = Clubs, rank = Seven, show = False }
+    , { suit = Clubs, rank = Eight, show = False }
+    , { suit = Clubs, rank = Nine, show = False }
+    , { suit = Clubs, rank = Ten, show = False }
+    , { suit = Clubs, rank = Jack, show = False }
+    , { suit = Clubs, rank = Queen, show = False }
+    , { suit = Clubs, rank = King, show = False }
+    , { suit = Diamonds, rank = Ace, show = False }
+    , { suit = Diamonds, rank = Two, show = False }
+    , { suit = Diamonds, rank = Three, show = False }
+    , { suit = Diamonds, rank = Four, show = False }
+    , { suit = Diamonds, rank = Five, show = False }
+    , { suit = Diamonds, rank = Six, show = False }
+    , { suit = Diamonds, rank = Seven, show = False }
+    , { suit = Diamonds, rank = Eight, show = False }
+    , { suit = Diamonds, rank = Nine, show = False }
+    , { suit = Diamonds, rank = Ten, show = False }
+    , { suit = Diamonds, rank = Jack, show = False }
+    , { suit = Diamonds, rank = Queen, show = False }
+    , { suit = Diamonds, rank = King, show = False }
+    , { suit = Hearts, rank = Ace, show = False }
+    , { suit = Hearts, rank = Two, show = False }
+    , { suit = Hearts, rank = Three, show = False }
+    , { suit = Hearts, rank = Four, show = False }
+    , { suit = Hearts, rank = Five, show = False }
+    , { suit = Hearts, rank = Six, show = False }
+    , { suit = Hearts, rank = Seven, show = False }
+    , { suit = Hearts, rank = Eight, show = False }
+    , { suit = Hearts, rank = Nine, show = False }
+    , { suit = Hearts, rank = Ten, show = False }
+    , { suit = Hearts, rank = Jack, show = False }
+    , { suit = Hearts, rank = Queen, show = False }
+    , { suit = Hearts, rank = King, show = False }
+    , { suit = Spades, rank = Ace, show = False }
+    , { suit = Spades, rank = Two, show = False }
+    , { suit = Spades, rank = Three, show = False }
+    , { suit = Spades, rank = Four, show = False }
+    , { suit = Spades, rank = Five, show = False }
+    , { suit = Spades, rank = Six, show = False }
+    , { suit = Spades, rank = Seven, show = False }
+    , { suit = Spades, rank = Eight, show = False }
+    , { suit = Spades, rank = Nine, show = False }
+    , { suit = Spades, rank = Ten, show = False }
+    , { suit = Spades, rank = Jack, show = False }
+    , { suit = Spades, rank = Queen, show = False }
+    , { suit = Spades, rank = King, show = False }
     ]
 
 

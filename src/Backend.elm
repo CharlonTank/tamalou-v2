@@ -3,9 +3,11 @@ module Backend exposing (..)
 import Card
 import Html
 import Lamdera exposing (ClientId, SessionId)
+import List.Extra
 import Random
 import Random.Extra as Random
 import Random.List as Random
+import Time
 import Types exposing (..)
 
 
@@ -20,7 +22,21 @@ app =
 
 subscriptions : BackendModel -> Sub BackendMsg
 subscriptions model =
-    Sub.batch [ Lamdera.onConnect GotUserConnected, Lamdera.onDisconnect GotUserDisconnected ]
+    Sub.batch
+        [ Lamdera.onConnect GotUserConnected
+        , Lamdera.onDisconnect GotUserDisconnected
+        , launchTimer model.game
+        ]
+
+
+launchTimer : BackendGame -> Sub BackendMsg
+launchTimer game =
+    case game of
+        BackendGameInProgress _ _ _ (Just _) ->
+            Time.every 1000 TimerTick
+
+        _ ->
+            Sub.none
 
 
 shuffleDrawPile : Cmd BackendMsg
@@ -46,7 +62,18 @@ update msg model =
                 BackendWaitingForPlayers players ->
                     let
                         newPlayers =
-                            players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId, age = 0 } ]
+                            case List.Extra.find ((==) sessionId << .sessionId) players of
+                                Just _ ->
+                                    players
+
+                                Nothing ->
+                                    players
+                                        ++ [ { name = "Player " ++ String.fromInt (List.length players + 1)
+                                             , hand = []
+                                             , clientId = clientId
+                                             , sessionId = sessionId
+                                             }
+                                           ]
 
                         newGame =
                             BackendWaitingForPlayers newPlayers
@@ -57,24 +84,32 @@ update msg model =
                     case List.length newPlayers of
                         1 ->
                             ( { model | game = newGame }
-                            , Cmd.batch [ Lamdera.sendToFrontend clientId (ConnectedBack clientId frontendGame), Lamdera.broadcast (UpdateGame frontendGame) ]
+                            , Cmd.batch
+                                [ Lamdera.sendToFrontend clientId (ConnectedBack sessionId clientId frontendGame)
+                                , Lamdera.broadcast (UpdateGame frontendGame)
+                                ]
                             )
 
                         2 ->
                             ( { model | game = newGame }
-                            , Cmd.batch [ Lamdera.sendToFrontend clientId (ConnectedBack clientId frontendGame), Lamdera.broadcast (UpdateGame frontendGame) ]
+                            , Cmd.batch
+                                [ Lamdera.sendToFrontend clientId (ConnectedBack sessionId clientId frontendGame)
+                                , Lamdera.broadcast (UpdateGame frontendGame)
+                                ]
                             )
 
                         3 ->
                             ( { model | game = newGame }
-                            , Cmd.batch [ Lamdera.sendToFrontend clientId (ConnectedBack clientId frontendGame), Lamdera.broadcast (UpdateGame frontendGame) ]
+                            , Cmd.batch
+                                [ Lamdera.sendToFrontend clientId (ConnectedBack sessionId clientId frontendGame)
+                                , Lamdera.broadcast (UpdateGame frontendGame)
+                                ]
                             )
 
                         4 ->
                             ( { model | game = newGame }
                             , Cmd.batch
-                                [ Lamdera.sendToFrontend clientId (ConnectedBack clientId frontendGame)
-                                , Lamdera.broadcast (UpdateGame frontendGame)
+                                [ Lamdera.sendToFrontend clientId (ConnectedBack sessionId clientId frontendGame)
                                 , shuffleDrawPile
                                 ]
                             )
@@ -84,27 +119,21 @@ update msg model =
                             , Cmd.none
                             )
 
-                BackendGameInProgress drawPile discardPile players ->
-                    if List.member clientId (List.map .clientId players) then
-                        let
-                            frontendGame =
-                                backendGameToFrontendGame model.game
-                        in
-                        ( model
-                        , Cmd.batch [ Lamdera.sendToFrontend clientId (ConnectedBack clientId frontendGame), Lamdera.broadcast (UpdateGame frontendGame) ]
-                        )
+                BackendGameInProgress drawPile discardPile players maybeTimer ->
+                    case List.Extra.find ((==) sessionId << .sessionId) players of
+                        Just _ ->
+                            let
+                                frontendGame =
+                                    backendGameToFrontendGame model.game
+                            in
+                            ( model
+                            , Cmd.batch
+                                [ Lamdera.sendToFrontend clientId (ConnectedBack sessionId clientId frontendGame)
+                                ]
+                            )
 
-                    else
-                        let
-                            newModel =
-                                { model | game = BackendGameInProgress drawPile discardPile (players ++ [ { name = "Player " ++ String.fromInt (List.length players + 1), hand = [], clientId = clientId, age = 0 } ]) }
-
-                            frontendGame =
-                                backendGameToFrontendGame newModel.game
-                        in
-                        ( newModel
-                        , Cmd.batch [ Lamdera.sendToFrontend clientId (ConnectedBack clientId frontendGame), Lamdera.broadcast (UpdateGame frontendGame) ]
-                        )
+                        Nothing ->
+                            ( model, Cmd.none )
 
                 BackendGameEnded _ ->
                     ( model
@@ -116,10 +145,10 @@ update msg model =
                 newModel =
                     case model.game of
                         BackendWaitingForPlayers players ->
-                            { model | game = BackendWaitingForPlayers (List.filter (\player -> player.clientId /= clientId) players) }
+                            { model | game = BackendWaitingForPlayers (List.filter ((/=) sessionId << .sessionId) players) }
 
-                        BackendGameInProgress drawPile discardPile players ->
-                            { model | game = BackendGameInProgress drawPile discardPile (List.filter (\player -> player.clientId /= clientId) players) }
+                        BackendGameInProgress drawPile discardPile players maybeTimer ->
+                            model
 
                         BackendGameEnded _ ->
                             model
@@ -136,7 +165,7 @@ update msg model =
                         BackendWaitingForPlayers players_ ->
                             players_
 
-                        BackendGameInProgress _ _ players_ ->
+                        BackendGameInProgress _ _ players_ maybeTimer ->
                             players_
 
                         BackendGameEnded _ ->
@@ -161,7 +190,7 @@ update msg model =
                         players
 
                 newGame =
-                    BackendGameInProgress newDrawPile discardPile newPlayers
+                    BackendGameInProgress newDrawPile discardPile newPlayers (Just 5)
 
                 newModel =
                     { model | game = newGame }
@@ -169,7 +198,32 @@ update msg model =
                 frontendGame =
                     backendGameToFrontendGame newGame
             in
-            ( newModel, Lamdera.broadcast (UpdateGame frontendGame) )
+            ( newModel, Cmd.batch [ Lamdera.broadcast (UpdateGame frontendGame) ] )
+
+        TimerTick _ ->
+            let
+                newGame =
+                    case model.game of
+                        BackendGameInProgress a b players (Just nb) ->
+                            if (nb - 1) < 0 then
+                                BackendGameInProgress a b (stopDisplayCards players) Nothing
+
+                            else
+                                BackendGameInProgress a b players (Just <| nb - 1)
+
+                        _ ->
+                            model.game
+            in
+            ( { model | game = newGame }, Lamdera.broadcast (UpdateGame <| backendGameToFrontendGame newGame) )
+
+
+stopDisplayCards : List BackendPlayer -> List BackendPlayer
+stopDisplayCards players =
+    List.map
+        (\({ hand } as player) ->
+            { player | hand = List.map (\card -> { card | show = False }) hand }
+        )
+        players
 
 
 distribute4CardsToPlayer : DrawPile -> BackendPlayer -> ( DrawPile, BackendPlayer )
@@ -179,16 +233,16 @@ distribute4CardsToPlayer drawPile player =
             ( drawPile, player )
 
         card1 :: [] ->
-            ( [], { player | hand = player.hand ++ [ card1 ] } )
+            ( [], { player | hand = [ { card1 | show = True } ] } )
 
         card1 :: card2 :: [] ->
-            ( [], { player | hand = player.hand ++ [ card1, card2 ] } )
+            ( [], { player | hand = [ { card1 | show = True }, card2 ] } )
 
         card1 :: card2 :: card3 :: [] ->
-            ( [], { player | hand = player.hand ++ [ card1, card2, card3 ] } )
+            ( [], { player | hand = [ { card1 | show = True }, card2, card3 ] } )
 
         card1 :: card2 :: card3 :: card4 :: drawPile_ ->
-            ( drawPile_, { player | hand = player.hand ++ [ card1, card2, card3, card4 ] } )
+            ( drawPile_, { player | hand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
 
 
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg )
@@ -204,8 +258,8 @@ backendGameToFrontendGame backendGame =
         BackendWaitingForPlayers players ->
             FrontendWaitingForPlayers (List.map backendPlayerToFrontendPlayer players)
 
-        BackendGameInProgress drawPile discardPile players ->
-            FrontendGameInProgress drawPile discardPile (List.map backendPlayerToFrontendPlayer players)
+        BackendGameInProgress drawPile discardPile players maybeTimer ->
+            FrontendGameInProgress drawPile discardPile (List.map backendPlayerToFrontendPlayer players) maybeTimer
 
         BackendGameEnded clientId_ ->
             FrontendGameEnded clientId_
@@ -216,4 +270,5 @@ backendPlayerToFrontendPlayer backendPlayer =
     { name = backendPlayer.name
     , hand = backendPlayer.hand
     , clientId = backendPlayer.clientId
+    , sessionId = backendPlayer.sessionId
     }

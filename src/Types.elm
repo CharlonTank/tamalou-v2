@@ -4,6 +4,7 @@ import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Card exposing (Card)
 import Lamdera exposing (ClientId, SessionId)
+import Time exposing (Posix)
 import Url exposing (Url)
 
 
@@ -11,6 +12,7 @@ type alias FrontendModel =
     { key : Key
     , gameFrontend : FrontendGame
     , clientId : Maybe ClientId
+    , sessionId : Maybe SessionId
     }
 
 
@@ -38,17 +40,18 @@ type BackendMsg
     | GotUserConnected SessionId ClientId
     | GotUserDisconnected SessionId ClientId
     | BeginGameAndDistribute4CardsToEach (List Card)
+    | TimerTick Posix
 
 
 type ToFrontend
     = NoOpToFrontend
-    | ConnectedBack ClientId FrontendGame
+    | ConnectedBack SessionId ClientId FrontendGame
     | UpdateGame FrontendGame
 
 
 type BackendGame
     = BackendWaitingForPlayers (List BackendPlayer)
-    | BackendGameInProgress DrawPile DiscardPile (List BackendPlayer)
+    | BackendGameInProgress DrawPile DiscardPile (List BackendPlayer) (Maybe Int)
     | BackendGameEnded ClientId
 
 
@@ -56,13 +59,13 @@ type alias BackendPlayer =
     { name : String
     , hand : List Card
     , clientId : ClientId
-    , age : Int
+    , sessionId : SessionId
     }
 
 
 type FrontendGame
     = FrontendWaitingForPlayers (List FrontendPlayer)
-    | FrontendGameInProgress DrawPile DiscardPile (List FrontendPlayer)
+    | FrontendGameInProgress DrawPile DiscardPile (List FrontendPlayer) (Maybe Int)
     | FrontendGameEnded ClientId
 
 
@@ -70,6 +73,7 @@ type alias FrontendPlayer =
     { name : String
     , hand : List Card
     , clientId : ClientId
+    , sessionId : SessionId
     }
 
 

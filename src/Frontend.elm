@@ -7,7 +7,8 @@ import Element exposing (..)
 import Element.Background as Background
 import Html
 import Html.Attributes as Attr
-import Lamdera exposing (ClientId)
+import Lamdera exposing (ClientId, SessionId)
+import List.Extra
 import Random
 import Random.List as Random
 import Types exposing (..)
@@ -31,6 +32,7 @@ init url key =
     ( { key = key
       , gameFrontend = FrontendWaitingForPlayers []
       , clientId = Nothing
+      , sessionId = Nothing
       }
     , Cmd.none
     )
@@ -69,8 +71,8 @@ updateFromBackend msg model =
         NoOpToFrontend ->
             ( model, Cmd.none )
 
-        ConnectedBack clientId frontendGame ->
-            ( { model | gameFrontend = frontendGame, clientId = Just clientId }, Cmd.none )
+        ConnectedBack sessionId clientId frontendGame ->
+            ( { model | gameFrontend = Debug.log "frontendGame" frontendGame, clientId = Just clientId, sessionId = Just sessionId }, Cmd.none )
 
         UpdateGame game ->
             ( { model | gameFrontend = game }, Cmd.none )
@@ -79,9 +81,7 @@ updateFromBackend msg model =
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
     { title = ""
-    , body =
-        [ Element.layout [ width fill, height fill ] <| displayModel model
-        ]
+    , body = [ Element.layout [ width fill, height fill ] <| displayModel model ]
     }
 
 
@@ -104,26 +104,18 @@ displayGame model =
         FrontendWaitingForPlayers players ->
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                ([ text "Waiting for players"
-                 ]
-                    ++ List.map displayPlayer players
+                (text "Waiting for players"
+                    :: List.map displayPlayer players
                 )
 
-        -- | FrontendGameInProgress DrawPile DiscardPile (List FrontendPlayer)
-        FrontendGameInProgress drawPile discardPile players ->
+        FrontendGameInProgress drawPile discardPile players maybeTimer ->
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
                 [ Element.text "Game in progress"
-                , displayPlayerView model.clientId players
+                , displayTimer maybeTimer
+                , displayPlayerView model.sessionId players
                 ]
 
-        -- FrontendGameInProgress drawPile discardPile players ->
-        --     column
-        --         [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-        --         ([ Element.text "Game in progress"
-        --          ]
-        --             ++ List.map displayPlayer players
-        --         )
         FrontendGameEnded clientId ->
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
@@ -132,21 +124,55 @@ displayGame model =
                 ]
 
 
+displayTimer : Maybe Int -> Element FrontendMsg
+displayTimer maybeTimer =
+    text <|
+        case maybeTimer of
+            Just 5 ->
+                "5"
+
+            Just 4 ->
+                "4"
+
+            Just 3 ->
+                "3"
+
+            Just 2 ->
+                "2"
+
+            Just 1 ->
+                "1"
+
+            Just 0 ->
+                "GOOOO"
+
+            _ ->
+                ""
+
+
 displayPlayer : FrontendPlayer -> Element FrontendMsg
 displayPlayer player =
     column
         [ width fill, spacing 12 ]
         [ text player.name
-        , text player.clientId
+        , row [ spacing 8 ] [ text "ClientId = ", text player.clientId ]
+        , row [ spacing 8 ] [ text "SessionId = ", text player.sessionId ]
         , Card.displayCards player.hand
         ]
 
 
-displayPlayerView : Maybe ClientId -> List FrontendPlayer -> Element FrontendMsg
-displayPlayerView clientId players =
-    case List.filter (\player -> Just player.clientId == clientId) players of
-        [ player ] ->
-            displayPlayer player
+displayPlayerView : Maybe SessionId -> List FrontendPlayer -> Element FrontendMsg
+displayPlayerView sessionId players =
+    case List.Extra.find (\p -> Just p.sessionId == sessionId) players of
+        Just player ->
+            column []
+                [ displayPlayer player
 
-        _ ->
-            Element.text "Player not found"
+                -- , column [] <| List.map displayPlayer players
+                ]
+
+        Nothing ->
+            column []
+                [ text "A skip je joue pas ?"
+                , column [] <| List.map displayPlayer players
+                ]
