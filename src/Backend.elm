@@ -5,6 +5,7 @@ import DebugApp
 import Html
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
+import Maybe.Extra as Maybe
 import Random
 import Random.Extra as Random
 import Random.List as Random
@@ -35,7 +36,7 @@ subscriptions { game } =
 launchTimer : BGame -> Sub BackendMsg
 launchTimer game =
     case game of
-        BGameInProgress _ _ _ (BTimerRunning _) ->
+        BGameInProgress _ _ _ (BTimerRunning _) _ ->
             Time.every 1000 TimerTick
 
         _ ->
@@ -123,36 +124,34 @@ update msg ({ game } as model) =
                             , Cmd.none
                             )
 
-                BGameInProgress drawPile discardPile players maybeTimer ->
-                    -- case List.Extra.find ((==) sessionId << .sessionId) players of
-                    --     Just _ ->
-                    let
-                        updateClientIdInPlayers =
-                            List.map
-                                (\p ->
-                                    if p.sessionId == sessionId then
-                                        { p | clientId = clientId }
+                BGameInProgress drawPile discardPile players maybeTimer lastMoveIsDouble ->
+                    case List.Extra.find ((==) sessionId << .sessionId) players of
+                        Just _ ->
+                            let
+                                updateClientIdInPlayers =
+                                    List.map
+                                        (\p ->
+                                            if p.sessionId == sessionId then
+                                                { p | clientId = clientId }
 
-                                    else
-                                        p
-                                )
-                                players
+                                            else
+                                                p
+                                        )
+                                        players
 
-                        newGame =
-                            BGameInProgress drawPile discardPile updateClientIdInPlayers maybeTimer
+                                newGame =
+                                    BGameInProgress drawPile discardPile updateClientIdInPlayers maybeTimer lastMoveIsDouble
+                            in
+                            ( { model | game = newGame }
+                              -- let's use backendGameToFrontendGame on each player
+                            , Cmd.batch <|
+                                Lamdera.sendToFrontend clientId (ConnectedBack sessionId clientId (backendGameToFrontendGame (Just sessionId) newGame))
+                                    :: List.map (\p -> Lamdera.sendToFrontend p.clientId <| UpdateGame <| backendGameToFrontendGame (Just p.sessionId) newGame) updateClientIdInPlayers
+                            )
 
-                        -- frontendGame =
-                        --     backendGameToFrontendGame (Just player.sessionId) newGame
-                    in
-                    ( { model | game = newGame }
-                      -- let's use backendGameToFrontendGame on each player
-                    , Cmd.batch <|
-                        Lamdera.sendToFrontend clientId (ConnectedBack sessionId clientId (backendGameToFrontendGame (Just sessionId) newGame))
-                            :: List.map (\p -> Lamdera.sendToFrontend p.clientId <| UpdateGame <| backendGameToFrontendGame (Just p.sessionId) newGame) updateClientIdInPlayers
-                    )
+                        Nothing ->
+                            ( model, Lamdera.sendToFrontend clientId (UpdateGame FGameAlreadyStartedWithoutYou) )
 
-                -- Nothing ->
-                --     ( model, Cmd.none )
                 BGameEnded _ ->
                     ( model
                     , Cmd.none
@@ -169,7 +168,7 @@ update msg ({ game } as model) =
                     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) newGame) players
                     )
 
-                BGameInProgress drawPile discardPile players maybeTimer ->
+                BGameInProgress drawPile discardPile players maybeTimer _ ->
                     ( model, Cmd.none )
 
                 BGameEnded _ ->
@@ -183,7 +182,7 @@ update msg ({ game } as model) =
                         BWaitingForPlayers players_ ->
                             players_
 
-                        BGameInProgress _ _ players_ maybeTimer ->
+                        BGameInProgress _ _ players_ maybeTimer _ ->
                             players_
 
                         BGameEnded _ ->
@@ -208,7 +207,7 @@ update msg ({ game } as model) =
                         players
 
                 newGame =
-                    BGameInProgress newDrawPile discardPile newPlayers (BTimerRunning 5)
+                    BGameInProgress newDrawPile discardPile newPlayers (BTimerRunning 5) False
 
                 newModel =
                     { model | game = newGame }
@@ -219,7 +218,7 @@ update msg ({ game } as model) =
 
         TimerTick _ ->
             case game of
-                BGameInProgress a b (p1 :: restOfPlayers) (BTimerRunning nb) ->
+                BGameInProgress a b (p1 :: restOfPlayers) (BTimerRunning nb) lastMoveIsDouble ->
                     let
                         newGame =
                             if (nb - 1) < 0 then
@@ -227,10 +226,10 @@ update msg ({ game } as model) =
                                     newPlayers =
                                         stopDisplayCards (p1 :: restOfPlayers)
                                 in
-                                BGameInProgress a b newPlayers (BPlayerToPlay p1.sessionId BWaitingPlayerDraw)
+                                BGameInProgress a b newPlayers (BPlayerToPlay p1.sessionId BWaitingPlayerDraw) lastMoveIsDouble
 
                             else
-                                BGameInProgress a b (p1 :: restOfPlayers) (BTimerRunning <| nb - 1)
+                                BGameInProgress a b (p1 :: restOfPlayers) (BTimerRunning <| nb - 1) lastMoveIsDouble
                     in
                     ( { model | game = newGame }
                     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) newGame) (p1 :: restOfPlayers)
@@ -276,7 +275,7 @@ updateFromFrontend sessionId clientId msg ({ game } as model) =
 
         DrawCardFromDrawPileToBackend ->
             case game of
-                BGameInProgress drawPile discardPile players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) ->
+                BGameInProgress drawPile discardPile players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) _ ->
                     if sessionId == sessionId_ then
                         ( model, Cmd.none )
                             |> drawInDrawPile sessionId
@@ -289,11 +288,11 @@ updateFromFrontend sessionId clientId msg ({ game } as model) =
 
         DrawCardFromDiscardPileToBackend ->
             case game of
-                BGameInProgress drawPile (head :: rest) players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) ->
+                BGameInProgress drawPile (head :: rest) players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) _ ->
                     if sessionId == sessionId_ then
                         let
                             newGame =
-                                BGameInProgress drawPile rest players (BPlayerToPlay sessionId_ (BPlayerHasDraw head))
+                                BGameInProgress drawPile rest players (BPlayerToPlay sessionId_ (BPlayerHasDraw head)) False
                         in
                         ( { model | game = newGame }
                         , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) newGame) players
@@ -305,13 +304,13 @@ updateFromFrontend sessionId clientId msg ({ game } as model) =
                 _ ->
                     ( model, Cmd.none )
 
-        DiscardCardToBackend ->
+        DiscardCardInHandToBackend ->
             case game of
-                BGameInProgress drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw card)) ->
+                BGameInProgress drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw card)) _ ->
                     if sessionId == sessionId_ then
                         let
                             newGame =
-                                BGameInProgress drawPile (card :: discardPile) players (BPlayerToPlay (nextPlayerSessionId sessionId_ players) BWaitingPlayerDraw)
+                                BGameInProgress drawPile (card :: discardPile) players (BPlayerToPlay (nextPlayerSessionId sessionId_ players) BWaitingPlayerDraw) False
                         in
                         ( { model | game = newGame }
                         , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) newGame) players
@@ -321,6 +320,166 @@ updateFromFrontend sessionId clientId msg ({ game } as model) =
                         ( model, Cmd.none )
 
                 _ ->
+                    ( model, Cmd.none )
+
+        ReplaceCardInTableHandToBackend cardIndex ->
+            case game of
+                BGameInProgress drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw cardInHand)) _ ->
+                    if sessionId == sessionId_ then
+                        let
+                            currentPlayer =
+                                List.Extra.find ((==) sessionId << .sessionId) players
+
+                            updatedPlayers =
+                                List.map
+                                    (\p ->
+                                        if p.sessionId == sessionId then
+                                            { p
+                                                | tableHand =
+                                                    List.indexedMap
+                                                        (\index card ->
+                                                            if index == cardIndex then
+                                                                { cardInHand | show = False }
+
+                                                            else
+                                                                card
+                                                        )
+                                                        p.tableHand
+                                            }
+
+                                        else
+                                            p
+                                    )
+                                    players
+
+                            newDiscardPile =
+                                currentPlayer |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand) |> Maybe.map (\c -> { c | show = True }) |> Maybe.map (\c -> c :: discardPile) |> Maybe.withDefault discardPile
+
+                            newGame =
+                                BGameInProgress drawPile newDiscardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ players) BWaitingPlayerDraw) False
+                        in
+                        ( { model | game = newGame }
+                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) newGame) updatedPlayers
+                        )
+
+                    else
+                        ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        -- For DoubleCardInTableHandToBackend action, the card is just removed for tableHand of the player, and added to the discardPile, only if the last card in the discardPile has the same Rank. But this action can only be done one time per player turn but by anyone. If someone tries to triple, this player gets his card back and gets a penalty of 1 card from the drawPile.
+        DoubleCardInTableHandToBackend cardIndex ->
+            case game of
+                BGameInProgress drawPile discardPile players (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove ->
+                    -- Determine if it's currently the player's turn and if they've drawn a card
+                    let
+                        isPlayerTurn =
+                            sessionId == sessionId_
+
+                        hasPlayerDrawn =
+                            case bPlayerToPlayStatus of
+                                BPlayerHasDraw _ ->
+                                    True
+
+                                _ ->
+                                    False
+                    in
+                    if not isPlayerTurn || (isPlayerTurn && not hasPlayerDrawn) then
+                        -- Check if there's at least one card in the discardPile to match against
+                        case List.Extra.uncons discardPile of
+                            Just ( dicardPileHead, _ ) ->
+                                let
+                                    currentPlayer =
+                                        List.Extra.find ((==) sessionId << .sessionId) players
+
+                                    -- Attempt to find the card in the current player's table hand and ensure it matches the last card in the discard pile
+                                    matchingCard =
+                                        currentPlayer
+                                            |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+                                            |> Maybe.andThen
+                                                (\card ->
+                                                    if card.rank == dicardPileHead.rank then
+                                                        Just card
+
+                                                    else
+                                                        Nothing
+                                                )
+                                in
+                                case ( doubleIsLastMove, matchingCard ) of
+                                    ( False, Just _ ) ->
+                                        let
+                                            updatedPlayers =
+                                                players
+                                                    |> List.map
+                                                        (\p ->
+                                                            if p.sessionId == sessionId then
+                                                                { p
+                                                                    | tableHand =
+                                                                        p.tableHand
+                                                                            |> List.Extra.removeAt cardIndex
+                                                                }
+
+                                                            else
+                                                                p
+                                                        )
+
+                                            newDiscardPile =
+                                                matchingCard
+                                                    |> Maybe.map (\card -> { card | show = True } :: discardPile)
+                                                    |> Maybe.withDefault discardPile
+
+                                            newGame =
+                                                BGameInProgress drawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) True
+                                        in
+                                        ( { model | game = newGame }
+                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) (BGameInProgress drawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) True)) updatedPlayers
+                                        )
+
+                                    _ ->
+                                        -- The card doesn't match or someone already doubled before; penalize the player attempting the double move if necessary by drawing from the drawPile one card and adding it directly to the tableHand
+                                        -- to do that, we can just check if there is a card in the drawPile, if not, for now, we can Debug.todo "PLUS DE CARTES DANS LA DRAW PILE", and if there is, we can just draw it and add it to the tableHand of the player and update the drawPile
+                                        let
+                                            ( cardPenalty, newDrawPile ) =
+                                                case List.Extra.uncons drawPile of
+                                                    Just ( head, rest ) ->
+                                                        ( head, rest )
+
+                                                    Nothing ->
+                                                        Debug.todo "PLUS DE CARTES DANS LA DRAW PILE"
+
+                                            newPlayers =
+                                                players
+                                                    |> List.map
+                                                        (\p ->
+                                                            if p.sessionId == sessionId then
+                                                                { p
+                                                                    | tableHand =
+                                                                        p.tableHand
+                                                                            ++ [ { cardPenalty | show = False } ]
+                                                                }
+
+                                                            else
+                                                                p
+                                                        )
+
+                                            newGame =
+                                                BGameInProgress newDrawPile discardPile newPlayers (BPlayerToPlay sessionId_ BWaitingPlayerDraw) doubleIsLastMove
+                                        in
+                                        ( { model | game = newGame }
+                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) newGame) newPlayers
+                                        )
+
+                            _ ->
+                                -- There are no cards in the discardPile to match against
+                                ( model, Cmd.none )
+
+                    else
+                        -- It's the player's turn, and they've drawn a card; doubling is not allowed
+                        ( model, Cmd.none )
+
+                _ ->
+                    -- If the game is not in progress or in an unexpected state, no action is performed
                     ( model, Cmd.none )
 
 
@@ -335,7 +494,7 @@ nextPlayerSessionId sessionId players =
 drawInDrawPile : SessionId -> ( BackendModel, Cmd BackendMsg ) -> ( BackendModel, Cmd BackendMsg )
 drawInDrawPile sessionId ( { game } as model, cmds ) =
     case game of
-        BGameInProgress [] discardPile players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) ->
+        BGameInProgress [] discardPile players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) _ ->
             if sessionId == sessionId_ then
                 ( model, Cmd.none )
                     |> Debug.todo "PLUS DE CARTES DANS LA DRAW PILE"
@@ -344,11 +503,11 @@ drawInDrawPile sessionId ( { game } as model, cmds ) =
             else
                 ( model, cmds )
 
-        BGameInProgress (head :: rest) discardPile players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) ->
+        BGameInProgress (head :: rest) discardPile players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) lastMoveIsDouble ->
             if sessionId == sessionId_ then
                 let
                     newGame =
-                        BGameInProgress rest discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw head))
+                        BGameInProgress rest discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw head)) lastMoveIsDouble
                 in
                 ( { model | game = newGame }
                 , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) newGame) players
@@ -367,7 +526,7 @@ backendGameToFrontendGame maybeSessionId backendGame =
         BWaitingForPlayers players ->
             FWaitingForPlayers (List.map backendPlayerToFrontendPlayer players)
 
-        BGameInProgress bDrawPile discardPile players bGameInProgressStatus ->
+        BGameInProgress bDrawPile discardPile players bGameInProgressStatus _ ->
             let
                 tableHand =
                     case maybeSessionId of
@@ -395,18 +554,18 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
         BPlayerToPlay sessionId bPlayerToPlayStatus ->
             case bPlayerToPlayStatus of
                 BWaitingPlayerDraw ->
-                    FPlayerToPlay sessionId FWaitingPlayerDraw
+                    if maybeSessionId == Just sessionId then
+                        FYourTurn FWaitingPlayerDraw
+
+                    else
+                        FPlayerToPlay sessionId FWaitingPlayerDraw
 
                 BPlayerHasDraw card ->
-                    FPlayerToPlay sessionId
-                        (FPlayerHasDraw
-                            (if maybeSessionId == Just sessionId then
-                                FaceUp card
+                    if maybeSessionId == Just sessionId then
+                        FYourTurn (FPlayerHasDraw (FaceUp card))
 
-                             else
-                                FaceDown
-                            )
-                        )
+                    else
+                        FPlayerToPlay sessionId (FPlayerHasDraw FaceDown)
 
 
 backendPlayerToFrontendPlayer : BPlayer -> FPlayer

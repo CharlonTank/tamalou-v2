@@ -39,19 +39,8 @@ type Rank
     | King
 
 
-displayCard : FCard -> Element msg
-displayCard frontendCard =
-    image [ Border.rounded 100, width <| px 128 ] <|
-        case frontendCard of
-            FaceUp card ->
-                { src = "src/cardImages/" ++ cardToString card ++ ".png", description = cardToString card }
-
-            FaceDown ->
-                { src = "src/cardImages/BackCovers/Pomegranate.png", description = "back" }
-
-
-cardToString : Card -> String
-cardToString card =
+toString : Card -> String
+toString card =
     suitToString card.suit ++ "/" ++ rankToString card.rank
 
 
@@ -174,8 +163,3 @@ nonShuffledDeck =
     , { suit = Spades, rank = Queen, show = False }
     , { suit = Spades, rank = King, show = False }
     ]
-
-
-displayCards : List FCard -> Element msg
-displayCards cards =
-    wrappedRow [ spacing 12 ] (List.map displayCard cards)

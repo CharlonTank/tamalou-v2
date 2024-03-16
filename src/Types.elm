@@ -29,6 +29,8 @@ type FrontendMsg
     | TamalouFrontend
     | DiscardCardFrontend
     | DrawCardFromDiscardPileFrontend
+    | ReplaceCardInFrontend Int
+    | DoubleCardFrontend Int
 
 
 
@@ -38,8 +40,10 @@ type FrontendMsg
 type ToBackend
     = NoOpToBackend
     | DrawCardFromDrawPileToBackend
-    | DiscardCardToBackend
+    | DiscardCardInHandToBackend
     | DrawCardFromDiscardPileToBackend
+    | ReplaceCardInTableHandToBackend Int
+    | DoubleCardInTableHandToBackend Int
 
 
 type BackendMsg
@@ -58,7 +62,7 @@ type ToFrontend
 
 type BGame
     = BWaitingForPlayers (List BPlayer)
-    | BGameInProgress BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus
+    | BGameInProgress BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool
     | BGameEnded ClientId
 
 
@@ -74,11 +78,13 @@ type FGame
     = FWaitingForPlayers (List FPlayer)
     | FGameInProgress FTableHand FDrawPile DiscardPile (List FPlayer) FGameInProgressStatus
     | FGameEnded ClientId
+    | FGameAlreadyStartedWithoutYou
 
 
 type FGameInProgressStatus
     = FTimerRunning Int
     | FPlayerToPlay SessionId FPlayerToPlayStatus
+    | FYourTurn FPlayerToPlayStatus
 
 
 type FPlayerToPlayStatus
