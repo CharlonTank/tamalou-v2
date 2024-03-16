@@ -326,8 +326,8 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                     case drawPile of
                                         [] ->
                                             ( model, Cmd.none )
-                                                |> Debug.todo "PLUS DE CARTES DANS LA DRAW PILE"
 
+                                        -- |> Debug.todo "PLUS DE CARTES DANS LA DRAW PILE"
                                         head :: rest ->
                                             let
                                                 newGame =
@@ -503,8 +503,9 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                     ( head, rest )
 
                                                                 Nothing ->
-                                                                    Debug.todo "PLUS DE CARTES DANS LA DRAW PILE"
+                                                                    ( Card.sampleCard, [] )
 
+                                                        -- Debug.todo "PLUS DE CARTES DANS LA DRAW PILE"
                                                         newPlayers =
                                                             players
                                                                 |> List.map
