@@ -18,7 +18,7 @@ type alias FrontendModel =
 
 
 type alias BackendModel =
-    { game : BGameStatus
+    { games : List BGame
     }
 
 
@@ -40,7 +40,11 @@ type FrontendMsg
 
 type ToBackend
     = NoOpToBackend
-    | TryToReconnectToBackend String
+    | ToBackendActionFromGame String ToBackendActionFromGame
+
+
+type ToBackendActionFromGame
+    = ConnectToBackend
     | DrawCardFromDrawPileToBackend
     | DiscardCardInHandToBackend
     | DrawCardFromDiscardPileToBackend
@@ -51,17 +55,25 @@ type ToBackend
 type BackendMsg
     = NoOpBackendMsg
     | FeedSessionIdAndClientId SessionId ClientId
-      -- | GotUserConnected SessionId ClientId
     | GotUserDisconnected SessionId ClientId
-    | BeginGameAndDistribute4CardsToEach (List Card)
+    | BackendMsgFromGame String BackendMsgFromGame
+
+
+type BackendMsgFromGame
+    = BeginGameAndDistribute4CardsToEach (List Card)
     | TimerTick Posix
 
 
 type ToFrontend
     = NoOpToFrontend
-    | ConnectedBack SessionId ClientId FGame
     | UpdateGame FGame
     | GotSessionIdAndClientId SessionId ClientId
+
+
+type alias BGame =
+    { urlPath : String
+    , status : BGameStatus
+    }
 
 
 type BGameStatus

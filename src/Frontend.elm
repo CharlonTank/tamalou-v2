@@ -43,7 +43,7 @@ init url key =
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
-update msg model =
+update msg ({ urlPath } as model) =
     case msg of
         UrlClicked urlRequest ->
             case urlRequest of
@@ -64,22 +64,22 @@ update msg model =
             ( model, Cmd.none )
 
         DrawCardFromDeckFrontend ->
-            ( model, Lamdera.sendToBackend DrawCardFromDrawPileToBackend )
+            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DrawCardFromDrawPileToBackend )
 
         TamalouFrontend ->
             ( model, Debug.todo "Tamalou not implemented" )
 
         DiscardCardFrontend ->
-            ( model, Lamdera.sendToBackend DiscardCardInHandToBackend )
+            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DiscardCardInHandToBackend )
 
         DrawCardFromDiscardPileFrontend ->
-            ( model, Lamdera.sendToBackend DrawCardFromDiscardPileToBackend )
+            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DrawCardFromDiscardPileToBackend )
 
         ReplaceCardInFrontend cardIndex ->
-            ( model, Lamdera.sendToBackend (ReplaceCardInTableHandToBackend cardIndex) )
+            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath (ReplaceCardInTableHandToBackend cardIndex) )
 
         DoubleCardFrontend cardIndex ->
-            ( model, Lamdera.sendToBackend (DoubleCardInTableHandToBackend cardIndex) )
+            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath (DoubleCardInTableHandToBackend cardIndex) )
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -89,10 +89,9 @@ updateFromBackend msg model =
             ( model, Cmd.none )
 
         GotSessionIdAndClientId sessionId clientId ->
-            ( { model | clientId = Just clientId, sessionId = Just sessionId }, Lamdera.sendToBackend (TryToReconnectToBackend model.urlPath) )
-
-        ConnectedBack sessionId clientId frontendGame ->
-            ( { model | clientId = Just clientId, sessionId = Just sessionId }, Cmd.none )
+            ( { model | clientId = Just clientId, sessionId = Just sessionId }
+            , Lamdera.sendToBackend (ToBackendActionFromGame model.urlPath ConnectToBackend)
+            )
 
         UpdateGame game ->
             ( { model | gameFrontend = game }, Cmd.none )
