@@ -110,7 +110,8 @@ displayModel model =
     Element.column
         [ width fill, height fill, padding 20, spacing 20, Background.color grey, scrollbars ]
         [ displayGame model
-        , displayGameDebug model
+
+        -- , displayGameDebug model
         ]
 
 
