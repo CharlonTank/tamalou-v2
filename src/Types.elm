@@ -2,7 +2,7 @@ module Types exposing (..)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
-import Card exposing (Card)
+import Card exposing (Card, FCard)
 import Lamdera exposing (ClientId, SessionId)
 import Time exposing (Posix)
 import Url exposing (Url)
@@ -10,14 +10,14 @@ import Url exposing (Url)
 
 type alias FrontendModel =
     { key : Key
-    , gameFrontend : FrontendGame
+    , gameFrontend : FGame
     , clientId : Maybe ClientId
     , sessionId : Maybe SessionId
     }
 
 
 type alias BackendModel =
-    { game : BackendGame
+    { game : BGame
     }
 
 
@@ -25,6 +25,9 @@ type FrontendMsg
     = UrlClicked UrlRequest
     | UrlChanged Url
     | NoOpFrontendMsg
+    | DrawCardFrontend
+    | TamalouFrontend
+    | DiscardCardFrontend
 
 
 
@@ -33,6 +36,8 @@ type FrontendMsg
 
 type ToBackend
     = NoOpToBackend
+    | DrawCardFromDrawPileToBackend
+    | DiscardCardToBackend
 
 
 type BackendMsg
@@ -45,17 +50,17 @@ type BackendMsg
 
 type ToFrontend
     = NoOpToFrontend
-    | ConnectedBack SessionId ClientId FrontendGame
-    | UpdateGame FrontendGame
+    | ConnectedBack SessionId ClientId FGame
+    | UpdateGame FGame
 
 
-type BackendGame
-    = BackendWaitingForPlayers (List BackendPlayer)
-    | BackendGameInProgress DrawPile DiscardPile (List BackendPlayer) GameInProgressStatus
-    | BackendGameEnded ClientId
+type BGame
+    = BWaitingForPlayers (List BPlayer)
+    | BGameInProgress BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus
+    | BGameEnded ClientId
 
 
-type alias BackendPlayer =
+type alias BPlayer =
     { name : String
     , hand : List Card
     , clientId : ClientId
@@ -63,20 +68,35 @@ type alias BackendPlayer =
     }
 
 
-type FrontendGame
-    = FrontendWaitingForPlayers (List FrontendPlayer)
-    | FrontendGameInProgress DrawPile DiscardPile (List FrontendPlayer) GameInProgressStatus
-    | FrontendGameEnded ClientId
+type FGame
+    = FWaitingForPlayers (List FPlayer)
+    | FGameInProgress FHand FDrawPile DiscardPile (List FPlayer) FGameInProgressStatus
+    | FGameEnded ClientId
 
 
-type GameInProgressStatus
-    = TimerRunning Int
-    | PlayerToPlay SessionId
+type FGameInProgressStatus
+    = FTimerRunning Int
+    | FPlayerToPlay SessionId FPlayerToPlayStatus
 
 
-type alias FrontendPlayer =
+type FPlayerToPlayStatus
+    = FWaitingPlayerDraw
+    | FPlayerHasDraw FCard
+
+
+type BGameInProgressStatus
+    = BTimerRunning Int
+    | BPlayerToPlay SessionId BPlayerToPlayStatus
+
+
+type BPlayerToPlayStatus
+    = BWaitingPlayerDraw
+    | BPlayerHasDraw Card
+
+
+type alias FPlayer =
     { name : String
-    , hand : List Card
+    , hand : List FCard
     , clientId : ClientId
     , sessionId : SessionId
     }
@@ -94,5 +114,13 @@ type alias DiscardPile =
     List Card
 
 
-type alias DrawPile =
+type alias FDrawPile =
+    List FCard
+
+
+type alias FHand =
+    List FCard
+
+
+type alias BDrawPile =
     List Card

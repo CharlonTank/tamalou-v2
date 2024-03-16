@@ -2,7 +2,7 @@ module Frontend exposing (..)
 
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
-import Card
+import Card exposing (FCard(..), displayCard, displayCards)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Input as Input
@@ -31,7 +31,7 @@ app =
 init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
 init url key =
     ( { key = key
-      , gameFrontend = FrontendWaitingForPlayers []
+      , gameFrontend = FWaitingForPlayers []
       , clientId = Nothing
       , sessionId = Nothing
       }
@@ -60,6 +60,15 @@ update msg model =
         NoOpFrontendMsg ->
             ( model, Cmd.none )
 
+        DrawCardFrontend ->
+            ( model, Lamdera.sendToBackend DrawCardFromDrawPileToBackend )
+
+        TamalouFrontend ->
+            ( model, Debug.todo "Tamalou not implemented" )
+
+        DiscardCardFrontend ->
+            ( model, Lamdera.sendToBackend DiscardCardToBackend )
+
 
 
 -- CardShuffled shuffledDeck ->
@@ -73,7 +82,7 @@ updateFromBackend msg model =
             ( model, Cmd.none )
 
         ConnectedBack sessionId clientId frontendGame ->
-            ( { model | gameFrontend = Debug.log "frontendGame" frontendGame, clientId = Just clientId, sessionId = Just sessionId }, Cmd.none )
+            ( { model | clientId = Just clientId, sessionId = Just sessionId }, Cmd.none )
 
         UpdateGame game ->
             ( { model | gameFrontend = game }, Cmd.none )
@@ -91,6 +100,7 @@ displayModel model =
     Element.column
         [ width fill, height fill, padding 20, spacing 20, Background.color grey, scrollbars ]
         [ displayGame model
+        , displayGameDebug model
         ]
 
 
@@ -102,22 +112,20 @@ grey =
 displayGame : FrontendModel -> Element FrontendMsg
 displayGame model =
     case model.gameFrontend of
-        FrontendWaitingForPlayers players ->
+        FWaitingForPlayers players ->
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                (text "Waiting for players"
-                    :: List.map displayPlayerDebug players
-                )
+                (text "Waiting for players" :: List.map displayPlayerDebug players)
 
-        FrontendGameInProgress drawPile discardPile players (TimerRunning timer) ->
+        FGameInProgress hand drawPile discardPile players (FTimerRunning timer) ->
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
                 [ Element.text "Game in progress during timer"
                 , displayTimer timer
-                , displayPlayerView model.sessionId players
+                , displayPlayerView model.sessionId players hand
                 ]
 
-        FrontendGameInProgress drawPile discardPile players (PlayerToPlay sessionId) ->
+        FGameInProgress hand drawPile discardPile players (FPlayerToPlay sessionId FWaitingPlayerDraw) ->
             let
                 currentPlayer =
                     List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
@@ -125,20 +133,70 @@ displayGame model =
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
                 [ Element.text "Game in progress after timer"
+                , currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
                 , text sessionId
-                , displayPlayerView model.sessionId players
                 , if Maybe.map .sessionId currentPlayer == Just sessionId then
-                    Input.button [] { onPress = Nothing, label = text "Draw" }
+                    row [ spacing 16 ]
+                        [ Input.button [] { onPress = Just DrawCardFrontend, label = text "Draw the drawPile" }
+                        , displayDiscardCards discardPile True
+                        , Input.button [] { onPress = Just TamalouFrontend, label = text "Tamalou" }
+                        ]
 
                   else
-                    none
+                    row [ spacing 16 ]
+                        [ displayDiscardCards discardPile False
+                        ]
+                , displayPlayerView model.sessionId players hand
                 ]
 
-        FrontendGameEnded clientId ->
+        FGameInProgress hand drawPile discardPile players (FPlayerToPlay sessionId (FPlayerHasDraw fCard)) ->
+            let
+                currentPlayer =
+                    List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
+            in
+            column
+                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                [ text "Game in progress after timer"
+                , currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
+                , text sessionId
+                , displayCard fCard
+                , if Maybe.map .sessionId currentPlayer == Just sessionId then
+                    row [ spacing 16 ]
+                        [ Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
+                        , displayDiscardCards discardPile True
+
+                        -- , Input.button [] { onPress = Just Tamalou, label = text "Tamalou" }
+                        ]
+
+                  else
+                    row [ spacing 16 ]
+                        [ displayDiscardCards discardPile False
+                        ]
+                , displayPlayerView model.sessionId players hand
+                ]
+
+        FGameEnded clientId ->
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
                 [ Element.text "Game ended"
                 , Element.text clientId
+                ]
+
+
+displayDiscardCards : DiscardPile -> Bool -> Element FrontendMsg
+displayDiscardCards discardPile canDrawCard =
+    case discardPile of
+        [] ->
+            text "X"
+
+        head :: _ ->
+            column [ spacing 4 ]
+                [ displayCard (FaceUp head)
+                , if canDrawCard then
+                    Input.button [] { onPress = Just DrawCardFrontend, label = text "Draw the discardPile" }
+
+                  else
+                    none
                 ]
 
 
@@ -168,7 +226,7 @@ displayTimer timer =
                 ""
 
 
-displayPlayerDebug : FrontendPlayer -> Element FrontendMsg
+displayPlayerDebug : FPlayer -> Element FrontendMsg
 displayPlayerDebug player =
     column
         [ width fill, spacing 12 ]
@@ -179,12 +237,12 @@ displayPlayerDebug player =
         ]
 
 
-displayPlayerView : Maybe SessionId -> List FrontendPlayer -> Element FrontendMsg
-displayPlayerView sessionId players =
+displayPlayerView : Maybe SessionId -> List FPlayer -> FHand -> Element FrontendMsg
+displayPlayerView sessionId players hand =
     case List.Extra.find (\p -> Just p.sessionId == sessionId) players of
         Just player ->
             column []
-                [ displayPlayerDebug player
+                [ Card.displayCards hand
 
                 -- , column [] <| List.map displayPlayer players
                 ]
@@ -194,3 +252,12 @@ displayPlayerView sessionId players =
                 [ text "A skip je joue pas ?"
                 , column [] <| List.map displayPlayerDebug players
                 ]
+
+
+displayGameDebug : FrontendModel -> Element FrontendMsg
+displayGameDebug model =
+    column
+        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+        [ text "Game debug"
+        , text <| Debug.toString model
+        ]

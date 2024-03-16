@@ -11,6 +11,11 @@ type alias Card =
     }
 
 
+type FCard
+    = FaceUp Card
+    | FaceDown
+
+
 type Suit
     = Clubs
     | Diamonds
@@ -34,14 +39,15 @@ type Rank
     | King
 
 
-displayCard : Card -> Element msg
-displayCard card =
+displayCard : FCard -> Element msg
+displayCard frontendCard =
     image [ Border.rounded 100, width <| px 128 ] <|
-        if card.show then
-            { src = "src/cardImages/" ++ cardToString card ++ ".png", description = cardToString card }
+        case frontendCard of
+            FaceUp card ->
+                { src = "src/cardImages/" ++ cardToString card ++ ".png", description = cardToString card }
 
-        else
-            { src = "src/cardImages/BackCovers/Pomegranate.png", description = "back" }
+            FaceDown ->
+                { src = "src/cardImages/BackCovers/Pomegranate.png", description = "back" }
 
 
 cardToString : Card -> String
@@ -170,6 +176,6 @@ nonShuffledDeck =
     ]
 
 
-displayCards : List Card -> Element msg
+displayCards : List FCard -> Element msg
 displayCards cards =
     wrappedRow [ spacing 12 ] (List.map displayCard cards)
