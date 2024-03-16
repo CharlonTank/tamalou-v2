@@ -155,9 +155,11 @@ displayGame model =
             in
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ text "Game in progress after timer"
-                , currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
-                , text sessionId
+                [ -- text "Game in progress after timer"
+                  currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
+
+                -- , text sessionId
+                , displayDiscardCards discardPile False
                 , displayPlayerView model.sessionId players hand cardClickEvent
                 ]
 
@@ -175,10 +177,12 @@ displayGame model =
             in
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ text "Game in progress after timer"
-                , currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
-                , text sessionId
+                [ -- text "Game in progress after timer"
+                  currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
+
+                -- , text sessionId
                 , displayCard FaceDown
+                , displayDiscardCards discardPile False
                 , displayPlayerView model.sessionId players hand cardClickEvent
                 ]
 
@@ -193,8 +197,8 @@ displayGame model =
             in
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ text "Game in progress after timer"
-                , text "Your turn"
+                [ -- text "Game in progress after timer"
+                  text "Your turn"
                 , row [ spacing 16 ]
                     [ Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw the drawPile" }
                     , displayDiscardCards discardPile True
@@ -206,8 +210,8 @@ displayGame model =
         FGameInProgress hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
             column
                 [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ text "Game in progress after timer"
-                , text "Your turn"
+                [ -- text "Game in progress after timer"
+                  text "Your turn"
                 , displayCard fCard
                 , row [ spacing 16 ]
                     [ Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
@@ -240,7 +244,7 @@ displayDiscardCards discardPile canDrawCard =
 
         head :: _ ->
             column [ spacing 4 ]
-                [ displayCard (FaceUp head)
+                [ el [ Events.onClick DrawCardFromDiscardPileFrontend ] <| displayCard (FaceUp head)
                 , if canDrawCard then
                     Input.button [] { onPress = Just DrawCardFromDiscardPileFrontend, label = text "Draw the discardPile" }
 
