@@ -36,6 +36,7 @@ init url key =
       , gameFrontend = FWaitingForPlayers []
       , clientId = Nothing
       , sessionId = Nothing
+      , urlPath = url.path
       }
     , Cmd.none
     )
@@ -87,6 +88,9 @@ updateFromBackend msg model =
         NoOpToFrontend ->
             ( model, Cmd.none )
 
+        GotSessionIdAndClientId sessionId clientId ->
+            ( { model | clientId = Just clientId, sessionId = Just sessionId }, Lamdera.sendToBackend (TryToReconnectToBackend model.urlPath) )
+
         ConnectedBack sessionId clientId frontendGame ->
             ( { model | clientId = Just clientId, sessionId = Just sessionId }, Cmd.none )
 
@@ -106,8 +110,7 @@ displayModel model =
     Element.column
         [ width fill, height fill, padding 20, spacing 20, Background.color grey, scrollbars ]
         [ displayGame model
-
-        -- , displayGameDebug model
+        , displayGameDebug model
         ]
 
 
