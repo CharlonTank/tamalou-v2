@@ -339,7 +339,7 @@ displayCard frontendCard =
     image [ Border.rounded 100, width <| px 128 ] <|
         case frontendCard of
             FaceUp card ->
-                { src = "src/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }
+                { src = "/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }
 
             FaceDown ->
-                { src = "src/cardImages/BackCovers/Pomegranate.png", description = "back" }
+                { src = "/cardImages/BackCovers/Pomegranate.png", description = "back" }
