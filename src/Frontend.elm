@@ -67,7 +67,8 @@ update msg ({ urlPath } as model) =
             ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DrawCardFromDrawPileToBackend )
 
         TamalouFrontend ->
-            ( model, Debug.todo "Tamalou not implemented" )
+            -- ( model, Debug.todo "Tamalou not implemented" )
+            ( model, Cmd.none )
 
         DiscardCardFrontend ->
             ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DiscardCardInHandToBackend )
@@ -309,7 +310,8 @@ displayGameDebug model =
     column
         [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
         [ text "Game debug"
-        , text <| Debug.toString model
+
+        -- , text <| Debug.toString model
         ]
 
 
