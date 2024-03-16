@@ -60,7 +60,7 @@ update msg model =
         NoOpFrontendMsg ->
             ( model, Cmd.none )
 
-        DrawCardFrontend ->
+        DrawCardFromDeckFrontend ->
             ( model, Lamdera.sendToBackend DrawCardFromDrawPileToBackend )
 
         TamalouFrontend ->
@@ -69,10 +69,8 @@ update msg model =
         DiscardCardFrontend ->
             ( model, Lamdera.sendToBackend DiscardCardToBackend )
 
-
-
--- CardShuffled shuffledDeck ->
---     ( { model | deck = shuffledDeck }, Cmd.none )
+        DrawCardFromDiscardPileFrontend ->
+            ( model, Lamdera.sendToBackend DrawCardFromDiscardPileToBackend )
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -137,7 +135,7 @@ displayGame model =
                 , text sessionId
                 , if Maybe.map .sessionId currentPlayer == Just sessionId then
                     row [ spacing 16 ]
-                        [ Input.button [] { onPress = Just DrawCardFrontend, label = text "Draw the drawPile" }
+                        [ Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw the drawPile" }
                         , displayDiscardCards discardPile True
                         , Input.button [] { onPress = Just TamalouFrontend, label = text "Tamalou" }
                         ]
@@ -193,7 +191,7 @@ displayDiscardCards discardPile canDrawCard =
             column [ spacing 4 ]
                 [ displayCard (FaceUp head)
                 , if canDrawCard then
-                    Input.button [] { onPress = Just DrawCardFrontend, label = text "Draw the discardPile" }
+                    Input.button [] { onPress = Just DrawCardFromDiscardPileFrontend, label = text "Draw the discardPile" }
 
                   else
                     none
@@ -233,11 +231,11 @@ displayPlayerDebug player =
         [ text player.name
         , row [ spacing 8 ] [ text "ClientId = ", text player.clientId ]
         , row [ spacing 8 ] [ text "SessionId = ", text player.sessionId ]
-        , Card.displayCards player.hand
+        , Card.displayCards player.tableHand
         ]
 
 
-displayPlayerView : Maybe SessionId -> List FPlayer -> FHand -> Element FrontendMsg
+displayPlayerView : Maybe SessionId -> List FPlayer -> FTableHand -> Element FrontendMsg
 displayPlayerView sessionId players hand =
     case List.Extra.find (\p -> Just p.sessionId == sessionId) players of
         Just player ->

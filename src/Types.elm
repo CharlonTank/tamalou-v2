@@ -25,9 +25,10 @@ type FrontendMsg
     = UrlClicked UrlRequest
     | UrlChanged Url
     | NoOpFrontendMsg
-    | DrawCardFrontend
+    | DrawCardFromDeckFrontend
     | TamalouFrontend
     | DiscardCardFrontend
+    | DrawCardFromDiscardPileFrontend
 
 
 
@@ -38,6 +39,7 @@ type ToBackend
     = NoOpToBackend
     | DrawCardFromDrawPileToBackend
     | DiscardCardToBackend
+    | DrawCardFromDiscardPileToBackend
 
 
 type BackendMsg
@@ -62,7 +64,7 @@ type BGame
 
 type alias BPlayer =
     { name : String
-    , hand : List Card
+    , tableHand : List Card
     , clientId : ClientId
     , sessionId : SessionId
     }
@@ -70,7 +72,7 @@ type alias BPlayer =
 
 type FGame
     = FWaitingForPlayers (List FPlayer)
-    | FGameInProgress FHand FDrawPile DiscardPile (List FPlayer) FGameInProgressStatus
+    | FGameInProgress FTableHand FDrawPile DiscardPile (List FPlayer) FGameInProgressStatus
     | FGameEnded ClientId
 
 
@@ -96,7 +98,7 @@ type BPlayerToPlayStatus
 
 type alias FPlayer =
     { name : String
-    , hand : List FCard
+    , tableHand : List FCard
     , clientId : ClientId
     , sessionId : SessionId
     }
@@ -118,7 +120,7 @@ type alias FDrawPile =
     List FCard
 
 
-type alias FHand =
+type alias FTableHand =
     List FCard
 
 

@@ -72,7 +72,7 @@ update msg ({ game } as model) =
                                 Nothing ->
                                     players
                                         ++ [ { name = "Player " ++ String.fromInt (List.length players + 1)
-                                             , hand = []
+                                             , tableHand = []
                                              , clientId = clientId
                                              , sessionId = sessionId
                                              }
@@ -243,8 +243,8 @@ update msg ({ game } as model) =
 stopDisplayCards : List BPlayer -> List BPlayer
 stopDisplayCards players =
     List.map
-        (\({ hand } as player) ->
-            { player | hand = List.map (\card -> { card | show = False }) hand }
+        (\({ tableHand } as player) ->
+            { player | tableHand = List.map (\card -> { card | show = False }) tableHand }
         )
         players
 
@@ -256,16 +256,16 @@ distribute4CardsToPlayer drawPile player =
             ( drawPile, player )
 
         card1 :: [] ->
-            ( [], { player | hand = [ { card1 | show = True } ] } )
+            ( [], { player | tableHand = [ { card1 | show = True } ] } )
 
         card1 :: card2 :: [] ->
-            ( [], { player | hand = [ { card1 | show = True }, card2 ] } )
+            ( [], { player | tableHand = [ { card1 | show = True }, card2 ] } )
 
         card1 :: card2 :: card3 :: [] ->
-            ( [], { player | hand = [ { card1 | show = True }, card2, card3 ] } )
+            ( [], { player | tableHand = [ { card1 | show = True }, card2, card3 ] } )
 
         card1 :: card2 :: card3 :: card4 :: drawPile_ ->
-            ( drawPile_, { player | hand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
+            ( drawPile_, { player | tableHand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
 
 
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg )
@@ -280,6 +280,24 @@ updateFromFrontend sessionId clientId msg ({ game } as model) =
                     if sessionId == sessionId_ then
                         ( model, Cmd.none )
                             |> drawInDrawPile sessionId
+
+                    else
+                        ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        DrawCardFromDiscardPileToBackend ->
+            case game of
+                BGameInProgress drawPile (head :: rest) players (BPlayerToPlay sessionId_ BWaitingPlayerDraw) ->
+                    if sessionId == sessionId_ then
+                        let
+                            newGame =
+                                BGameInProgress drawPile rest players (BPlayerToPlay sessionId_ (BPlayerHasDraw head))
+                        in
+                        ( { model | game = newGame }
+                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameToFrontendGame (Just player.sessionId) newGame) players
+                        )
 
                     else
                         ( model, Cmd.none )
@@ -351,18 +369,18 @@ backendGameToFrontendGame maybeSessionId backendGame =
 
         BGameInProgress bDrawPile discardPile players bGameInProgressStatus ->
             let
-                hand =
+                tableHand =
                     case maybeSessionId of
                         Just sessionId ->
                             List.Extra.find ((==) sessionId << .sessionId) players
-                                |> Maybe.map .hand
+                                |> Maybe.map .tableHand
                                 |> Maybe.map (List.map cardToFrontendCard)
                                 |> Maybe.withDefault [ FaceUp Card.sampleCard, FaceUp Card.sampleCard ]
 
                         Nothing ->
                             [ FaceUp Card.sampleCard ]
             in
-            FGameInProgress hand (List.map (always Card.FaceDown) bDrawPile) discardPile (List.map backendPlayerToFrontendPlayer players) (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
+            FGameInProgress tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile (List.map backendPlayerToFrontendPlayer players) (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
 
         BGameEnded clientId_ ->
             FGameEnded clientId_
@@ -394,7 +412,7 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
 backendPlayerToFrontendPlayer : BPlayer -> FPlayer
 backendPlayerToFrontendPlayer backendPlayer =
     { name = backendPlayer.name
-    , hand = List.map cardToFrontendCard backendPlayer.hand
+    , tableHand = List.map cardToFrontendCard backendPlayer.tableHand
     , clientId = backendPlayer.clientId
     , sessionId = backendPlayer.sessionId
     }
