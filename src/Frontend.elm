@@ -11,17 +11,100 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
-import Html
-import Html.Attributes as Attr
-import Lamdera exposing (ClientId, SessionId)
+import Lamdera exposing (SessionId)
 import List.Extra
-import Random
-import Random.List as Random
+import Simple.Animation as Animation exposing (Animation)
+import Simple.Animation.Animated as Animated
+import Simple.Animation.Property as P
+import Svg exposing (Svg)
+import Svg.Attributes as SvgA
 import Task
 import Types exposing (..)
 import Url
 
 
+grey : Color
+grey =
+    Element.rgb255 200 200 200
+
+
+phoneRotateAnimation : Animation
+phoneRotateAnimation =
+    Animation.steps
+        { startAt = [ P.rotate 0, customTransformOrigin "center" ]
+        , options = [ Animation.loop ]
+        }
+        [ Animation.step 500 [ P.rotate 90, customTransformOrigin "center" ]
+        , Animation.wait 300
+        , Animation.step 200 [ P.rotate 0, customTransformOrigin "center" ]
+        , Animation.wait 300
+        ]
+
+
+customTransformOrigin : String -> P.Property
+customTransformOrigin origin =
+    P.property "transform-origin" origin
+
+
+minimalistPhoneWithHint : Svg FrontendMsg
+minimalistPhoneWithHint =
+    Svg.svg [ SvgA.viewBox "0 0 100 100" ]
+        [ Animated.svg { class = SvgA.class } Svg.g phoneRotateAnimation [] [ phoneSvg ]
+        ]
+
+
+redSquare : Svg msg
+redSquare =
+    Svg.rect
+        [ SvgA.width "50"
+        , SvgA.height "50"
+        , SvgA.fill "red"
+        ]
+        []
+
+
+phoneSvg : Svg FrontendMsg
+phoneSvg =
+    Svg.g
+        [ SvgA.width "50"
+        , SvgA.height "50"
+        ]
+        [ centeredRect [ SvgA.fill "black" ] 40 30 3
+        , centeredRect [ SvgA.fill "grey" ] 41 31 2
+        , Svg.circle [ SvgA.cx "50", SvgA.cy "31.6", SvgA.r "0.4", SvgA.fill "black" ] []
+        , Svg.rect [ SvgA.x "39.8", SvgA.y "35", SvgA.width "0.5", SvgA.height "3", SvgA.rx "0.5", SvgA.ry "0.5", SvgA.fill "grey" ] []
+        ]
+
+
+centeredRect : List (Svg.Attribute msg) -> Int -> Int -> Int -> Svg msg
+centeredRect attributes x y radius =
+    let
+        xInt =
+            String.fromInt x
+
+        yInt =
+            String.fromInt y
+
+        rectWidth =
+            (100 - x * 2) |> String.fromInt
+
+        rectHeight =
+            (100 - y * 2) |> String.fromInt
+    in
+    Svg.rect
+        (attributes
+            ++ [ SvgA.x xInt
+               , SvgA.width rectWidth
+               , SvgA.y yInt
+               , SvgA.height rectHeight
+               , SvgA.rx (String.fromInt radius)
+               , SvgA.ry (String.fromInt radius)
+               ]
+        )
+        []
+
+
+app : { init : Lamdera.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg ), view : FrontendModel -> Browser.Document FrontendMsg, update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg ), updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg ), subscriptions : FrontendModel -> Sub FrontendMsg, onUrlRequest : UrlRequest -> FrontendMsg, onUrlChange : Url.Url -> FrontendMsg }
 app =
     Lamdera.frontend
         { init = init
@@ -80,7 +163,7 @@ update msg ({ urlPath } as model) =
                     , Nav.load url
                     )
 
-        UrlChanged url ->
+        UrlChanged _ ->
             ( model, Cmd.none )
 
         NoOpFrontendMsg ->
@@ -131,16 +214,11 @@ view model =
 displayModel : FrontendModel -> Element FrontendMsg
 displayModel model =
     Element.column
-        [ width fill, height fill, padding 20, spacing 20, Background.color grey, scrollbars ]
+        [ width fill, height fill, spacing 20, scrollbars ]
         [ displayGame model
 
         -- , displayGameDebug model
         ]
-
-
-grey : Color
-grey =
-    Element.rgb255 200 200 200
 
 
 type CardClickEvent
@@ -152,116 +230,112 @@ displayGame : FrontendModel -> Element FrontendMsg
 displayGame model =
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
-            el [ width fill, height fill ] <| el [ Font.center, width fill, centerY ] <| text "Please rotate your phone to play"
+            el [ width fill, height fill ] <|
+                column [ Font.center, width fill, centerY ]
+                    [ el [ width fill, centerX ] <| text "Rotate your phone 🚀"
+                    , el [ centerX, height <| px 150, width <| px 150, moveUp 24 ] <| html minimalistPhoneWithHint
+                    ]
 
         _ ->
-            case model.gameFrontend of
-                FWaitingForPlayers players ->
-                    column
-                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                        (text "Waiting for players" :: List.map displayPlayerDebug players)
+            el [ width fill, height fill, Background.image "/background.jpeg" ] <|
+                case model.gameFrontend of
+                    FWaitingForPlayers players ->
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            (text "Waiting for players" :: List.map displayPlayerDebug players)
 
-                FGameInProgress hand drawPile discardPile players (FTimerRunning timer) ->
-                    column
-                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                        [ Element.text "Game in progress during timer"
-                        , displayTimer timer
-                        , displayPlayerView model.sessionId players hand Nothing
-                        ]
-
-                FGameInProgress hand drawPile discardPile players (FPlayerToPlay sessionId FWaitingPlayerDraw) ->
-                    let
-                        currentPlayer =
-                            List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
-
-                        cardClickEvent =
-                            if List.isEmpty discardPile then
-                                Nothing
-
-                            else
-                                Just CardClickDouble
-                    in
-                    column
-                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                        [ -- text "Game in progress after timer"
-                          currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
-
-                        -- , text sessionId
-                        , displayDiscardCards discardPile False
-                        , displayPlayerView model.sessionId players hand cardClickEvent
-                        ]
-
-                FGameInProgress hand drawPile discardPile players (FPlayerToPlay sessionId (FPlayerHasDraw fCard)) ->
-                    let
-                        currentPlayer =
-                            List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
-
-                        cardClickEvent =
-                            if List.isEmpty discardPile then
-                                Nothing
-
-                            else
-                                Just CardClickDouble
-                    in
-                    column
-                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                        [ -- text "Game in progress after timer"
-                          currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
-
-                        -- , text sessionId
-                        , displayCard FaceDown
-                        , displayDiscardCards discardPile False
-                        , displayPlayerView model.sessionId players hand cardClickEvent
-                        ]
-
-                FGameInProgress hand drawPile discardPile players (FYourTurn FWaitingPlayerDraw) ->
-                    let
-                        cardClickEvent =
-                            if List.isEmpty discardPile then
-                                Nothing
-
-                            else
-                                Just CardClickDouble
-                    in
-                    column
-                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                        [ -- text "Game in progress after timer"
-                          text "Your turn"
-                        , row [ spacing 16 ]
-                            [ Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw the drawPile" }
-                            , displayDiscardCards discardPile True
-                            , Input.button [] { onPress = Just TamalouFrontend, label = text "Tamalou" }
+                    FGameInProgress hand _ _ players (FTimerRunning timer) ->
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            [ displayTimer timer
+                            , displayPlayerView model.sessionId model.device.class players hand Nothing
                             ]
-                        , displayPlayerView model.sessionId players hand cardClickEvent
-                        ]
 
-                FGameInProgress hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
-                    column
-                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                        [ -- text "Game in progress after timer"
-                          text "Your turn"
-                        , displayCard fCard
-                        , row [ spacing 16 ]
-                            [ Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
+                    FGameInProgress hand _ discardPile players (FPlayerToPlay _ FWaitingPlayerDraw) ->
+                        let
+                            currentPlayer =
+                                List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
+
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else
+                                    Just CardClickDouble
+                        in
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            [ -- currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
+                              displayDiscardCards discardPile False
+                            , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
+                            ]
+
+                    FGameInProgress hand _ discardPile players (FPlayerToPlay _ (FPlayerHasDraw _)) ->
+                        let
+                            currentPlayer =
+                                List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
+
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else
+                                    Just CardClickDouble
+                        in
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            [ currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
+                            , displayCard model.device.class FaceDown
                             , displayDiscardCards discardPile False
-
-                            -- , Input.button [] { onPress = Just Tamalou, label = text "Tamalou" }
+                            , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
-                        , displayPlayerView model.sessionId players hand (Just CardClickReplacement)
-                        ]
 
-                FGameEnded clientId ->
-                    column
-                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                        [ Element.text "Game ended"
-                        , Element.text clientId
-                        ]
+                    FGameInProgress hand _ discardPile players (FYourTurn FWaitingPlayerDraw) ->
+                        let
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
 
-                FGameAlreadyStartedWithoutYou ->
-                    column
-                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                        [ Element.text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
-                        ]
+                                else
+                                    Just CardClickDouble
+                        in
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            [ text "Your turn"
+                            , row [ spacing 16 ]
+                                [ Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw the drawPile" }
+                                , displayDiscardCards discardPile True
+                                , Input.button [] { onPress = Just TamalouFrontend, label = text "Tamalou" }
+                                ]
+                            , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
+                            ]
+
+                    FGameInProgress hand _ discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            [ text "Your turn"
+                            , displayCard model.device.class fCard
+                            , row [ spacing 16 ]
+                                [ Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
+                                , displayDiscardCards discardPile False
+
+                                -- , Input.button [] { onPress = Just Tamalou, label = text "Tamalou" }
+                                ]
+                            , displayPlayerView model.sessionId model.device.class players hand (Just CardClickReplacement)
+                            ]
+
+                    FGameEnded clientId ->
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            [ Element.text "Game ended"
+                            , Element.text clientId
+                            ]
+
+                    FGameAlreadyStartedWithoutYou ->
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            [ Element.text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
+                            ]
 
 
 displayDiscardCards : DiscardPile -> Bool -> Element FrontendMsg
@@ -272,7 +346,7 @@ displayDiscardCards discardPile canDrawCard =
 
         head :: _ ->
             column [ spacing 4 ]
-                [ el [ Events.onClick DrawCardFromDiscardPileFrontend ] <| displayCard (FaceUp head)
+                [ el [ Events.onClick DrawCardFromDiscardPileFrontend ] <| displayCard Desktop (FaceUp head)
                 , if canDrawCard then
                     Input.button [] { onPress = Just DrawCardFromDiscardPileFrontend, label = text "Draw the discardPile" }
 
@@ -314,43 +388,29 @@ displayPlayerDebug player =
         [ text player.name
         , row [ spacing 8 ] [ text "ClientId = ", text player.clientId ]
         , row [ spacing 8 ] [ text "SessionId = ", text player.sessionId ]
-
-        -- , displayCards player.tableHand
         ]
 
 
-displayPlayerView : Maybe SessionId -> List FPlayer -> FTableHand -> Maybe CardClickEvent -> Element FrontendMsg
-displayPlayerView sessionId players tableHand maybeCardClick =
-    -- case List.Extra.find (\p -> Just p.sessionId == sessionId) players of
-    --     Just player ->
-    column []
-        [ displayCards tableHand maybeCardClick
-
-        -- , column [] <| List.map displayPlayer players
+displayPlayerView : Maybe SessionId -> DeviceClass -> List FPlayer -> FTableHand -> Maybe CardClickEvent -> Element FrontendMsg
+displayPlayerView _ deviceClass _ tableHand maybeCardClick =
+    column [ width fill, alignBottom ]
+        [ displayCards deviceClass tableHand maybeCardClick
         ]
-
-
-
--- Nothing ->
---     column []
---         [ text "A skip je joue pas ?"
---         -- , column [] <| List.map displayPlayerDebug players
---         ]
 
 
 displayGameDebug : FrontendModel -> Element FrontendMsg
-displayGameDebug model =
+displayGameDebug _ =
     column
-        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+        [ width fill, height fill, spacing 20, scrollbars ]
         [ text "Game debug"
 
         -- , text <| Debug.toString model
         ]
 
 
-displayCards : List FCard -> Maybe CardClickEvent -> Element FrontendMsg
-displayCards cards maybeCardClickEvent =
-    wrappedRow [ spacing 12 ] (List.indexedMap (onClickCard maybeCardClickEvent displayCard) cards)
+displayCards : DeviceClass -> List FCard -> Maybe CardClickEvent -> Element FrontendMsg
+displayCards deviceClass cards maybeCardClickEvent =
+    wrappedRow [ spacing 12, centerX ] (List.indexedMap (onClickCard maybeCardClickEvent (displayCard deviceClass)) cards)
 
 
 onClickCard : Maybe CardClickEvent -> (FCard -> Element FrontendMsg) -> Int -> FCard -> Element FrontendMsg
@@ -366,9 +426,24 @@ onClickCard maybeCardClickEvent tag index card =
             Element.el [ Events.onClick (ReplaceCardInFrontend index) ] (tag card)
 
 
-displayCard : FCard -> Element msg
-displayCard frontendCard =
-    image [ Border.rounded 100, width <| px 128 ] <|
+displayCard : DeviceClass -> FCard -> Element msg
+displayCard deviceClass frontendCard =
+    let
+        cardWidth =
+            case deviceClass of
+                Phone ->
+                    px 96
+
+                Tablet ->
+                    px 128
+
+                Desktop ->
+                    px 128
+
+                BigDesktop ->
+                    px 128
+    in
+    image [ Border.rounded 100, width cardWidth ] <|
         case frontendCard of
             FaceUp card ->
                 { src = "/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }
