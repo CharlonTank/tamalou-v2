@@ -1,12 +1,15 @@
 module Frontend exposing (..)
 
 import Browser exposing (UrlRequest(..))
+import Browser.Dom
+import Browser.Events
 import Browser.Navigation as Nav
 import Card exposing (FCard(..))
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
+import Element.Font as Font
 import Element.Input as Input
 import Html
 import Html.Attributes as Attr
@@ -14,6 +17,7 @@ import Lamdera exposing (ClientId, SessionId)
 import List.Extra
 import Random
 import Random.List as Random
+import Task
 import Types exposing (..)
 import Url
 
@@ -25,9 +29,14 @@ app =
         , onUrlChange = UrlChanged
         , update = update
         , updateFromBackend = updateFromBackend
-        , subscriptions = \m -> Sub.none
+        , subscriptions = subscriptions
         , view = view
         }
+
+
+subscriptions : FrontendModel -> Sub FrontendMsg
+subscriptions _ =
+    Browser.Events.onResize (\w h -> GotWindowSize (classifyDevice { width = w, height = h }))
 
 
 init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
@@ -37,14 +46,28 @@ init url key =
       , clientId = Nothing
       , sessionId = Nothing
       , urlPath = url.path
+      , device = Device Phone Landscape
       }
-    , Cmd.none
+    , Task.perform
+        (\v ->
+            { height = round v.viewport.height
+            , width = round v.viewport.width
+            }
+                |> classifyDevice
+                |> GotWindowSize
+        )
+        Browser.Dom.getViewport
     )
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 update msg ({ urlPath } as model) =
     case msg of
+        GotWindowSize device ->
+            ( { model | device = device }
+            , Cmd.none
+            )
+
         UrlClicked urlRequest ->
             case urlRequest of
                 Internal url ->
@@ -127,113 +150,118 @@ type CardClickEvent
 
 displayGame : FrontendModel -> Element FrontendMsg
 displayGame model =
-    case model.gameFrontend of
-        FWaitingForPlayers players ->
-            column
-                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                (text "Waiting for players" :: List.map displayPlayerDebug players)
+    case ( model.device.class, model.device.orientation ) of
+        ( Phone, Portrait ) ->
+            el [ width fill, height fill ] <| el [ Font.center, width fill, centerY ] <| text "Please rotate your phone to play"
 
-        FGameInProgress hand drawPile discardPile players (FTimerRunning timer) ->
-            column
-                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ Element.text "Game in progress during timer"
-                , displayTimer timer
-                , displayPlayerView model.sessionId players hand Nothing
-                ]
+        _ ->
+            case model.gameFrontend of
+                FWaitingForPlayers players ->
+                    column
+                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                        (text "Waiting for players" :: List.map displayPlayerDebug players)
 
-        FGameInProgress hand drawPile discardPile players (FPlayerToPlay sessionId FWaitingPlayerDraw) ->
-            let
-                currentPlayer =
-                    List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
+                FGameInProgress hand drawPile discardPile players (FTimerRunning timer) ->
+                    column
+                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                        [ Element.text "Game in progress during timer"
+                        , displayTimer timer
+                        , displayPlayerView model.sessionId players hand Nothing
+                        ]
 
-                cardClickEvent =
-                    if List.isEmpty discardPile then
-                        Nothing
+                FGameInProgress hand drawPile discardPile players (FPlayerToPlay sessionId FWaitingPlayerDraw) ->
+                    let
+                        currentPlayer =
+                            List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
 
-                    else
-                        Just CardClickDouble
-            in
-            column
-                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ -- text "Game in progress after timer"
-                  currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
+                        cardClickEvent =
+                            if List.isEmpty discardPile then
+                                Nothing
 
-                -- , text sessionId
-                , displayDiscardCards discardPile False
-                , displayPlayerView model.sessionId players hand cardClickEvent
-                ]
+                            else
+                                Just CardClickDouble
+                    in
+                    column
+                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                        [ -- text "Game in progress after timer"
+                          currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
 
-        FGameInProgress hand drawPile discardPile players (FPlayerToPlay sessionId (FPlayerHasDraw fCard)) ->
-            let
-                currentPlayer =
-                    List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
+                        -- , text sessionId
+                        , displayDiscardCards discardPile False
+                        , displayPlayerView model.sessionId players hand cardClickEvent
+                        ]
 
-                cardClickEvent =
-                    if List.isEmpty discardPile then
-                        Nothing
+                FGameInProgress hand drawPile discardPile players (FPlayerToPlay sessionId (FPlayerHasDraw fCard)) ->
+                    let
+                        currentPlayer =
+                            List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
 
-                    else
-                        Just CardClickDouble
-            in
-            column
-                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ -- text "Game in progress after timer"
-                  currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
+                        cardClickEvent =
+                            if List.isEmpty discardPile then
+                                Nothing
 
-                -- , text sessionId
-                , displayCard FaceDown
-                , displayDiscardCards discardPile False
-                , displayPlayerView model.sessionId players hand cardClickEvent
-                ]
+                            else
+                                Just CardClickDouble
+                    in
+                    column
+                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                        [ -- text "Game in progress after timer"
+                          currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
 
-        FGameInProgress hand drawPile discardPile players (FYourTurn FWaitingPlayerDraw) ->
-            let
-                cardClickEvent =
-                    if List.isEmpty discardPile then
-                        Nothing
+                        -- , text sessionId
+                        , displayCard FaceDown
+                        , displayDiscardCards discardPile False
+                        , displayPlayerView model.sessionId players hand cardClickEvent
+                        ]
 
-                    else
-                        Just CardClickDouble
-            in
-            column
-                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ -- text "Game in progress after timer"
-                  text "Your turn"
-                , row [ spacing 16 ]
-                    [ Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw the drawPile" }
-                    , displayDiscardCards discardPile True
-                    , Input.button [] { onPress = Just TamalouFrontend, label = text "Tamalou" }
-                    ]
-                , displayPlayerView model.sessionId players hand cardClickEvent
-                ]
+                FGameInProgress hand drawPile discardPile players (FYourTurn FWaitingPlayerDraw) ->
+                    let
+                        cardClickEvent =
+                            if List.isEmpty discardPile then
+                                Nothing
 
-        FGameInProgress hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
-            column
-                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ -- text "Game in progress after timer"
-                  text "Your turn"
-                , displayCard fCard
-                , row [ spacing 16 ]
-                    [ Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
-                    , displayDiscardCards discardPile False
+                            else
+                                Just CardClickDouble
+                    in
+                    column
+                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                        [ -- text "Game in progress after timer"
+                          text "Your turn"
+                        , row [ spacing 16 ]
+                            [ Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw the drawPile" }
+                            , displayDiscardCards discardPile True
+                            , Input.button [] { onPress = Just TamalouFrontend, label = text "Tamalou" }
+                            ]
+                        , displayPlayerView model.sessionId players hand cardClickEvent
+                        ]
 
-                    -- , Input.button [] { onPress = Just Tamalou, label = text "Tamalou" }
-                    ]
-                , displayPlayerView model.sessionId players hand (Just CardClickReplacement)
-                ]
+                FGameInProgress hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
+                    column
+                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                        [ -- text "Game in progress after timer"
+                          text "Your turn"
+                        , displayCard fCard
+                        , row [ spacing 16 ]
+                            [ Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
+                            , displayDiscardCards discardPile False
 
-        FGameEnded clientId ->
-            column
-                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ Element.text "Game ended"
-                , Element.text clientId
-                ]
+                            -- , Input.button [] { onPress = Just Tamalou, label = text "Tamalou" }
+                            ]
+                        , displayPlayerView model.sessionId players hand (Just CardClickReplacement)
+                        ]
 
-        FGameAlreadyStartedWithoutYou ->
-            column
-                [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
-                [ Element.text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
-                ]
+                FGameEnded clientId ->
+                    column
+                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                        [ Element.text "Game ended"
+                        , Element.text clientId
+                        ]
+
+                FGameAlreadyStartedWithoutYou ->
+                    column
+                        [ width fill, height fill, spacing 20, Background.color grey, scrollbars ]
+                        [ Element.text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
+                        ]
 
 
 displayDiscardCards : DiscardPile -> Bool -> Element FrontendMsg

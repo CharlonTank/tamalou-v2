@@ -1,8 +1,10 @@
 module Types exposing (..)
 
 import Browser exposing (UrlRequest)
+import Browser.Dom
 import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard)
+import Element exposing (Device)
 import Lamdera exposing (ClientId, SessionId)
 import Time exposing (Posix)
 import Url exposing (Url)
@@ -10,6 +12,7 @@ import Url exposing (Url)
 
 type alias FrontendModel =
     { key : Key
+    , device : Device
     , gameFrontend : FGame
     , clientId : Maybe ClientId
     , sessionId : Maybe SessionId
@@ -32,6 +35,7 @@ type FrontendMsg
     | DrawCardFromDiscardPileFrontend
     | ReplaceCardInFrontend Int
     | DoubleCardFrontend Int
+    | GotWindowSize Device
 
 
 
