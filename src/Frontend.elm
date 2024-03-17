@@ -237,7 +237,7 @@ displayGame model =
                     ]
 
         _ ->
-            el [ width fill, height fill, Background.image "/background.jpeg" ] <|
+            el [ width fill, height fill, Background.image "/background.jpeg", padding 12 ] <|
                 case model.gameFrontend of
                     FWaitingForPlayers players ->
                         column
@@ -253,40 +253,79 @@ displayGame model =
 
                     FGameInProgress hand _ discardPile players (FPlayerToPlay _ FWaitingPlayerDraw) ->
                         let
-                            currentPlayer =
-                                List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
-
                             cardClickEvent =
                                 if List.isEmpty discardPile then
                                     Nothing
 
                                 else
                                     Just CardClickDouble
+
+                            drawColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
+                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , none
+                                    ]
+
+                            currentCardColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Card drawn"
+                                    , elEmplacement <| none
+                                    , none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8 ]
+                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
+                                        :: displayDiscardCards discardPile False
+                                    )
                         in
                         column
-                            [ width fill, height fill, spacing 20, scrollbars ]
-                            [ -- currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
-                              displayDiscardCards discardPile False
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ spacing 16, centerX, centerY ]
+                                [ drawColumn
+                                , currentCardColumn
+                                , discardPileColumn
+                                ]
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
                     FGameInProgress hand _ discardPile players (FPlayerToPlay _ (FPlayerHasDraw _)) ->
                         let
-                            currentPlayer =
-                                List.Extra.find (\p -> Just p.sessionId == model.sessionId) players
-
                             cardClickEvent =
                                 if List.isEmpty discardPile then
                                     Nothing
 
                                 else
                                     Just CardClickDouble
+
+                            drawColumn =
+                                column [ spacing 8, width fill ]
+                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
+                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , none
+                                    ]
+
+                            currentCardColumn =
+                                column [ spacing 8, width fill ]
+                                    [ el [ Font.center, width fill ] <| text "Card drawn"
+                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8, width fill ]
+                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
+                                        :: displayDiscardCards discardPile False
+                                    )
                         in
                         column
-                            [ width fill, height fill, spacing 20, scrollbars ]
-                            [ currentPlayer |> Maybe.map .name |> Maybe.withDefault "" |> text
-                            , displayCard model.device.class FaceDown
-                            , displayDiscardCards discardPile False
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ spacing 16, centerX, centerY ]
+                                [ drawColumn
+                                , currentCardColumn
+                                , discardPileColumn
+                                ]
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
@@ -298,28 +337,63 @@ displayGame model =
 
                                 else
                                     Just CardClickDouble
+
+                            drawColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
+                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw from drawPile" }
+                                    ]
+
+                            currentCardColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Card drawn"
+                                    , elEmplacement <| none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8 ]
+                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
+                                        :: displayDiscardCards discardPile False
+                                    )
                         in
                         column
-                            [ width fill, height fill, spacing 20, scrollbars ]
-                            [ text "Your turn"
-                            , row [ spacing 16 ]
-                                [ Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw the drawPile" }
-                                , displayDiscardCards discardPile True
-                                , Input.button [] { onPress = Just TamalouFrontend, label = text "Tamalou" }
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ spacing 16, centerX, centerY ]
+                                [ drawColumn
+                                , currentCardColumn
+                                , discardPileColumn
                                 ]
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
                     FGameInProgress hand _ discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
-                        column
-                            [ width fill, height fill, spacing 20, scrollbars ]
-                            [ text "Your turn"
-                            , displayCard model.device.class fCard
-                            , row [ spacing 16 ]
-                                [ Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
-                                , displayDiscardCards discardPile False
+                        let
+                            drawColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
+                                    , elEmplacement <| displayCard Phone FaceDown
+                                    ]
 
-                                -- , Input.button [] { onPress = Just Tamalou, label = text "Tamalou" }
+                            currentCardColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Card drawn"
+                                    , elEmplacement <| displayCard Phone fCard
+                                    , Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8 ]
+                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
+                                        :: displayDiscardCards discardPile False
+                                    )
+                        in
+                        column
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ spacing 16, centerX, centerY ]
+                                [ drawColumn
+                                , currentCardColumn
+                                , discardPileColumn
                                 ]
                             , displayPlayerView model.sessionId model.device.class players hand (Just CardClickReplacement)
                             ]
@@ -338,21 +412,35 @@ displayGame model =
                             ]
 
 
-displayDiscardCards : DiscardPile -> Bool -> Element FrontendMsg
+elEmplacement : Element FrontendMsg -> Element FrontendMsg
+elEmplacement cardToDisplay =
+    el [ width <| px 144, height <| px 172, Background.image "/emplacement.png", Border.rounded 8 ] <| el [ width fill, height fill ] cardToDisplay
+
+
+
+-- 168/202
+-- = 0.8316831683168316
+-- 150/180
+-- = 0.8316831683168316
+-- 140/168
+-- = 0.8333333333333334
+-- 144/172
+
+
+displayDiscardCards : DiscardPile -> Bool -> List (Element FrontendMsg)
 displayDiscardCards discardPile canDrawCard =
     case discardPile of
         [] ->
-            text "X"
+            [ elEmplacement <| none ]
 
         head :: _ ->
-            column [ spacing 4 ]
-                [ el [ Events.onClick DrawCardFromDiscardPileFrontend ] <| displayCard Desktop (FaceUp head)
-                , if canDrawCard then
-                    Input.button [] { onPress = Just DrawCardFromDiscardPileFrontend, label = text "Draw the discardPile" }
+            [ el [ Events.onClick DrawCardFromDiscardPileFrontend ] <| elEmplacement <| displayCard Phone (FaceUp head)
+            , if canDrawCard then
+                Input.button [] { onPress = Just DrawCardFromDiscardPileFrontend, label = text "Draw the discardPile" }
 
-                  else
-                    none
-                ]
+              else
+                none
+            ]
 
 
 displayTimer : Int -> Element FrontendMsg
@@ -443,7 +531,7 @@ displayCard deviceClass frontendCard =
                 BigDesktop ->
                     px 128
     in
-    image [ Border.rounded 100, width cardWidth ] <|
+    image [ Border.rounded 100, width cardWidth, centerX, centerY ] <|
         case frontendCard of
             FaceUp card ->
                 { src = "/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }
