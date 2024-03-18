@@ -383,7 +383,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                     ( model, Cmd.none )
 
                                                 ( [], [ singleCard ] ) ->
-                                                    -- Scenario 2: DrawPile is empty and DiscardPile has only one card
+                                                    -- Scenario 2: drawPile is empty and discardPile has only one card
                                                     let
                                                         newGame =
                                                             { game | status = BGameInProgress [] [] players (BPlayerToPlay sessionId_ (BPlayerHasDraw singleCard)) False }
@@ -391,13 +391,13 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                     updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
 
                                                 ( [], firstCard :: restOfDiscardPile ) ->
-                                                    -- Scenario 3: DrawPile is empty and DiscardPile has multiple cards
+                                                    -- Scenario 3: drawPile is empty and discardPile has multiple cards
                                                     let
-                                                        ( shuffledDiscardPile, newSeed ) =
+                                                        ( shuffledRestDiscardPile, newSeed ) =
                                                             shuffleWithSeed game.seed restOfDiscardPile
 
                                                         newGame =
-                                                            case List.Extra.uncons shuffledDiscardPile of
+                                                            case List.Extra.uncons shuffledRestDiscardPile of
                                                                 Just ( cardDrew, newDrawPile ) ->
                                                                     { game | seed = newSeed, status = BGameInProgress newDrawPile [ firstCard ] players (BPlayerToPlay sessionId_ (BPlayerHasDraw cardDrew)) False }
 
@@ -407,7 +407,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                     updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
 
                                                 ( [ singleCard ], [] ) ->
-                                                    -- Scenario 4: DrawPile has only one card and DiscardPile is empty
+                                                    -- Scenario 4: drawPile has only one card and discardPile is empty
                                                     let
                                                         newGame =
                                                             { game | status = BGameInProgress [] [] players (BPlayerToPlay sessionId_ (BPlayerHasDraw singleCard)) False }
@@ -415,18 +415,18 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                     updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
 
                                                 ( [ singleCard ], firstCard :: restOfDiscardPile ) ->
-                                                    -- Scenario 5: DrawPile has only one card and DiscardPile has cards
+                                                    -- Scenario 5: drawPile has only one card and discardPile has cards
                                                     let
-                                                        ( shuffledDiscardPile, newSeed ) =
+                                                        ( shuffledRestDiscardPile, newSeed ) =
                                                             shuffleWithSeed game.seed restOfDiscardPile
 
                                                         newGame =
-                                                            { game | seed = newSeed, status = BGameInProgress shuffledDiscardPile [ firstCard ] players (BPlayerToPlay sessionId_ (BPlayerHasDraw singleCard)) False }
+                                                            { game | seed = newSeed, status = BGameInProgress shuffledRestDiscardPile [ firstCard ] players (BPlayerToPlay sessionId_ (BPlayerHasDraw singleCard)) False }
                                                     in
                                                     updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
 
                                                 ( firstCard :: restOfDrawPile, _ ) ->
-                                                    -- Scenario 6: DrawPile has more than one card
+                                                    -- Scenario 6: drawPile has more than one card
                                                     let
                                                         newGame =
                                                             { game | status = BGameInProgress restOfDrawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw firstCard)) False }
@@ -542,8 +542,8 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                         False
                                         in
                                         if not isPlayerTurn || (isPlayerTurn && not hasPlayerDrawn) then
-                                            case List.Extra.uncons discardPile of
-                                                Just ( discardPileHead, _ ) ->
+                                            case discardPile of
+                                                discardPileHead :: restOfDiscardPile ->
                                                     let
                                                         currentPlayer =
                                                             List.Extra.find ((==) sessionId << .sessionId) players
@@ -591,24 +591,19 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                             )
 
                                                         _ ->
-                                                            case ( drawPile, discardPile ) of
+                                                            case ( drawPile, restOfDiscardPile ) of
                                                                 ( [], [] ) ->
                                                                     -- Scenario 1: Both piles are empty
                                                                     ( model, Cmd.none )
 
-                                                                ( [], [ _ ] ) ->
-                                                                    -- Scenario 2: DrawPile is empty and DiscardPile has only one card
-                                                                    -- We cannot give a penalty card to the player because if not, the game would be stuck because no one would be able to draw a card from the draw pile or the discard pile
-                                                                    ( model, Cmd.none )
-
-                                                                ( [], firstCard :: restOfDiscardPile ) ->
-                                                                    -- Scenario 3: DrawPile is empty and DiscardPile has multiple cards
+                                                                ( [], restDiscardPileNotEmpty ) ->
+                                                                    -- Scenario 2: drawPile is empty and restOfDiscardPile has cards, we shuffle the rest of the discard pile and give the first card to the player
                                                                     let
-                                                                        ( shuffledDiscardPile, newSeed ) =
-                                                                            shuffleWithSeed game.seed restOfDiscardPile
+                                                                        ( shuffledRestDiscardPile, newSeed ) =
+                                                                            shuffleWithSeed game.seed restDiscardPileNotEmpty
 
                                                                         newGame =
-                                                                            case List.Extra.uncons shuffledDiscardPile of
+                                                                            case List.Extra.uncons shuffledRestDiscardPile of
                                                                                 Just ( cardDrew, newDrawPile ) ->
                                                                                     let
                                                                                         newPlayers =
@@ -626,24 +621,22 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                                                             p
                                                                                                     )
                                                                                     in
-                                                                                    { game | seed = newSeed, status = BGameInProgress newDrawPile [ firstCard ] newPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
+                                                                                    { game | seed = newSeed, status = BGameInProgress newDrawPile [ discardPileHead ] newPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
 
                                                                                 Nothing ->
-                                                                                    { game | seed = newSeed, status = BGameInProgress [] [ firstCard ] players (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
+                                                                                    { game | seed = newSeed, status = BGameInProgress [] [ discardPileHead ] players (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
                                                                     in
                                                                     updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
 
                                                                 ( [ _ ], [] ) ->
-                                                                    -- Scenario 4: DrawPile has only one card and DiscardPile is empty
-                                                                    -- We cannot give a penalty card to the player because if not, the game would be stuck because no one would be able to draw a card from the draw pile or the discard pile
+                                                                    -- Scenario 3: drawPile has only one card and restOfDiscardPile is empty
                                                                     ( model, Cmd.none )
 
-                                                                ( [ singleCard ], firstCard :: restOfDiscardPile ) ->
-                                                                    -- Scenario 5: DrawPile has only one card and DiscardPile has cards
-                                                                    -- We give the single card to the player and shuffle the rest of the discard pile
+                                                                ( [ singleCard ], restDiscardPileNotEmpty ) ->
+                                                                    -- Scenario 4: drawPile has only one card and restOfDiscardPile has cards, we give the single card to the player, and shuffle the rest of the discard pile
                                                                     let
-                                                                        ( shuffledDiscardPile, newSeed ) =
-                                                                            shuffleWithSeed game.seed restOfDiscardPile
+                                                                        ( shuffledRestDiscardPile, newSeed ) =
+                                                                            shuffleWithSeed game.seed restDiscardPileNotEmpty
 
                                                                         newPlayers =
                                                                             players
@@ -661,13 +654,12 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                                     )
 
                                                                         newGame =
-                                                                            { game | seed = newSeed, status = BGameInProgress shuffledDiscardPile [ firstCard ] newPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
+                                                                            { game | seed = newSeed, status = BGameInProgress shuffledRestDiscardPile [ discardPileHead ] newPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
                                                                     in
                                                                     updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
 
                                                                 ( firstCard :: restOfDrawPile, _ ) ->
-                                                                    -- Scenario 6: DrawPile has more than one card
-                                                                    -- We give the first card to the player
+                                                                    -- Scenario 5: drawPile has more than one card, we give the first card to the player
                                                                     let
                                                                         newPlayers =
                                                                             players
@@ -689,9 +681,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                     in
                                                                     updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
 
-                                                Nothing ->
-                                                    -- Scenario 7: DiscardPile is empty
-                                                    -- We cannot give a penalty card to the player because if not, the game would be stuck because no one would be able to draw a card from the draw pile or the discard pile
+                                                _ ->
                                                     ( model, Cmd.none )
 
                                         else
