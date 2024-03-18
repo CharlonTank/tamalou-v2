@@ -357,7 +357,11 @@ displayGame model =
 
                                         else
                                             displayCard Phone FaceDown
-                                    , Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw from drawPile" }
+                                    , if List.isEmpty drawPile then
+                                        none
+
+                                      else
+                                        Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw from drawPile" }
                                     ]
 
                             currentCardColumn =
@@ -369,7 +373,7 @@ displayGame model =
                             discardPileColumn =
                                 column [ spacing 8 ]
                                     ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False
+                                        :: displayDiscardCards discardPile True
                                     )
                         in
                         column
