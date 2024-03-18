@@ -94,12 +94,6 @@ shuffleList list =
         Random.independentSeed
 
 
-
--- shuffleDrawPile : BGame -> Cmd BackendMsg
--- shuffleDrawPile bGame =
---     Random.generate (BackendMsgFromGame bGame.urlPath << BeginGameAndDistribute4CardsToEach) (shuffleList Card.nonShuffledDeck)
-
-
 init : ( BackendModel, Cmd BackendMsg )
 init =
     ( { games = [] }

@@ -11,8 +11,8 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import Html.Attributes as HA
 import Lamdera exposing (SessionId)
-import List.Extra
 import Simple.Animation as Animation exposing (Animation)
 import Simple.Animation.Animated as Animated
 import Simple.Animation.Property as P
@@ -25,7 +25,7 @@ import Url
 
 grey : Color
 grey =
-    Element.rgb255 200 200 200
+    Element.rgb255 0 0 0
 
 
 phoneRotateAnimation : Animation
@@ -206,8 +206,23 @@ updateFromBackend msg model =
 
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
-    { title = ""
-    , body = [ Element.layout [ width fill, height fill ] <| displayModel model ]
+    let
+        safeAreaStyle =
+            HA.style "padding"
+                "env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)"
+    in
+    { title = "Tamalou!"
+    , body =
+        [ Element.layout
+            [ width Element.fill
+            , height Element.fill
+            , Background.image "/background.jpeg"
+            , Background.color grey
+            , htmlAttribute safeAreaStyle
+            ]
+          <|
+            displayModel model
+        ]
     }
 
 
@@ -237,7 +252,7 @@ displayGame model =
                     ]
 
         _ ->
-            el [ width fill, height fill, Background.image "/background.jpeg", padding 12 ] <|
+            el [ width fill, height fill, padding 12 ] <|
                 case model.gameFrontend of
                     FWaitingForPlayers players ->
                         column
