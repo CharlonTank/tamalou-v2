@@ -6,6 +6,7 @@ import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard)
 import Element exposing (Device)
 import Lamdera exposing (ClientId, SessionId)
+import Random
 import Time exposing (Posix)
 import Url exposing (Url)
 
@@ -64,8 +65,8 @@ type BackendMsg
 
 
 type BackendMsgFromGame
-    = BeginGameAndDistribute4CardsToEach (List Card)
-    | TimerTick Posix
+    = TimerTick Posix
+    | BeginGameAndDistribute4CardsToEach (List Card)
 
 
 type ToFrontend
@@ -77,6 +78,7 @@ type ToFrontend
 type alias BGame =
     { urlPath : String
     , status : BGameStatus
+    , seed : Random.Seed
     }
 
 

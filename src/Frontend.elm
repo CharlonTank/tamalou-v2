@@ -251,7 +251,7 @@ displayGame model =
                             , displayPlayerView model.sessionId model.device.class players hand Nothing
                             ]
 
-                    FGameInProgress hand _ discardPile players (FPlayerToPlay _ FWaitingPlayerDraw) ->
+                    FGameInProgress hand drawPile discardPile players (FPlayerToPlay _ FWaitingPlayerDraw) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then
@@ -263,7 +263,12 @@ displayGame model =
                             drawColumn =
                                 column [ spacing 8 ]
                                     [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , elEmplacement <|
+                                        if List.isEmpty drawPile then
+                                            none
+
+                                        else
+                                            displayCard Phone FaceDown
                                     , none
                                     ]
 
@@ -290,7 +295,7 @@ displayGame model =
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
-                    FGameInProgress hand _ discardPile players (FPlayerToPlay _ (FPlayerHasDraw _)) ->
+                    FGameInProgress hand drawPile discardPile players (FPlayerToPlay _ (FPlayerHasDraw _)) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then
@@ -302,7 +307,12 @@ displayGame model =
                             drawColumn =
                                 column [ spacing 8, width fill ]
                                     [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , elEmplacement <|
+                                        if List.isEmpty drawPile then
+                                            none
+
+                                        else
+                                            displayCard Phone FaceDown
                                     , none
                                     ]
 
@@ -329,7 +339,7 @@ displayGame model =
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
-                    FGameInProgress hand _ discardPile players (FYourTurn FWaitingPlayerDraw) ->
+                    FGameInProgress hand drawPile discardPile players (FYourTurn FWaitingPlayerDraw) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then
@@ -341,7 +351,12 @@ displayGame model =
                             drawColumn =
                                 column [ spacing 8 ]
                                     [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , elEmplacement <|
+                                        if List.isEmpty drawPile then
+                                            none
+
+                                        else
+                                            displayCard Phone FaceDown
                                     , Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw from drawPile" }
                                     ]
 
@@ -367,12 +382,17 @@ displayGame model =
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
-                    FGameInProgress hand _ discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
+                    FGameInProgress hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
                         let
                             drawColumn =
                                 column [ spacing 8 ]
                                     [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , elEmplacement <|
+                                        if List.isEmpty drawPile then
+                                            none
+
+                                        else
+                                            displayCard Phone FaceDown
                                     ]
 
                             currentCardColumn =
