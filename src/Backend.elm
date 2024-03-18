@@ -525,111 +525,182 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                 ( model, Cmd.none )
 
                     DoubleCardInTableHandToBackend cardIndex ->
-                        case maybeGame |> Maybe.map .status of
-                            Just (BGameInProgress drawPile discardPile players (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove) ->
-                                let
-                                    isPlayerTurn =
-                                        sessionId == sessionId_
+                        case maybeGame of
+                            Just game ->
+                                case game.status of
+                                    BGameInProgress drawPile discardPile players (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove ->
+                                        let
+                                            isPlayerTurn =
+                                                sessionId == sessionId_
 
-                                    hasPlayerDrawn =
-                                        case bPlayerToPlayStatus of
-                                            BPlayerHasDraw _ ->
-                                                True
+                                            hasPlayerDrawn =
+                                                case bPlayerToPlayStatus of
+                                                    BPlayerHasDraw _ ->
+                                                        True
 
-                                            _ ->
-                                                False
-                                in
-                                if not isPlayerTurn || (isPlayerTurn && not hasPlayerDrawn) then
-                                    case List.Extra.uncons discardPile of
-                                        Just ( dicardPileHead, _ ) ->
-                                            let
-                                                currentPlayer =
-                                                    List.Extra.find ((==) sessionId << .sessionId) players
+                                                    _ ->
+                                                        False
+                                        in
+                                        if not isPlayerTurn || (isPlayerTurn && not hasPlayerDrawn) then
+                                            case List.Extra.uncons discardPile of
+                                                Just ( discardPileHead, _ ) ->
+                                                    let
+                                                        currentPlayer =
+                                                            List.Extra.find ((==) sessionId << .sessionId) players
 
-                                                matchingCard =
-                                                    currentPlayer
-                                                        |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
-                                                        |> Maybe.andThen
-                                                            (\card ->
-                                                                if card.rank == dicardPileHead.rank then
-                                                                    Just card
+                                                        matchingCard =
+                                                            currentPlayer
+                                                                |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+                                                                |> Maybe.andThen
+                                                                    (\card ->
+                                                                        if card.rank == discardPileHead.rank then
+                                                                            Just card
 
-                                                                else
-                                                                    Nothing
+                                                                        else
+                                                                            Nothing
+                                                                    )
+                                                    in
+                                                    case ( doubleIsLastMove, matchingCard ) of
+                                                        ( False, Just _ ) ->
+                                                            let
+                                                                updatedPlayers =
+                                                                    players
+                                                                        |> List.map
+                                                                            (\p ->
+                                                                                if p.sessionId == sessionId then
+                                                                                    { p
+                                                                                        | tableHand =
+                                                                                            p.tableHand
+                                                                                                |> List.Extra.removeAt cardIndex
+                                                                                    }
+
+                                                                                else
+                                                                                    p
+                                                                            )
+
+                                                                newDiscardPile =
+                                                                    matchingCard
+                                                                        |> Maybe.map (\card -> { card | show = True } :: discardPile)
+                                                                        |> Maybe.withDefault discardPile
+
+                                                                newGame =
+                                                                    BGameInProgress drawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) True
+                                                            in
+                                                            ( { model | games = updateGameStatus urlPath newGame games }
+                                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) (BGameInProgress drawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) True)) updatedPlayers
                                                             )
-                                            in
-                                            case ( doubleIsLastMove, matchingCard ) of
-                                                ( False, Just _ ) ->
-                                                    let
-                                                        updatedPlayers =
-                                                            players
-                                                                |> List.map
-                                                                    (\p ->
-                                                                        if p.sessionId == sessionId then
-                                                                            { p
-                                                                                | tableHand =
-                                                                                    p.tableHand
-                                                                                        |> List.Extra.removeAt cardIndex
-                                                                            }
 
-                                                                        else
-                                                                            p
-                                                                    )
+                                                        _ ->
+                                                            case ( drawPile, discardPile ) of
+                                                                ( [], [] ) ->
+                                                                    -- Scenario 1: Both piles are empty
+                                                                    ( model, Cmd.none )
 
-                                                        newDiscardPile =
-                                                            matchingCard
-                                                                |> Maybe.map (\card -> { card | show = True } :: discardPile)
-                                                                |> Maybe.withDefault discardPile
+                                                                ( [], [ _ ] ) ->
+                                                                    -- Scenario 2: DrawPile is empty and DiscardPile has only one card
+                                                                    -- We cannot give a penalty card to the player because if not, the game would be stuck because no one would be able to draw a card from the draw pile or the discard pile
+                                                                    ( model, Cmd.none )
 
-                                                        newGame =
-                                                            BGameInProgress drawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) True
-                                                    in
-                                                    ( { model | games = updateGameStatus urlPath newGame games }
-                                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) (BGameInProgress drawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) True)) updatedPlayers
-                                                    )
+                                                                ( [], firstCard :: restOfDiscardPile ) ->
+                                                                    -- Scenario 3: DrawPile is empty and DiscardPile has multiple cards
+                                                                    let
+                                                                        ( shuffledDiscardPile, newSeed ) =
+                                                                            shuffleWithSeed game.seed restOfDiscardPile
 
-                                                _ ->
-                                                    let
-                                                        ( cardPenalty, newDrawPile ) =
-                                                            case List.Extra.uncons drawPile of
-                                                                Just ( head, rest ) ->
-                                                                    ( head, rest )
+                                                                        newGame =
+                                                                            case List.Extra.uncons shuffledDiscardPile of
+                                                                                Just ( cardDrew, newDrawPile ) ->
+                                                                                    let
+                                                                                        newPlayers =
+                                                                                            players
+                                                                                                |> List.map
+                                                                                                    (\p ->
+                                                                                                        if p.sessionId == sessionId_ then
+                                                                                                            { p
+                                                                                                                | tableHand =
+                                                                                                                    p.tableHand
+                                                                                                                        ++ [ { cardDrew | show = False } ]
+                                                                                                            }
 
-                                                                Nothing ->
-                                                                    ( Card.sampleCard, [] )
+                                                                                                        else
+                                                                                                            p
+                                                                                                    )
+                                                                                    in
+                                                                                    { game | seed = newSeed, status = BGameInProgress newDrawPile [ firstCard ] newPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
 
-                                                        -- Debug.todo "PLUS DE CARTES DANS LA DRAW PILE"
-                                                        newPlayers =
-                                                            players
-                                                                |> List.map
-                                                                    (\p ->
-                                                                        if p.sessionId == sessionId then
-                                                                            { p
-                                                                                | tableHand =
-                                                                                    p.tableHand
-                                                                                        ++ [ { cardPenalty | show = False } ]
-                                                                            }
+                                                                                Nothing ->
+                                                                                    { game | seed = newSeed, status = BGameInProgress [] [ firstCard ] players (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
+                                                                    in
+                                                                    updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
 
-                                                                        else
-                                                                            p
-                                                                    )
+                                                                ( [ _ ], [] ) ->
+                                                                    -- Scenario 4: DrawPile has only one card and DiscardPile is empty
+                                                                    -- We cannot give a penalty card to the player because if not, the game would be stuck because no one would be able to draw a card from the draw pile or the discard pile
+                                                                    ( model, Cmd.none )
 
-                                                        newGame =
-                                                            BGameInProgress newDrawPile discardPile newPlayers (BPlayerToPlay sessionId_ BWaitingPlayerDraw) doubleIsLastMove
-                                                    in
-                                                    ( { model | games = updateGameStatus urlPath newGame games }
-                                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) newGame) newPlayers
-                                                    )
+                                                                ( [ singleCard ], firstCard :: restOfDiscardPile ) ->
+                                                                    -- Scenario 5: DrawPile has only one card and DiscardPile has cards
+                                                                    -- We give the single card to the player and shuffle the rest of the discard pile
+                                                                    let
+                                                                        ( shuffledDiscardPile, newSeed ) =
+                                                                            shuffleWithSeed game.seed restOfDiscardPile
 
-                                        _ ->
+                                                                        newPlayers =
+                                                                            players
+                                                                                |> List.map
+                                                                                    (\p ->
+                                                                                        if p.sessionId == sessionId_ then
+                                                                                            { p
+                                                                                                | tableHand =
+                                                                                                    p.tableHand
+                                                                                                        ++ [ { singleCard | show = False } ]
+                                                                                            }
+
+                                                                                        else
+                                                                                            p
+                                                                                    )
+
+                                                                        newGame =
+                                                                            { game | seed = newSeed, status = BGameInProgress shuffledDiscardPile [ firstCard ] newPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
+                                                                    in
+                                                                    updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
+
+                                                                ( firstCard :: restOfDrawPile, _ ) ->
+                                                                    -- Scenario 6: DrawPile has more than one card
+                                                                    -- We give the first card to the player
+                                                                    let
+                                                                        newPlayers =
+                                                                            players
+                                                                                |> List.map
+                                                                                    (\p ->
+                                                                                        if p.sessionId == sessionId_ then
+                                                                                            { p
+                                                                                                | tableHand =
+                                                                                                    p.tableHand
+                                                                                                        ++ [ { firstCard | show = False } ]
+                                                                                            }
+
+                                                                                        else
+                                                                                            p
+                                                                                    )
+
+                                                                        newGame =
+                                                                            { game | status = BGameInProgress restOfDrawPile discardPile newPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove }
+                                                                    in
+                                                                    updateGameStateAndNotifyPlayers model game.urlPath newGame.status players
+
+                                                Nothing ->
+                                                    -- Scenario 7: DiscardPile is empty
+                                                    -- We cannot give a penalty card to the player because if not, the game would be stuck because no one would be able to draw a card from the draw pile or the discard pile
+                                                    ( model, Cmd.none )
+
+                                        else
                                             ( model, Cmd.none )
 
-                                else
-                                    -- It's the player's turn, and they've drawn a card; doubling is not allowed
-                                    ( model, Cmd.none )
+                                    _ ->
+                                        ( model, Cmd.none )
 
-                            _ ->
-                                -- If the game is not in progress or in an unexpected state, no action is performed
+                            Nothing ->
                                 ( model, Cmd.none )
 
 
