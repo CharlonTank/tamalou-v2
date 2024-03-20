@@ -214,11 +214,12 @@ view model =
     { title = "Tamalou!"
     , body =
         [ Element.layout
-            [ width Element.fill
-            , height Element.fill
+            [ width fill
+            , height fill
             , Background.image "/background.jpeg"
             , Background.color grey
             , htmlAttribute safeAreaStyle
+            , moveUp 200
             ]
           <|
             displayModel model
