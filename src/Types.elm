@@ -39,10 +39,6 @@ type FrontendMsg
     | GotWindowSize Device
 
 
-
--- | CardShuffled Deck
-
-
 type ToBackend
     = NoOpToBackend
     | ToBackendActionFromGame String ToBackendActionFromGame
@@ -55,6 +51,7 @@ type ToBackendActionFromGame
     | DrawCardFromDiscardPileToBackend
     | ReplaceCardInTableHandToBackend Int
     | DoubleCardInTableHandToBackend Int
+    | TamalouToBackend
 
 
 type BackendMsg
@@ -84,8 +81,8 @@ type alias BGame =
 
 type BGameStatus
     = BWaitingForPlayers (List BPlayer)
-    | BGameInProgress BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool
-    | BGameEnded ClientId
+    | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool
+    | BGameEnded SessionId
 
 
 type alias BPlayer =
@@ -96,9 +93,15 @@ type alias BPlayer =
     }
 
 
+type alias TamalouOwner =
+    { sessionId : SessionId
+    , tableHand : List Card
+    }
+
+
 type FGame
     = FWaitingForPlayers (List FPlayer)
-    | FGameInProgress FTableHand FDrawPile DiscardPile (List FPlayer) FGameInProgressStatus
+    | FGameInProgress (Maybe TamalouOwner) FTableHand FDrawPile DiscardPile (List FPlayer) FGameInProgressStatus
     | FGameEnded ClientId
     | FGameAlreadyStartedWithoutYou
 
@@ -120,7 +123,7 @@ type BGameInProgressStatus
 
 
 type BPlayerToPlayStatus
-    = BWaitingPlayerDraw
+    = BWaitingPlayerAction
     | BPlayerHasDraw Card
 
 

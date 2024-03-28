@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Events
 import Browser.Navigation as Nav
-import Card exposing (FCard(..))
+import Card exposing (Card, FCard(..))
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -173,8 +173,7 @@ update msg ({ urlPath } as model) =
             ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DrawCardFromDrawPileToBackend )
 
         TamalouFrontend ->
-            -- ( model, Debug.todo "Tamalou not implemented" )
-            ( model, Cmd.none )
+            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath TamalouToBackend )
 
         DiscardCardFrontend ->
             ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DiscardCardInHandToBackend )
@@ -259,14 +258,14 @@ displayGame model =
                             [ width fill, height fill, spacing 20, scrollbars ]
                             (text "Waiting for players" :: List.map displayPlayerDebug players)
 
-                    FGameInProgress hand _ _ players (FTimerRunning timer) ->
+                    FGameInProgress _ hand _ _ players (FTimerRunning timer) ->
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
                             [ displayTimer timer
                             , displayPlayerView model.sessionId model.device.class players hand Nothing
                             ]
 
-                    FGameInProgress hand drawPile discardPile players (FPlayerToPlay _ FWaitingPlayerDraw) ->
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay _ FWaitingPlayerDraw) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then
@@ -283,7 +282,7 @@ displayGame model =
                                             none
 
                                         else
-                                            displayCard Phone FaceDown
+                                            displayFCard Phone FaceDown
                                     , none
                                     ]
 
@@ -307,10 +306,11 @@ displayGame model =
                                 , currentCardColumn
                                 , discardPileColumn
                                 ]
+                            , displayTamalou maybeTamalouOwner
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
-                    FGameInProgress hand drawPile discardPile players (FPlayerToPlay _ (FPlayerHasDraw _)) ->
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay _ (FPlayerHasDraw _)) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then
@@ -327,14 +327,14 @@ displayGame model =
                                             none
 
                                         else
-                                            displayCard Phone FaceDown
+                                            displayFCard Phone FaceDown
                                     , none
                                     ]
 
                             currentCardColumn =
                                 column [ spacing 8, width fill ]
                                     [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| displayCard Phone FaceDown
+                                    , elEmplacement <| displayFCard Phone FaceDown
                                     , none
                                     ]
 
@@ -351,10 +351,11 @@ displayGame model =
                                 , currentCardColumn
                                 , discardPileColumn
                                 ]
+                            , displayTamalou maybeTamalouOwner
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
-                    FGameInProgress hand drawPile discardPile players (FYourTurn FWaitingPlayerDraw) ->
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn FWaitingPlayerDraw) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then
@@ -371,7 +372,7 @@ displayGame model =
                                             none
 
                                         else
-                                            displayCard Phone FaceDown
+                                            displayFCard Phone FaceDown
                                     , if List.isEmpty drawPile then
                                         none
 
@@ -390,18 +391,27 @@ displayGame model =
                                     ((el [ Font.center, width fill ] <| text "Discarded Pile")
                                         :: displayDiscardCards discardPile True
                                     )
+
+                            tamalouButton =
+                                Input.button [ centerX, height fill ] { onPress = Just TamalouFrontend, label = text "Tamalou" }
                         in
                         column
-                            [ width fill, height fill, spacing 20 ]
+                            [ width fill, height fill ]
                             [ row [ spacing 16, centerX, centerY ]
                                 [ drawColumn
                                 , currentCardColumn
                                 , discardPileColumn
                                 ]
+                            , case maybeTamalouOwner of
+                                Just _ ->
+                                    displayTamalou maybeTamalouOwner
+
+                                Nothing ->
+                                    tamalouButton
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
-                    FGameInProgress hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
                         let
                             drawColumn =
                                 column [ spacing 8 ]
@@ -411,13 +421,13 @@ displayGame model =
                                             none
 
                                         else
-                                            displayCard Phone FaceDown
+                                            displayFCard Phone FaceDown
                                     ]
 
                             currentCardColumn =
                                 column [ spacing 8 ]
                                     [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| displayCard Phone fCard
+                                    , elEmplacement <| displayFCard Phone fCard
                                     , Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
                                     ]
 
@@ -434,6 +444,7 @@ displayGame model =
                                 , currentCardColumn
                                 , discardPileColumn
                                 ]
+                            , displayTamalou maybeTamalouOwner
                             , displayPlayerView model.sessionId model.device.class players hand (Just CardClickReplacement)
                             ]
 
@@ -451,19 +462,28 @@ displayGame model =
                             ]
 
 
+displayTamalou : Maybe TamalouOwner -> Element FrontendMsg
+displayTamalou maybeTamalouOwner =
+    case maybeTamalouOwner of
+        Just tamalouOwner ->
+            column
+                [ width fill, height fill, spacing 20 ]
+                [ el [ Font.size <| 8 ] <| text "Last Turn!"
+                , row [] <| List.map displayCard tamalouOwner.tableHand
+                ]
+
+        Nothing ->
+            none
+
+
+displayCard : Card -> Element FrontendMsg
+displayCard card =
+    el [ width <| px 36, height <| px 43, Background.image ("/cardImages/" ++ Card.toString card ++ ".png"), Border.rounded 8 ] none
+
+
 elEmplacement : Element FrontendMsg -> Element FrontendMsg
 elEmplacement cardToDisplay =
     el [ width <| px 144, height <| px 172, Background.image "/emplacement.png", Border.rounded 8 ] <| el [ width fill, height fill ] cardToDisplay
-
-
-
--- 168/202
--- = 0.8316831683168316
--- 150/180
--- = 0.8316831683168316
--- 140/168
--- = 0.8333333333333334
--- 144/172
 
 
 displayDiscardCards : DiscardPile -> Bool -> List (Element FrontendMsg)
@@ -473,7 +493,7 @@ displayDiscardCards discardPile canDrawCard =
             [ elEmplacement <| none ]
 
         head :: _ ->
-            [ el [ Events.onClick DrawCardFromDiscardPileFrontend ] <| elEmplacement <| displayCard Phone (FaceUp head)
+            [ el [ Events.onClick DrawCardFromDiscardPileFrontend ] <| elEmplacement <| displayFCard Phone (FaceUp head)
             , if canDrawCard then
                 Input.button [] { onPress = Just DrawCardFromDiscardPileFrontend, label = text "Draw the discardPile" }
 
@@ -521,7 +541,7 @@ displayPlayerDebug player =
 displayPlayerView : Maybe SessionId -> DeviceClass -> List FPlayer -> FTableHand -> Maybe CardClickEvent -> Element FrontendMsg
 displayPlayerView _ deviceClass _ tableHand maybeCardClick =
     column [ width fill, alignBottom ]
-        [ displayCards deviceClass tableHand maybeCardClick
+        [ displayFCards deviceClass tableHand maybeCardClick
         ]
 
 
@@ -535,9 +555,9 @@ displayGameDebug _ =
         ]
 
 
-displayCards : DeviceClass -> List FCard -> Maybe CardClickEvent -> Element FrontendMsg
-displayCards deviceClass cards maybeCardClickEvent =
-    wrappedRow [ spacing 12, centerX ] (List.indexedMap (onClickCard maybeCardClickEvent (displayCard deviceClass)) cards)
+displayFCards : DeviceClass -> List FCard -> Maybe CardClickEvent -> Element FrontendMsg
+displayFCards deviceClass cards maybeCardClickEvent =
+    wrappedRow [ spacing 12, centerX ] (List.indexedMap (onClickCard maybeCardClickEvent (displayFCard deviceClass)) cards)
 
 
 onClickCard : Maybe CardClickEvent -> (FCard -> Element FrontendMsg) -> Int -> FCard -> Element FrontendMsg
@@ -553,8 +573,8 @@ onClickCard maybeCardClickEvent tag index card =
             Element.el [ Events.onClick (ReplaceCardInFrontend index) ] (tag card)
 
 
-displayCard : DeviceClass -> FCard -> Element msg
-displayCard deviceClass frontendCard =
+displayFCard : DeviceClass -> FCard -> Element msg
+displayFCard deviceClass frontendCard =
     let
         cardWidth =
             case deviceClass of

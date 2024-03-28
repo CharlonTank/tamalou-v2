@@ -163,3 +163,56 @@ nonShuffledDeck =
     , { suit = Spades, rank = Queen, show = False }
     , { suit = Spades, rank = King, show = False }
     ]
+
+
+handScore : List Card -> Int
+handScore hand =
+    List.foldl
+        (\card acc ->
+            case card.rank of
+                Ace ->
+                    acc + 1
+
+                Two ->
+                    acc + 2
+
+                Three ->
+                    acc + 3
+
+                Four ->
+                    acc + 4
+
+                Five ->
+                    acc + 5
+
+                Six ->
+                    acc + 6
+
+                Seven ->
+                    acc + 7
+
+                Eight ->
+                    acc + 8
+
+                Nine ->
+                    acc + 9
+
+                Ten ->
+                    acc + 0
+
+                Jack ->
+                    acc + 10
+
+                Queen ->
+                    acc + 10
+
+                King ->
+                    acc + 10
+        )
+        0
+        hand
+
+
+handIsLessThanFive : List Card -> Bool
+handIsLessThanFive tableHand =
+    handScore tableHand <= 5
