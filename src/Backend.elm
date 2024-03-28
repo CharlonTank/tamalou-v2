@@ -215,7 +215,7 @@ stopDisplayCards : List BPlayer -> List BPlayer
 stopDisplayCards players =
     List.map
         (\({ tableHand } as player) ->
-            { player | tableHand = List.map (\card -> { card | show = True }) tableHand }
+            { player | tableHand = List.map (\card -> { card | show = False }) tableHand }
         )
         players
 
@@ -462,7 +462,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                         List.indexedMap
                                                                             (\index card ->
                                                                                 if index == cardIndex then
-                                                                                    { cardInHand | show = True }
+                                                                                    { cardInHand | show = False }
 
                                                                                 else
                                                                                     card
@@ -587,7 +587,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                                             { p
                                                                                                 | tableHand =
                                                                                                     p.tableHand
-                                                                                                        ++ [ { cardDrew | show = True } ]
+                                                                                                        ++ [ { cardDrew | show = False } ]
                                                                                             }
 
                                                                                         else
@@ -650,7 +650,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                                 { p
                                                                                     | tableHand =
                                                                                         p.tableHand
-                                                                                            ++ [ { singleCard | show = True } ]
+                                                                                            ++ [ { singleCard | show = False } ]
                                                                                 }
 
                                                                             else
@@ -677,7 +677,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                         { p
                                                                             | tableHand =
                                                                                 p.tableHand
-                                                                                    |> List.map (\card -> { card | show = True })
+                                                                                    |> List.map (\card -> { card | show = False })
                                                                         }
 
                                                                     else
