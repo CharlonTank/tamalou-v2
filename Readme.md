@@ -16,7 +16,8 @@ Here are some of the features that are yet to be implemented:
 
 [x] : power of Jack
 [x] : use power instead of drawing if the last person played a card with power and used the power
-[ ] : timer at the end to be able to double
+[x] : timer at the end to be able to double
+[ ] : Impossible to double as the tamalouOwner
 [ ] : power of King
 [ ] : visibility of other cards
 [ ] : power of Queen

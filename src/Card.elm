@@ -171,8 +171,8 @@ nonShuffledDeck =
     ]
 
 
-handScore : List Card -> Int
-handScore hand =
+tableHandScore : List Card -> Int
+tableHandScore hand =
     List.foldl
         (\card acc ->
             case card.rank of
@@ -221,7 +221,7 @@ handScore hand =
 
 handIsLessThanFive : List Card -> Bool
 handIsLessThanFive tableHand =
-    handScore tableHand <= 5
+    tableHandScore tableHand <= 5
 
 
 toPower : Card -> Maybe Power

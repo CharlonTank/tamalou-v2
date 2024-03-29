@@ -130,6 +130,8 @@ init url key =
       , sessionId = Nothing
       , urlPath = url.path
       , device = Device Phone Landscape
+      , errors = []
+      , admin = False
       }
     , Task.perform
         (\v ->
@@ -170,28 +172,28 @@ update msg ({ urlPath } as model) =
             ( model, Cmd.none )
 
         DrawCardFromDeckFrontend ->
-            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DrawCardFromDrawPileToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend )
 
         TamalouFrontend ->
-            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath TamalouToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath TamalouToBackend )
 
         DiscardCardFrontend ->
-            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DiscardCardInHandToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DiscardCardInHandToBackend )
 
         DrawFromDiscardPileFrontend ->
-            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath DrawOrUsePowerFromDiscardPileToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawOrUsePowerFromDiscardPileToBackend )
 
         ReplaceCardInFrontend cardIndex ->
-            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath (ReplaceCardInTableHandToBackend cardIndex) )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
 
         DoubleCardFrontend cardIndex ->
-            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath (DoubleCardInTableHandToBackend cardIndex) )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
 
         PowerIsUsedFrontend ->
-            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath PowerIsUsedToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath PowerIsUsedToBackend )
 
         PowerPassFrontend ->
-            ( model, Lamdera.sendToBackend <| ToBackendActionFromGame urlPath PowerIsNotUsedToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath PowerIsNotUsedToBackend )
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -200,12 +202,19 @@ updateFromBackend msg model =
         NoOpToFrontend ->
             ( model, Cmd.none )
 
-        GotSessionIdAndClientId sessionId clientId ->
+        UpdateAdminToFrontend errors ->
+            ( { model | admin = True, errors = errors }, Cmd.none )
+
+        GotSessionIdAndClientIdToFrontend sessionId clientId ->
             ( { model | clientId = Just clientId, sessionId = Just sessionId }
-            , Lamdera.sendToBackend (ToBackendActionFromGame model.urlPath ConnectToBackend)
+            , if model.urlPath == "/admin" then
+                Lamdera.sendToBackend ConnectToAdminToBackend
+
+              else
+                Lamdera.sendToBackend (ActionFromGameToBackend model.urlPath ConnectToBackend)
             )
 
-        UpdateGame game ->
+        UpdateGameToFrontend game ->
             ( { model | gameFrontend = game }, Cmd.none )
 
 
@@ -221,7 +230,7 @@ view model =
         [ Element.layout
             [ width Element.fill
             , height Element.fill
-            , Background.image "/background.jpeg"
+            , Background.image "/background.jpg"
             , Background.color grey
             , htmlAttribute safeAreaStyle
             ]
@@ -235,15 +244,28 @@ displayModel : FrontendModel -> Element FrontendMsg
 displayModel model =
     Element.column
         [ width fill, height fill, spacing 20, scrollbars ]
-        [ displayGame model
+        [ if model.admin then
+            displayAdmin model
 
-        -- , displayGameDebug model
+          else
+            displayGame model
         ]
 
 
 type CardClickEvent
     = CardClickReplacement
     | CardClickDouble
+
+
+displayAdmin : FrontendModel -> Element FrontendMsg
+displayAdmin model =
+    List.map displayError model.errors
+        |> column [ width fill, height fill ]
+
+
+displayError : String -> Element FrontendMsg
+displayError error =
+    text error
 
 
 displayGame : FrontendModel -> Element FrontendMsg
@@ -264,10 +286,10 @@ displayGame model =
                             [ width fill, height fill, spacing 20, scrollbars ]
                             (text "Waiting for players" :: List.map displayPlayerDebug players)
 
-                    FGameInProgress _ hand _ _ players (FTimerRunning timer) ->
+                    FGameInProgress _ hand _ _ players (FStartTimerRunning timer) ->
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
-                            [ displayTimer timer
+                            [ displayStartTimer timer
                             , displayPlayerView model.sessionId model.device.class players hand Nothing
                             ]
 
@@ -456,6 +478,13 @@ displayGame model =
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerHasDiscard power)) ->
                         let
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else
+                                    Just CardClickDouble
+
                             drawColumn =
                                 column [ spacing 8 ]
                                     [ el [ Font.center, width fill ] <| text "Draw Pile"
@@ -495,7 +524,7 @@ displayGame model =
                                 ]
                             , displayUsePowerOrPass
                             , displayTamalou maybeTamalouOwner
-                            , displayPlayerView model.sessionId model.device.class players hand (Just CardClickReplacement)
+                            , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay _ (FPlayerHasDiscard power)) ->
@@ -539,6 +568,52 @@ displayGame model =
                                 , currentCardColumn
                                 , discardPileColumn
                                 ]
+                            , displayTamalou maybeTamalouOwner
+                            , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
+                            ]
+
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FEndTimerRunning timer) ->
+                        let
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else
+                                    Just CardClickDouble
+
+                            drawColumn =
+                                column [ spacing 8, width fill ]
+                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
+                                    , elEmplacement <|
+                                        if List.isEmpty drawPile then
+                                            none
+
+                                        else
+                                            displayFCard Phone FaceDown
+                                    , none
+                                    ]
+
+                            currentCardColumn =
+                                column [ spacing 8, width fill ]
+                                    [ el [ Font.center, width fill ] <| text "Card drawn"
+                                    , elEmplacement <| displayFCard Phone FaceDown
+                                    , none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8, width fill ]
+                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
+                                        :: displayDiscardCards discardPile False Nothing
+                                    )
+                        in
+                        column
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ spacing 16, centerX, centerY ]
+                                [ drawColumn
+                                , currentCardColumn
+                                , discardPileColumn
+                                ]
+                            , el [ Font.center, width fill ] <| displayEndTimer timer
                             , displayTamalou maybeTamalouOwner
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
@@ -610,30 +685,50 @@ displayDiscardCards discardPile canDrawCard maybePowerCard =
             ]
 
 
-displayTimer : Int -> Element FrontendMsg
-displayTimer timer =
+displayStartTimer : Counter -> Element FrontendMsg
+displayStartTimer timer =
     text <|
         case timer of
-            5 ->
+            Five ->
                 "5"
 
-            4 ->
+            Four ->
                 "4"
 
-            3 ->
+            Three ->
                 "3"
 
-            2 ->
+            Two ->
                 "2"
 
-            1 ->
+            One ->
                 "1"
 
-            0 ->
-                "GOOOO"
+            Zero ->
+                "Start!"
 
-            _ ->
-                ""
+
+displayEndTimer : Counter -> Element FrontendMsg
+displayEndTimer timer =
+    text <|
+        case timer of
+            Five ->
+                "5"
+
+            Four ->
+                "4"
+
+            Three ->
+                "3"
+
+            Two ->
+                "2"
+
+            One ->
+                "1"
+
+            Zero ->
+                "Time's up!"
 
 
 displayPlayerDebug : FPlayer -> Element FrontendMsg

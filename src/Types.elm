@@ -18,11 +18,14 @@ type alias FrontendModel =
     , clientId : Maybe ClientId
     , sessionId : Maybe SessionId
     , urlPath : String
+    , errors : List String
+    , admin : Bool
     }
 
 
 type alias BackendModel =
     { games : List BGame
+    , errors : List String
     }
 
 
@@ -43,10 +46,11 @@ type FrontendMsg
 
 type ToBackend
     = NoOpToBackend
-    | ToBackendActionFromGame String ToBackendActionFromGame
+    | ActionFromGameToBackend String ActionFromGameToBackend
+    | ConnectToAdminToBackend
 
 
-type ToBackendActionFromGame
+type ActionFromGameToBackend
     = ConnectToBackend
     | DrawCardFromDrawPileToBackend
     | DiscardCardInHandToBackend
@@ -72,8 +76,9 @@ type BackendMsgFromGame
 
 type ToFrontend
     = NoOpToFrontend
-    | UpdateGame FGame
-    | GotSessionIdAndClientId SessionId ClientId
+    | UpdateAdminToFrontend (List String)
+    | UpdateGameToFrontend FGame
+    | GotSessionIdAndClientIdToFrontend SessionId ClientId
 
 
 type alias BGame =
@@ -111,9 +116,10 @@ type FGame
 
 
 type FGameInProgressStatus
-    = FTimerRunning Int
+    = FStartTimerRunning Counter
     | FPlayerToPlay SessionId FPlayerToPlayStatus
     | FYourTurn FPlayerToPlayStatus
+    | FEndTimerRunning Counter
 
 
 type FPlayerToPlayStatus
@@ -123,8 +129,18 @@ type FPlayerToPlayStatus
 
 
 type BGameInProgressStatus
-    = BTimerRunning Int
+    = BStartTimerRunning Counter
     | BPlayerToPlay SessionId BPlayerToPlayStatus
+    | BEndTimerRunning Counter
+
+
+type Counter
+    = Five
+    | Four
+    | Three
+    | Two
+    | One
+    | Zero
 
 
 type BPlayerToPlayStatus
