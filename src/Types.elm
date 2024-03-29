@@ -85,12 +85,8 @@ type alias BGame =
 
 type BGameStatus
     = BWaitingForPlayers (List BPlayer)
-    | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool PowerAlreadyUsed
+    | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool
     | BGameEnded SessionId
-
-
-type PowerAlreadyUsed
-    = PowerAlreadyUsed Bool
 
 
 type alias BPlayer =
