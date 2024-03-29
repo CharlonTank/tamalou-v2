@@ -532,7 +532,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                         List.indexedMap
                                                                             (\index card ->
                                                                                 if index == cardIndex then
-                                                                                    { cardInHand | show = True }
+                                                                                    { cardInHand | show = False }
 
                                                                                 else
                                                                                     card
