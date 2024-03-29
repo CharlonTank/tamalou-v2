@@ -41,7 +41,7 @@ launchTimer games =
         |> List.map
             (\g ->
                 case g.status of
-                    BGameInProgress _ _ _ _ (BTimerRunning _) _ ->
+                    BGameInProgress _ _ _ _ (BTimerRunning _) _ _ ->
                         Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
 
                     _ ->
@@ -133,7 +133,7 @@ update msg ({ games } as model) =
                                         else
                                             ( game, [] )
 
-                                    BGameInProgress _ _ _ _ _ _ ->
+                                    BGameInProgress _ _ _ _ _ _ _ ->
                                         ( game, [] )
 
                                     BGameEnded _ ->
@@ -154,7 +154,7 @@ update msg ({ games } as model) =
                     case maybeGame of
                         Just game ->
                             case game.status of
-                                BGameInProgress m a b (p1 :: restOfPlayers) (BTimerRunning nb) lastMoveIsDouble ->
+                                BGameInProgress m a b (p1 :: restOfPlayers) (BTimerRunning nb) lastMoveIsDouble powerAlreadyUsed ->
                                     let
                                         maybeShuffleDrawAndNewSeed =
                                             if nb == 5 then
@@ -167,10 +167,10 @@ update msg ({ games } as model) =
                                             { game
                                                 | status =
                                                     if (nb - 1) < 0 then
-                                                        BGameInProgress m a b (stopDisplayCards (p1 :: restOfPlayers)) (BPlayerToPlay p1.sessionId BWaitingPlayerAction) lastMoveIsDouble
+                                                        BGameInProgress m a b (stopDisplayCards (p1 :: restOfPlayers)) (BPlayerToPlay p1.sessionId (BWaitingPlayerAction Nothing)) lastMoveIsDouble powerAlreadyUsed
 
                                                     else
-                                                        BGameInProgress m a b (p1 :: restOfPlayers) (BTimerRunning <| nb - 1) lastMoveIsDouble
+                                                        BGameInProgress m a b (p1 :: restOfPlayers) (BTimerRunning <| nb - 1) lastMoveIsDouble powerAlreadyUsed
                                             }
                                                 |> (\g ->
                                                         case maybeShuffleDrawAndNewSeed of
@@ -189,7 +189,7 @@ update msg ({ games } as model) =
                                                                             (p1 :: restOfPlayers)
 
                                                                     newGame_ =
-                                                                        BGameInProgress m newDrawPile_ [] newPlayers (BTimerRunning 4) False
+                                                                        BGameInProgress m newDrawPile_ [] newPlayers (BTimerRunning 4) False powerAlreadyUsed
                                                                 in
                                                                 { g | seed = newSeed, status = newGame_ }
 
@@ -314,7 +314,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                             --     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGame frontendGame)) newPlayers
                                             --     )
                                             3 ->
-                                                ( { model | games = updateGameStatus urlPath ( BGameInProgress Nothing [] [] newPlayers (BTimerRunning 5) False, game.seed ) games }
+                                                ( { model | games = updateGameStatus urlPath ( BGameInProgress Nothing [] [] newPlayers (BTimerRunning 5) False (PowerAlreadyUsed False), game.seed ) games }
                                                 , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGame frontendGame)) newPlayers
                                                 )
 
@@ -323,7 +323,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                 , Cmd.none
                                                 )
 
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players progressStatus lastMoveIsDouble ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players progressStatus lastMoveIsDouble powerAlreadyUsed ->
                                         case List.Extra.find ((==) sessionId << .sessionId) players of
                                             Just _ ->
                                                 let
@@ -339,7 +339,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                             players
 
                                                     newGame =
-                                                        BGameInProgress maybeTamalouOwner drawPile discardPile updateClientIdInPlayers progressStatus lastMoveIsDouble
+                                                        BGameInProgress maybeTamalouOwner drawPile discardPile updateClientIdInPlayers progressStatus lastMoveIsDouble powerAlreadyUsed
                                                 in
                                                 ( { model | games = updateGameStatus urlPath ( newGame, game.seed ) games }
                                                 , Cmd.batch <|
@@ -367,13 +367,13 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner _ _ players (BPlayerToPlay sessionId_ BWaitingPlayerAction) lastMoveIsDouble ->
+                                    BGameInProgress maybeTamalouOwner _ _ players (BPlayerToPlay sessionId_ (BWaitingPlayerAction _)) lastMoveIsDouble powerAlreadyUsed ->
                                         if sessionId == sessionId_ then
                                             case drawCardFromDrawPile game of
                                                 ( Just cardDrew, ( newDrawPile, newDiscardPile, newSeed ) ) ->
                                                     let
                                                         newGameStatus =
-                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw cardDrew)) lastMoveIsDouble
+                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw cardDrew)) lastMoveIsDouble powerAlreadyUsed
                                                     in
                                                     updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, newSeed ) players
 
@@ -389,15 +389,15 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                             Nothing ->
                                 ( model, Cmd.none )
 
-                    DrawCardFromDiscardPileToBackend ->
+                    DrawOrUsePowerFromDiscardPileToBackend ->
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile (head :: rest) players (BPlayerToPlay sessionId_ BWaitingPlayerAction) _ ->
+                                    BGameInProgress maybeTamalouOwner drawPile (head :: rest) players (BPlayerToPlay sessionId_ (BWaitingPlayerAction _)) _ powerAlreadyUsed ->
                                         if sessionId == sessionId_ then
                                             let
                                                 newGameStatus =
-                                                    BGameInProgress maybeTamalouOwner drawPile rest players (BPlayerToPlay sessionId_ (BPlayerHasDraw head)) False
+                                                    BGameInProgress maybeTamalouOwner drawPile rest players (BPlayerToPlay sessionId_ (BPlayerHasDraw head)) False powerAlreadyUsed
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) players
@@ -416,18 +416,23 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw card)) _ ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw card)) _ powerAlreadyUsed ->
                                         if sessionId == sessionId_ then
                                             let
                                                 isGameFinished =
                                                     maybeTamalouOwner == Just (nextPlayerSessionId sessionId_ players)
 
                                                 newGameStatus =
-                                                    if isGameFinished then
-                                                        BGameEnded clientId
+                                                    case Card.toPower card of
+                                                        Just powerCard ->
+                                                            BGameInProgress maybeTamalouOwner drawPile (card :: discardPile) players (BPlayerToPlay sessionId_ (BPlayerHasDiscard powerCard)) False powerAlreadyUsed
 
-                                                    else
-                                                        BGameInProgress maybeTamalouOwner drawPile (card :: discardPile) players (BPlayerToPlay (nextPlayerSessionId sessionId_ players) BWaitingPlayerAction) False
+                                                        Nothing ->
+                                                            if isGameFinished then
+                                                                BGameEnded clientId
+
+                                                            else
+                                                                BGameInProgress maybeTamalouOwner drawPile (card :: discardPile) players (BPlayerToPlay (nextPlayerSessionId sessionId_ players) (BWaitingPlayerAction Nothing)) False powerAlreadyUsed
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) players
@@ -446,7 +451,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw cardInHand)) _ ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDraw cardInHand)) _ powerAlreadyUsed ->
                                         if sessionId == sessionId_ then
                                             let
                                                 currentPlayer =
@@ -474,18 +479,26 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                         )
                                                         players
 
+                                                cardToDiscard =
+                                                    currentPlayer |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+
                                                 newDiscardPile =
-                                                    currentPlayer |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand) |> Maybe.map (\c -> { c | show = True }) |> Maybe.map (\c -> c :: discardPile) |> Maybe.withDefault discardPile
+                                                    cardToDiscard |> Maybe.map (\c -> { c | show = True }) |> Maybe.map (\c -> c :: discardPile) |> Maybe.withDefault discardPile
 
                                                 isGameFinished =
                                                     maybeTamalouOwner == Just (nextPlayerSessionId sessionId_ players)
 
                                                 newGameStatus =
-                                                    if isGameFinished then
-                                                        BGameEnded clientId
+                                                    case Maybe.andThen Card.toPower cardToDiscard of
+                                                        Just powerCard ->
+                                                            BGameInProgress maybeTamalouOwner drawPile newDiscardPile players (BPlayerToPlay sessionId_ (BPlayerHasDiscard powerCard)) False powerAlreadyUsed
 
-                                                    else
-                                                        BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ players) BWaitingPlayerAction) False
+                                                        Nothing ->
+                                                            if isGameFinished then
+                                                                BGameEnded clientId
+
+                                                            else
+                                                                BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ players) (BWaitingPlayerAction Nothing)) False powerAlreadyUsed
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
@@ -504,7 +517,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ bPlayerToPlayStatus) doubleIsLastMove powerAlreadyUsed ->
                                         let
                                             isPlayerTurn =
                                                 sessionId == sessionId_
@@ -568,7 +581,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                         BGameEnded sessionId
 
                                                                     else
-                                                                        BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) True
+                                                                        BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) True powerAlreadyUsed
                                                             in
                                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
@@ -594,7 +607,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                                     )
 
                                                                         newGameStatus =
-                                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) False
+                                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile updatedPlayers (BPlayerToPlay sessionId_ bPlayerToPlayStatus) False powerAlreadyUsed
                                                                     in
                                                                     ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
                                                                     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
@@ -619,7 +632,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress Nothing drawPile discardPile players (BPlayerToPlay sessionId_ BWaitingPlayerAction) lastMoveIsDouble ->
+                                    BGameInProgress Nothing drawPile discardPile players (BPlayerToPlay sessionId_ (BWaitingPlayerAction _)) lastMoveIsDouble powerAlreadyUsed ->
                                         if sessionId == sessionId_ then
                                             let
                                                 currentPlayer =
@@ -657,7 +670,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                         )
 
                                                             newGameStatus =
-                                                                BGameInProgress Nothing newDrawPile newDiscardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ updatedPlayers) BWaitingPlayerAction) lastMoveIsDouble
+                                                                BGameInProgress Nothing newDrawPile newDiscardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ updatedPlayers) (BWaitingPlayerAction Nothing)) lastMoveIsDouble powerAlreadyUsed
                                                         in
                                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
                                                         , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
@@ -684,7 +697,7 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                                                                 )
 
                                                     newGameStatus =
-                                                        BGameInProgress (Just sessionId) drawPile discardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ updatedPlayers) BWaitingPlayerAction) lastMoveIsDouble
+                                                        BGameInProgress (Just sessionId) drawPile discardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ updatedPlayers) (BWaitingPlayerAction Nothing)) lastMoveIsDouble powerAlreadyUsed
                                                 in
                                                 ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                                 , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGame <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
@@ -699,11 +712,75 @@ updateFromFrontend sessionId clientId msg ({ games } as model) =
                             Nothing ->
                                 ( model, Cmd.none )
 
+                    PowerIsUsedToBackend ->
+                        -- in this case we will apply the power, to apply the power, we can be in to possible configurations:
+                        -- 1. The player just discarded a card so the game status is BPlayerHasDiscard powerCard
+                        -- in this case, we update the status to BWaitingPlayerAction (Just powerCard) and we notify the players
+                        -- 2. The last player used the power of their powerCard which led the currentPlayer to (BWaitingPlayerAction (Just power)), in this case the user can also use the power and
+                        -- This action can only be done if the game status is BPlayerHasDiscard power or BWaitingPlayerAction (Just power). BPlayerHasDiscard will go to BWaitingPlayerAction (Just power) and BWaitingPlayerAction (Just power) will go to BWaitingPlayerAction Nothing
+                        -- There are 3 powers :
+                        -- 1) Jack is PlayAgain, which will result in setting the game status to BWaitingPlayerAction (Just power)
+                        -- 2) Queen is Switch2Cards, which will result in the ability to switch 1 card from the player hand with 1 card from any other player tableHand, for now, we will just do the same as PlayAgain
+                        -- 3) Kind is LookACard, which will result in the ability to look 1 card form the player hand for 5 seconds, for now, we will just do the same as PlayAgain
+                        case maybeGame of
+                            Just game ->
+                                case game.status of
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDiscard powerCard)) lastMoveIsDouble powerAlreadyUsed ->
+                                        if sessionId == sessionId_ then
+                                            let
+                                                newGameStatus =
+                                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BWaitingPlayerAction (Just powerCard))) lastMoveIsDouble powerAlreadyUsed
+                                            in
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+
+                                        else
+                                            ( model, Cmd.none )
+
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BWaitingPlayerAction (Just powerCard))) lastMoveIsDouble powerAlreadyUsed ->
+                                        if sessionId == sessionId_ then
+                                            let
+                                                newGameStatus =
+                                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble powerAlreadyUsed
+                                            in
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+
+                                        else
+                                            ( model, Cmd.none )
+
+                                    _ ->
+                                        ( model, Cmd.none )
+
+                            Nothing ->
+                                ( model, Cmd.none )
+
+                    PowerIsNotUsedToBackend ->
+                        -- in this case we will not apply the power. We will just update the game status to BWaitingPlayerAction Nothing and notify the players
+                        -- This action can only be done if the game status is BPlayerHasDiscard powerCard
+                        case maybeGame of
+                            Just game ->
+                                case game.status of
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerHasDiscard _)) lastMoveIsDouble powerAlreadyUsed ->
+                                        if sessionId == sessionId_ then
+                                            let
+                                                newGameStatus =
+                                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay (nextPlayerSessionId sessionId_ players) (BWaitingPlayerAction Nothing)) lastMoveIsDouble powerAlreadyUsed
+                                            in
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+
+                                        else
+                                            ( model, Cmd.none )
+
+                                    _ ->
+                                        ( model, Cmd.none )
+
+                            Nothing ->
+                                ( model, Cmd.none )
+
 
 drawCardFromDrawPile : BGame -> ( Maybe Card, ( BDrawPile, DiscardPile, Random.Seed ) )
 drawCardFromDrawPile game =
     case game.status of
-        BGameInProgress _ drawPile discardPile _ _ _ ->
+        BGameInProgress _ drawPile discardPile _ _ _ _ ->
             case ( drawPile, discardPile ) of
                 ( [], [] ) ->
                     ( Nothing, ( [], [], game.seed ) )
@@ -761,7 +838,7 @@ backendGameStatusToFrontendGame maybeSessionId backendGame =
         BWaitingForPlayers players ->
             FWaitingForPlayers (List.map backendPlayerToFrontendPlayer players)
 
-        BGameInProgress Nothing bDrawPile discardPile players bGameInProgressStatus _ ->
+        BGameInProgress Nothing bDrawPile discardPile players bGameInProgressStatus _ _ ->
             let
                 tableHand =
                     case maybeSessionId of
@@ -776,7 +853,7 @@ backendGameStatusToFrontendGame maybeSessionId backendGame =
             in
             FGameInProgress Nothing tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile (List.map backendPlayerToFrontendPlayer players) (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
 
-        BGameInProgress (Just tamalouOwnerSessionId) bDrawPile discardPile players bGameInProgressStatus _ ->
+        BGameInProgress (Just tamalouOwnerSessionId) bDrawPile discardPile players bGameInProgressStatus _ _ ->
             let
                 tableHand =
                     case maybeSessionId of
@@ -807,12 +884,12 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
 
         BPlayerToPlay sessionId bPlayerToPlayStatus ->
             case bPlayerToPlayStatus of
-                BWaitingPlayerAction ->
+                BWaitingPlayerAction maybePowerCard ->
                     if maybeSessionId == Just sessionId then
-                        FYourTurn FWaitingPlayerDraw
+                        FYourTurn (FWaitingPlayerAction maybePowerCard)
 
                     else
-                        FPlayerToPlay sessionId FWaitingPlayerDraw
+                        FPlayerToPlay sessionId (FWaitingPlayerAction maybePowerCard)
 
                 BPlayerHasDraw card ->
                     if maybeSessionId == Just sessionId then
@@ -820,6 +897,13 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
 
                     else
                         FPlayerToPlay sessionId (FPlayerHasDraw FaceDown)
+
+                BPlayerHasDiscard powerCard ->
+                    if maybeSessionId == Just sessionId then
+                        FYourTurn (FPlayerHasDiscard powerCard)
+
+                    else
+                        FPlayerToPlay sessionId (FPlayerHasDiscard powerCard)
 
 
 backendPlayerToFrontendPlayer : BPlayer -> FPlayer

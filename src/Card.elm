@@ -39,6 +39,12 @@ type Rank
     | King
 
 
+type Power
+    = PlayAgain
+    | Switch2Cards
+    | LookACard
+
+
 toString : Card -> String
 toString card =
     suitToString card.suit ++ "/" ++ rankToString card.rank
@@ -216,3 +222,32 @@ handScore hand =
 handIsLessThanFive : List Card -> Bool
 handIsLessThanFive tableHand =
     handScore tableHand <= 5
+
+
+toPower : Card -> Maybe Power
+toPower { rank } =
+    case rank of
+        Jack ->
+            Just PlayAgain
+
+        Queen ->
+            Just Switch2Cards
+
+        King ->
+            Just LookACard
+
+        _ ->
+            Nothing
+
+
+powerToString : Power -> String
+powerToString power =
+    case power of
+        PlayAgain ->
+            "Play Again"
+
+        Switch2Cards ->
+            "Switch 2 Cards"
+
+        LookACard ->
+            "Look a Card"

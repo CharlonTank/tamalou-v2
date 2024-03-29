@@ -3,7 +3,7 @@ module Types exposing (..)
 import Browser exposing (UrlRequest)
 import Browser.Dom
 import Browser.Navigation exposing (Key)
-import Card exposing (Card, FCard)
+import Card exposing (Card, FCard, Power)
 import Element exposing (Device)
 import Lamdera exposing (ClientId, SessionId)
 import Random
@@ -33,7 +33,9 @@ type FrontendMsg
     | DrawCardFromDeckFrontend
     | TamalouFrontend
     | DiscardCardFrontend
-    | DrawCardFromDiscardPileFrontend
+    | DrawFromDiscardPileFrontend
+    | PowerIsUsedFrontend
+    | PowerPassFrontend
     | ReplaceCardInFrontend Int
     | DoubleCardFrontend Int
     | GotWindowSize Device
@@ -48,9 +50,11 @@ type ToBackendActionFromGame
     = ConnectToBackend
     | DrawCardFromDrawPileToBackend
     | DiscardCardInHandToBackend
-    | DrawCardFromDiscardPileToBackend
+    | DrawOrUsePowerFromDiscardPileToBackend
     | ReplaceCardInTableHandToBackend Int
     | DoubleCardInTableHandToBackend Int
+    | PowerIsUsedToBackend
+    | PowerIsNotUsedToBackend
     | TamalouToBackend
 
 
@@ -81,8 +85,12 @@ type alias BGame =
 
 type BGameStatus
     = BWaitingForPlayers (List BPlayer)
-    | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool
+    | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool PowerAlreadyUsed
     | BGameEnded SessionId
+
+
+type PowerAlreadyUsed
+    = PowerAlreadyUsed Bool
 
 
 type alias BPlayer =
@@ -113,8 +121,9 @@ type FGameInProgressStatus
 
 
 type FPlayerToPlayStatus
-    = FWaitingPlayerDraw
+    = FWaitingPlayerAction (Maybe Power)
     | FPlayerHasDraw FCard
+    | FPlayerHasDiscard Power
 
 
 type BGameInProgressStatus
@@ -123,8 +132,9 @@ type BGameInProgressStatus
 
 
 type BPlayerToPlayStatus
-    = BWaitingPlayerAction
+    = BWaitingPlayerAction (Maybe Power)
     | BPlayerHasDraw Card
+    | BPlayerHasDiscard Power
 
 
 type alias FPlayer =
