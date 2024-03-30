@@ -325,8 +325,11 @@ distribute4CardsToPlayer drawPile player =
             ( [], { player | tableHand = [ { card1 | show = True }, card2, card3 ] } )
 
         card1 :: card2 :: card3 :: card4 :: drawPile_ ->
-            -- Debug.log "distribute4CardsToPlayer" ( drawPile_, { player | tableHand = [ { card1 | show = True }, { card4 | show = True } ] } )
-            ( drawPile_, { player | tableHand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
+            Debug.log "distribute4CardsToPlayer" ( drawPile_, { player | tableHand = [ { card1 | show = True } ] } )
+
+
+
+-- ( drawPile_, { player | tableHand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
 
 
 updateGameStatus : String -> ( BGameStatus, Random.Seed ) -> List BGame -> List BGame
@@ -489,8 +492,6 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                             Nothing ->
                                 ( model, Cmd.none )
 
-                    -- if all the players in the game are ready and there are 2 players or more, we can start the game
-                    -- otherwise, just update the player ready field to True and notify the players
                     StartGameToBackend ->
                         case maybeGame of
                             Just game ->
@@ -551,6 +552,62 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
                                             )
+
+                                    _ ->
+                                        ( model, Cmd.none )
+
+                            Nothing ->
+                                ( model, Cmd.none )
+
+                    ReStartGameToBackend ->
+                        case maybeGame of
+                            Just game ->
+                                case game.status of
+                                    BGameEnded players ->
+                                        let
+                                            newPlayers =
+                                                List.map
+                                                    (\p ->
+                                                        { p
+                                                            | tableHand = []
+                                                            , ready = False
+                                                        }
+                                                    )
+                                                    players
+
+                                            newGameStatus =
+                                                BWaitingForPlayers newPlayers
+
+                                            frontendGame : FGame
+                                            frontendGame =
+                                                backendGameStatusToFrontendGame Nothing newGameStatus
+                                        in
+                                        ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
+                                        , Lamdera.sendToFrontend clientId (UpdateGameToFrontend frontendGame)
+                                        )
+
+                                    BWaitingForPlayers players ->
+                                        let
+                                            newPlayers =
+                                                List.map
+                                                    (\p ->
+                                                        { p
+                                                            | tableHand = []
+                                                            , ready = False
+                                                        }
+                                                    )
+                                                    players
+
+                                            newGameStatus =
+                                                BWaitingForPlayers newPlayers
+
+                                            frontendGame : FGame
+                                            frontendGame =
+                                                backendGameStatusToFrontendGame Nothing newGameStatus
+                                        in
+                                        ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
+                                        , Lamdera.sendToFrontend clientId (UpdateGameToFrontend frontendGame)
+                                        )
 
                                     _ ->
                                         ( model, Cmd.none )

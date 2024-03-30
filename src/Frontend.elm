@@ -179,6 +179,9 @@ update msg ({ urlPath } as model) =
         StartGameFrontend ->
             ( { model | ready = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath StartGameToBackend )
 
+        ReStartGameFrontend ->
+            ( { model | ready = False }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath ReStartGameToBackend )
+
         DrawCardFromDeckFrontend ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend )
 
@@ -851,6 +854,7 @@ displayGame ({ screenWidth } as model) =
                                             "You lost!🤷\u{200D}♂️"
                             , column [ centerX, spacing 4, width <| px <| (screenWidth * 80 // 100) ] <|
                                 List.indexedMap (\i player -> displayPlayerAndCards i player) orderedPlayers
+                            , el [ centerX ] <| actionButton { onPress = Just ReStartGameFrontend, label = text "Play again!" }
                             ]
 
                     FGameAlreadyStartedWithoutYou ->
