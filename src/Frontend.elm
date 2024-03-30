@@ -133,6 +133,7 @@ init url key =
       , errors = []
       , admin = False
       , screenHeight = 0
+      , screenWidth = 0
       }
     , Task.perform
         (\v ->
@@ -149,7 +150,7 @@ update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 update msg ({ urlPath } as model) =
     case msg of
         GotWindowSize viewPort ->
-            ( { model | device = classifyDevice viewPort, screenHeight = viewPort.height }
+            ( { model | device = classifyDevice viewPort, screenHeight = viewPort.height, screenWidth = viewPort.width }
             , Cmd.none
             )
 
@@ -275,7 +276,7 @@ displayError error =
 
 
 displayGame : FrontendModel -> Element FrontendMsg
-displayGame model =
+displayGame ({ screenWidth } as model) =
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
             el [ width fill, height fill ] <|
@@ -310,7 +311,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -321,13 +322,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <| none
+                                    [ elEmplacement screenWidth <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    (displayDiscardCards discardPile False Nothing)
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -351,7 +352,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8, width fill ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -362,13 +363,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8, width fill ]
-                                    [ elEmplacement <| displayFCard Phone FaceDown
+                                    [ elEmplacement screenWidth <| displayFCard Phone FaceDown
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8, width fill ]
-                                    (displayDiscardCards discardPile False Nothing)
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -392,7 +393,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         el
                                             ([ Events.onClick DrawCardFromDeckFrontend
                                              , centerX
@@ -406,12 +407,12 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <| none
+                                    [ elEmplacement screenWidth <| none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    (displayDiscardCards discardPile True maybePowerCard)
+                                    (displayDiscardCards screenWidth discardPile True maybePowerCard)
 
                             tamalouButton =
                                 el [ centerX ] <| actionButton { onPress = Just TamalouFrontend, label = text "Tamalou" }
@@ -436,7 +437,7 @@ displayGame model =
                         let
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -446,12 +447,12 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <| el ([ centerX, centerY, Events.onClick DiscardCardFrontend ] ++ actionBorder) <| displayFCard Phone fCard
+                                    [ elEmplacement screenWidth <| el ([ centerX, centerY, Events.onClick DiscardCardFrontend ] ++ actionBorder) <| displayFCard Phone fCard
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    (displayDiscardCards discardPile False Nothing)
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -475,7 +476,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -485,13 +486,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <| none
+                                    [ elEmplacement screenWidth <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    (displayDiscardCards discardPile False (Just power))
+                                    (displayDiscardCards screenWidth discardPile False (Just power))
 
                             displayUsePowerOrPass =
                                 row [ centerX, spacing 8 ]
@@ -522,7 +523,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -533,13 +534,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <| none
+                                    [ elEmplacement screenWidth <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    (displayDiscardCards discardPile False Nothing)
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -563,7 +564,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -574,13 +575,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <| none
+                                    [ elEmplacement screenWidth <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    (displayDiscardCards discardPile False Nothing)
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -604,7 +605,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -615,13 +616,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <| none
+                                    [ elEmplacement screenWidth <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    (displayDiscardCards discardPile False Nothing)
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -646,7 +647,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -657,13 +658,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement <| none
+                                    [ elEmplacement screenWidth <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    (displayDiscardCards discardPile False Nothing)
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -688,7 +689,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8, width fill ]
-                                    [ elEmplacement <|
+                                    [ elEmplacement screenWidth <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -699,13 +700,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8, width fill ]
-                                    [ elEmplacement <| displayFCard Phone FaceDown
+                                    [ elEmplacement screenWidth <| displayFCard Phone FaceDown
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8, width fill ]
-                                    (displayDiscardCards discardPile False Nothing)
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -749,18 +750,19 @@ displayTamalou maybeTamalouOwner =
 
 displayCard : Card -> Element FrontendMsg
 displayCard card =
-    el [ width <| px 36, height <| px 43, Background.image ("/cardImages/" ++ Card.toString card ++ ".png"), Border.rounded 8 ] none
+    el [ Background.image ("/cardImages/" ++ Card.toString card ++ ".png"), Border.rounded 8 ] none
 
 
 
 -- 255 × 380
+-- 182/122
 
 
-elEmplacement : Element FrontendMsg -> Element FrontendMsg
-elEmplacement cardToDisplay =
+elEmplacement : Int -> Element FrontendMsg -> Element FrontendMsg
+elEmplacement widthOfScreen cardToDisplay =
     el
-        [ width <| px 122
-        , height <| px 182
+        [ width <| px <| widthOfScreen // 7
+        , height <| px <| widthOfScreen * 15 // 70
         , Background.image "/emplacement.png"
         , Border.rounded 8
         ]
@@ -768,25 +770,25 @@ elEmplacement cardToDisplay =
         el [ width fill, height fill ] cardToDisplay
 
 
-displayDiscardCards : DiscardPile -> Bool -> Maybe Card.Power -> List (Element FrontendMsg)
-displayDiscardCards discardPile canDrawCard maybePowerCard =
+displayDiscardCards : Int -> DiscardPile -> Bool -> Maybe Card.Power -> List (Element FrontendMsg)
+displayDiscardCards widthOfScreen discardPile canDrawCard maybePowerCard =
     case ( discardPile, canDrawCard, maybePowerCard ) of
         ( [], _, _ ) ->
-            [ elEmplacement <| none ]
+            [ elEmplacement widthOfScreen <| none ]
 
         ( head :: _, False, _ ) ->
-            [ elEmplacement <| displayFCard Phone (FaceUp head) ]
+            [ elEmplacement widthOfScreen <| displayFCard Phone (FaceUp head) ]
 
         ( head :: _, True, Nothing ) ->
             case Card.toPower head of
                 Just _ ->
-                    [ elEmplacement <| displayFCard Phone (FaceUp head) ]
+                    [ elEmplacement widthOfScreen <| displayFCard Phone (FaceUp head) ]
 
                 Nothing ->
-                    [ elEmplacement <| el ([ centerX, centerY, Events.onClick DrawFromDiscardPileFrontend ] ++ actionBorder) <| displayFCard Phone (FaceUp head) ]
+                    [ elEmplacement widthOfScreen <| el ([ centerX, centerY, Events.onClick DrawFromDiscardPileFrontend ] ++ actionBorder) <| displayFCard Phone (FaceUp head) ]
 
         ( head :: _, True, Just power ) ->
-            [ elEmplacement <| displayFCard Phone (FaceUp head)
+            [ elEmplacement widthOfScreen <| displayFCard Phone (FaceUp head)
             , Input.button [] { onPress = Just PowerIsUsedFrontend, label = text <| Card.powerToString power }
             ]
 

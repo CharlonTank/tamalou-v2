@@ -21,6 +21,7 @@ type alias FrontendModel =
     , errors : List String
     , admin : Bool
     , screenHeight : Int
+    , screenWidth : Int
     }
 
 
