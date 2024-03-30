@@ -299,7 +299,7 @@ displayGameLobby : Maybe SessionId -> List FPlayer -> Element FrontendMsg
 displayGameLobby maybeSessionId players =
     case maybeSessionId of
         Nothing ->
-            el [ centerX, centerY ] <| text "Sorry, we don't know who you are, please refresh the page"
+            el [ centerX, centerY ] <| text "-"
 
         Just sessionId ->
             let
@@ -311,7 +311,7 @@ displayGameLobby maybeSessionId players =
                     column [ width fill, height fill ]
                         [ el [ centerX, centerY ] <| text "Sorry, the game already started, you can't join"
                         , el [ centerX, centerY ] <| text "Wait for the next game"
-                        , row [ spacing 8, centerX ] <| List.map displayPlayer players
+                        , column [ spacing 8, centerX ] <| List.map displayPlayer players
                         ]
 
                 Just currentPlayer ->
@@ -322,20 +322,6 @@ displayGameLobby maybeSessionId players =
 
                         -- , actionButton { onPress = Just StartGameFrontend, label = text "Start game" }
                         ]
-
-
-
--- let
---     currentPlay
--- column
---     [ width fill, height fill, spacing 20 ]
---     [ row [ spacing 8 ] <| List.map displayPlayer players
---     , case maybeSessionId of
---         Just sessionId ->
---             actionButton { onPress = Just StartGameFrontend, label = text "Start game" }
---         Nothing ->
---             none
---     ]
 
 
 displayGame : FrontendModel -> Element FrontendMsg

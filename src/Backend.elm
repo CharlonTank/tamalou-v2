@@ -15,10 +15,10 @@ import Types exposing (..)
 
 app : { init : ( BackendModel, Cmd BackendMsg ), update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg ), updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg ), subscriptions : BackendModel -> Sub BackendMsg }
 app =
-    -- DebugApp.backend
-    --     NoOpBackendMsg
-    --     "e465a26049dfca11"
-    Lamdera.backend
+    DebugApp.backend
+        NoOpBackendMsg
+        "e465a26049dfca11"
+        -- Lamdera.backend
         { init = init
         , update = update
         , updateFromFrontend = updateFromFrontend
@@ -1166,32 +1166,26 @@ cardToFrontendCard card =
 
 listOfFunnyPlaceHolderNames : List String
 listOfFunnyPlaceHolderNames =
-    [ "Aristide"
-    , "Barnabé"
-    , "Cunégonde"
-    , "Désiré"
-    , "Eustache"
-    , "Félicie"
-    , "Gustave"
-    , "Hortense"
-    , "Isidore"
-    , "Jocaste"
-    , "Kléber"
-    , "Léontine"
-    , "Maurice"
-    , "Narcisse"
-    , "Olympe"
-    , "Pélagie"
-    , "Quentin"
-    , "Roseline"
-    , "Séraphin"
-    , "Théodora"
-    , "Ursule"
-    , "Vespasien"
-    , "Wandrille"
-    , "Xénophon"
-    , "Yolande"
-    , "Zéphyrin"
+    [ "Francis Bacon"
+    , "Benedict Egg"
+    , "Taco Belle"
+    , "Maxi Mom"
+    , "Mini Mom"
+    , "Sal A. Mander"
+    , "Holly Wood"
+    , "Alain Delonion"
+    , "Jean DuJardinage"
+    , "Samuel L. Jackfruit"
+    , "Tom Ato"
+    , "Framboise A. LaCreme"
+    , "Jean-Claude Sans Dame"
+    , "Tom C"
+    , "Leonardo DiCarpaccio"
+    , "Idris Elbarmesan"
+    , "Marilyn Monrouleau"
+    , "Jean-Paul Tartre"
+    , "Angelina Jolie Haricot"
+    , "Albert Einchampignon"
     ]
 
 
