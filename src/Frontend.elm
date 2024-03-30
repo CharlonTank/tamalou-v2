@@ -13,6 +13,9 @@ import Element.Font as Font
 import Element.Input as Input
 import Html.Attributes as HA
 import Lamdera exposing (SessionId)
+import List.Extra
+import Random
+import Random.Extra
 import Simple.Animation as Animation exposing (Animation)
 import Simple.Animation.Animated as Animated
 import Simple.Animation.Property as P
@@ -175,6 +178,9 @@ update msg ({ urlPath } as model) =
         DrawCardFromDeckFrontend ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend )
 
+        ChangeCurrentPlayerNameFrontend newName ->
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChangeCurrentPlayerNameToBackend newName) )
+
         TamalouFrontend ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath TamalouToBackend )
 
@@ -275,6 +281,63 @@ displayError error =
     text error
 
 
+listfindAndRemove : (a -> Bool) -> List a -> ( Maybe a, List a )
+listfindAndRemove predicate list =
+    let
+        ( found, rest ) =
+            List.partition predicate list
+    in
+    case found of
+        [ x ] ->
+            ( Just x, rest )
+
+        _ ->
+            ( Nothing, list )
+
+
+displayGameLobby : Maybe SessionId -> List FPlayer -> Element FrontendMsg
+displayGameLobby maybeSessionId players =
+    case maybeSessionId of
+        Nothing ->
+            el [ centerX, centerY ] <| text "Sorry, we don't know who you are, please refresh the page"
+
+        Just sessionId ->
+            let
+                ( maybeCurrentPlayer, otherPlayers ) =
+                    listfindAndRemove (\player -> player.sessionId == sessionId) players
+            in
+            case maybeCurrentPlayer of
+                Nothing ->
+                    column [ width fill, height fill ]
+                        [ el [ centerX, centerY ] <| text "Sorry, the game already started, you can't join"
+                        , el [ centerX, centerY ] <| text "Wait for the next game"
+                        , row [ spacing 8, centerX ] <| List.map displayPlayer players
+                        ]
+
+                Just currentPlayer ->
+                    column
+                        [ width fill, height fill, spacing 20 ]
+                        [ Input.text [] { onChange = ChangeCurrentPlayerNameFrontend, text = currentPlayer.name, placeholder = Nothing, label = Input.labelAbove [] <| text "Your name" }
+                        , row [ spacing 8, centerX ] <| List.map displayPlayer otherPlayers
+
+                        -- , actionButton { onPress = Just StartGameFrontend, label = text "Start game" }
+                        ]
+
+
+
+-- let
+--     currentPlay
+-- column
+--     [ width fill, height fill, spacing 20 ]
+--     [ row [ spacing 8 ] <| List.map displayPlayer players
+--     , case maybeSessionId of
+--         Just sessionId ->
+--             actionButton { onPress = Just StartGameFrontend, label = text "Start game" }
+--         Nothing ->
+--             none
+--     ]
+
+
 displayGame : FrontendModel -> Element FrontendMsg
 displayGame ({ screenWidth } as model) =
     case ( model.device.class, model.device.orientation ) of
@@ -291,8 +354,9 @@ displayGame ({ screenWidth } as model) =
                     FWaitingForPlayers players ->
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
-                            (text "Waiting for players" :: List.map displayPlayerDebug players)
+                            [ displayGameLobby model.sessionId players ]
 
+                    -- (text "Waiting for players" :: List.map displayPlayer players)
                     FGameInProgress _ hand _ _ players (FStartTimerRunning timer) ->
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
@@ -839,13 +903,20 @@ displayEndTimer timer =
                 "Time's up!"
 
 
-displayPlayerDebug : FPlayer -> Element FrontendMsg
-displayPlayerDebug player =
+displayPlayer : FPlayer -> Element FrontendMsg
+displayPlayer player =
     column
         [ width fill, spacing 12 ]
-        [ text player.name
-        , row [ spacing 8 ] [ text "ClientId = ", text player.clientId ]
-        , row [ spacing 8 ] [ text "SessionId = ", text player.sessionId ]
+        [ text <|
+            case player.name of
+                "" ->
+                    "Anonymous"
+
+                playerName ->
+                    playerName
+
+        -- , row [ spacing 8 ] [ text "ClientId = ", text player.clientId ]
+        -- , row [ spacing 8 ] [ text "SessionId = ", text player.sessionId ]
         ]
 
 
@@ -918,5 +989,6 @@ blue =
     Element.rgb255 0 0 255
 
 
+actionButton : { onPress : Maybe FrontendMsg, label : Element FrontendMsg } -> Element FrontendMsg
 actionButton =
     Input.button actionBorder

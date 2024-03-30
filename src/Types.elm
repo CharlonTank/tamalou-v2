@@ -33,9 +33,11 @@ type alias BackendModel =
 
 
 type FrontendMsg
-    = UrlClicked UrlRequest
+    = NoOpFrontendMsg
+    | UrlClicked UrlRequest
     | UrlChanged Url
-    | NoOpFrontendMsg
+    | GotWindowSize { height : Int, width : Int }
+    | ChangeCurrentPlayerNameFrontend String
     | DrawCardFromDeckFrontend
     | TamalouFrontend
     | DiscardCardFrontend
@@ -45,7 +47,6 @@ type FrontendMsg
     | ReplaceCardInFrontend Int
     | DoubleCardFrontend Int
     | LookAtCardFrontend Int
-    | GotWindowSize { height : Int, width : Int }
 
 
 type ToBackend
@@ -56,6 +57,7 @@ type ToBackend
 
 type ActionFromGameToBackend
     = ConnectToBackend
+    | ChangeCurrentPlayerNameToBackend String
     | DrawCardFromDrawPileToBackend
     | DiscardCardInHandToBackend
     | DrawFromDiscardPileToBackend
@@ -76,7 +78,7 @@ type BackendMsg
 
 type BackendMsgFromGame
     = TimerTick Posix
-    | BeginGameAndDistribute4CardsToEach (List Card)
+    | CreateGame Posix ClientId SessionId
 
 
 type ToFrontend

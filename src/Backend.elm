@@ -288,8 +288,22 @@ update msg ({ games } as model) =
                         Nothing ->
                             ( model, Cmd.none )
 
-                _ ->
-                    ( model, Cmd.none )
+                CreateGame posix clientId sessionId ->
+                    -- let's create the game, but first, we need to generate a seed, to do that let's use Random.initialSeed posix
+                    -- we will do the following there:
+                    let
+                        ( funnyName, newSeed ) =
+                            generateRandomFunnyName (Random.initialSeed (posix |> Time.posixToMillis))
+
+                        newGame =
+                            { urlPath = urlPath
+                            , seed = newSeed
+                            , status = BWaitingForPlayers [ { name = funnyName, tableHand = [], clientId = clientId, sessionId = sessionId } ]
+                            }
+                    in
+                    ( { model | games = newGame :: games }
+                    , Lamdera.sendToFrontend clientId (UpdateGameToFrontend (backendGameStatusToFrontendGame Nothing newGame.status))
+                    )
 
 
 decrementCounter : Counter -> Maybe Counter
@@ -384,6 +398,9 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BWaitingForPlayers players ->
                                         let
+                                            ( funnyName, newSeed ) =
+                                                generateRandomFunnyName game.seed
+
                                             newPlayers =
                                                 case List.Extra.find ((==) sessionId << .sessionId) players of
                                                     Just _ ->
@@ -391,7 +408,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 
                                                     Nothing ->
                                                         players
-                                                            ++ [ { name = "Player " ++ String.fromInt (List.length players + 1)
+                                                            ++ [ { name = funnyName
                                                                  , tableHand = []
                                                                  , clientId = clientId
                                                                  , sessionId = sessionId
@@ -407,20 +424,22 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                         in
                                         case List.length newPlayers of
                                             1 ->
-                                                ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, game.seed ) games }
+                                                ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
                                                 , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
                                                 )
 
-                                            -- 2 ->
-                                            --     ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, game.seed ) games }
-                                            --     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
-                                            --     )
-                                            -- 3 ->
-                                            --     ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, game.seed ) games }
-                                            --     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGame frontendGame)) newPlayers
-                                            --     )
                                             2 ->
-                                                ( { model | games = updateGameStatus urlPath ( BGameInProgress Nothing [] [] newPlayers (BStartTimerRunning Five) False False, game.seed ) games }
+                                                ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
+                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                                )
+
+                                            3 ->
+                                                ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
+                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                                )
+
+                                            4 ->
+                                                ( { model | games = updateGameStatus urlPath ( BGameInProgress Nothing [] [] newPlayers (BStartTimerRunning Five) False False, newSeed ) games }
                                                 , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
                                                 )
 
@@ -461,13 +480,43 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                         )
 
                             Nothing ->
-                                let
-                                    newGame =
-                                        { urlPath = urlPath, seed = Random.initialSeed 0, status = BWaitingForPlayers [ { name = "Player 1", tableHand = [], clientId = clientId, sessionId = sessionId } ] }
-                                in
-                                ( { model | games = newGame :: games }
-                                , Lamdera.sendToFrontend clientId (UpdateGameToFrontend (backendGameStatusToFrontendGame Nothing newGame.status))
+                                ( model
+                                , Task.perform (\posix -> BackendMsgFromGame urlPath (CreateGame posix clientId sessionId)) Time.now
                                 )
+
+                    ChangeCurrentPlayerNameToBackend newName ->
+                        case maybeGame of
+                            Just game ->
+                                case game.status of
+                                    BWaitingForPlayers players ->
+                                        let
+                                            newPlayers =
+                                                List.map
+                                                    (\p ->
+                                                        if p.sessionId == sessionId then
+                                                            { p | name = newName }
+
+                                                        else
+                                                            p
+                                                    )
+                                                    players
+
+                                            newGameStatus =
+                                                BWaitingForPlayers newPlayers
+
+                                            frontendGame : FGame
+                                            frontendGame =
+                                                backendGameStatusToFrontendGame Nothing newGameStatus
+                                        in
+                                        ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
+                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                        )
+
+                                    _ ->
+                                        ( model, Cmd.none )
+
+                            Nothing ->
+                                ( model, Cmd.none )
 
                     DrawCardFromDrawPileToBackend ->
                         case maybeGame of
@@ -1113,3 +1162,40 @@ cardToFrontendCard card =
 
     else
         FaceDown
+
+
+listOfFunnyPlaceHolderNames : List String
+listOfFunnyPlaceHolderNames =
+    [ "Aristide"
+    , "Barnabé"
+    , "Cunégonde"
+    , "Désiré"
+    , "Eustache"
+    , "Félicie"
+    , "Gustave"
+    , "Hortense"
+    , "Isidore"
+    , "Jocaste"
+    , "Kléber"
+    , "Léontine"
+    , "Maurice"
+    , "Narcisse"
+    , "Olympe"
+    , "Pélagie"
+    , "Quentin"
+    , "Roseline"
+    , "Séraphin"
+    , "Théodora"
+    , "Ursule"
+    , "Vespasien"
+    , "Wandrille"
+    , "Xénophon"
+    , "Yolande"
+    , "Zéphyrin"
+    ]
+
+
+generateRandomFunnyName : Random.Seed -> ( String, Random.Seed )
+generateRandomFunnyName seed =
+    Random.step (Random.int 0 (List.length listOfFunnyPlaceHolderNames - 1)) seed
+        |> (\( n, newSeed ) -> ( List.Extra.getAt n listOfFunnyPlaceHolderNames |> Maybe.withDefault "Anonymous", newSeed ))
