@@ -116,7 +116,7 @@ update msg ({ games } as model) =
         FeedSessionIdAndClientId sessionId clientId ->
             ( model, Lamdera.sendToFrontend clientId (GotSessionIdAndClientIdToFrontend sessionId clientId) )
 
-        GotUserDisconnected _ clientId ->
+        GotUserDisconnected sessionId _ ->
             let
                 ( updatedGames, cmds ) =
                     games
@@ -126,14 +126,14 @@ update msg ({ games } as model) =
                                     BWaitingForPlayers players ->
                                         let
                                             newPlayers =
-                                                List.filter ((/=) clientId << .clientId) players
+                                                List.filter ((/=) sessionId << .sessionId) players
 
                                             newGameStatus =
                                                 BWaitingForPlayers newPlayers
                                         in
                                         if List.length newPlayers /= List.length players then
                                             ( { game | status = newGameStatus }
-                                            , List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) newPlayers
+                                            , List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame Nothing newGameStatus) newPlayers
                                             )
 
                                         else
@@ -156,19 +156,12 @@ update msg ({ games } as model) =
                     List.Extra.find ((==) urlPath << .urlPath) games
             in
             case toBackend of
-                TimerTick posix ->
+                TimerTick _ ->
                     case maybeGame of
                         Just game ->
                             case game.status of
                                 BGameInProgress m a b (p1 :: restOfPlayers) (BStartTimerRunning nb) _ _ ->
                                     let
-                                        maybeShuffleDrawAndNewSeed =
-                                            if nb == Five then
-                                                Just <| shuffleWithSeed (Random.initialSeed (posix |> Time.posixToMillis)) Card.nonShuffledDeck
-
-                                            else
-                                                Nothing
-
                                         newNb =
                                             decrementCounter nb
 
@@ -182,30 +175,6 @@ update msg ({ games } as model) =
                                                         Just newNb_ ->
                                                             BGameInProgress m a b (p1 :: restOfPlayers) (BStartTimerRunning newNb_) False False
                                             }
-                                                |> (\g ->
-                                                        case maybeShuffleDrawAndNewSeed of
-                                                            Just ( newDrawPile, newSeed ) ->
-                                                                let
-                                                                    ( newDrawPile_, newPlayers ) =
-                                                                        List.foldl
-                                                                            (\player ( drawPile_, players_ ) ->
-                                                                                let
-                                                                                    ( newDrawPile__, newPlayer ) =
-                                                                                        distribute4CardsToPlayer drawPile_ player
-                                                                                in
-                                                                                ( newDrawPile__, players_ ++ [ newPlayer ] )
-                                                                            )
-                                                                            ( newDrawPile, [] )
-                                                                            (p1 :: restOfPlayers)
-
-                                                                    newGame_ =
-                                                                        BGameInProgress m newDrawPile_ [] newPlayers (BStartTimerRunning Four) False False
-                                                                in
-                                                                { g | seed = newSeed, status = newGame_ }
-
-                                                            Nothing ->
-                                                                g
-                                                   )
                                     in
                                     ( { model | games = updateGame newGame games }
                                     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
@@ -230,19 +199,15 @@ update msg ({ games } as model) =
                                                             (\player ->
                                                                 Card.tableHandScore player.tableHand
                                                             )
+                                                        |> showAllCards
                                             in
-                                            case orderedPlayers of
-                                                winner :: _ ->
-                                                    let
-                                                        newGame =
-                                                            { game | status = BGameEnded winner.sessionId }
-                                                    in
-                                                    ( { model | games = updateGame newGame games }
-                                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
-                                                    )
-
-                                                _ ->
-                                                    ( model, Cmd.none )
+                                            let
+                                                newGame =
+                                                    { game | status = BGameEnded orderedPlayers }
+                                            in
+                                            ( { model | games = updateGame newGame games }
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
+                                            )
 
                                 BGameInProgress m a b players (BPlayerToPlay sessionId_ (BPlayerLookACard maybeNb)) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                     case Maybe.andThen decrementCounter maybeNb of
@@ -289,21 +254,28 @@ update msg ({ games } as model) =
                             ( model, Cmd.none )
 
                 CreateGame posix clientId sessionId ->
-                    -- let's create the game, but first, we need to generate a seed, to do that let's use Random.initialSeed posix
-                    -- we will do the following there:
                     let
                         ( funnyName, newSeed ) =
-                            generateRandomFunnyName (Random.initialSeed (posix |> Time.posixToMillis))
+                            generateRandomFunnyName (Random.initialSeed (posix |> Time.posixToMillis)) []
 
                         newGame =
                             { urlPath = urlPath
                             , seed = newSeed
-                            , status = BWaitingForPlayers [ { name = funnyName, tableHand = [], clientId = clientId, sessionId = sessionId } ]
+                            , status = BWaitingForPlayers [ { name = funnyName, tableHand = [], clientId = clientId, sessionId = sessionId, ready = False } ]
                             }
                     in
                     ( { model | games = newGame :: games }
-                    , Lamdera.sendToFrontend clientId (UpdateGameToFrontend (backendGameStatusToFrontendGame Nothing newGame.status))
+                    , Lamdera.sendToFrontend clientId (UpdateGameToFrontend (backendGameStatusToFrontendGame (Just sessionId) newGame.status))
                     )
+
+
+showAllCards : List BPlayer -> List BPlayer
+showAllCards players =
+    List.map
+        (\({ tableHand } as player) ->
+            { player | tableHand = List.map (\card -> { card | show = True }) tableHand }
+        )
+        players
 
 
 decrementCounter : Counter -> Maybe Counter
@@ -399,7 +371,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BWaitingForPlayers players ->
                                         let
                                             ( funnyName, newSeed ) =
-                                                generateRandomFunnyName game.seed
+                                                generateRandomFunnyName game.seed (List.map .name players)
 
                                             newPlayers =
                                                 case List.Extra.find ((==) sessionId << .sessionId) players of
@@ -407,13 +379,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         players
 
                                                     Nothing ->
-                                                        players
-                                                            ++ [ { name = funnyName
-                                                                 , tableHand = []
-                                                                 , clientId = clientId
-                                                                 , sessionId = sessionId
-                                                                 }
-                                                               ]
+                                                        { name = funnyName
+                                                        , tableHand = []
+                                                        , clientId = clientId
+                                                        , sessionId = sessionId
+                                                        , ready = False
+                                                        }
+                                                            :: players
 
                                             newGameStatus =
                                                 BWaitingForPlayers newPlayers
@@ -438,11 +410,10 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
                                                 )
 
-                                            4 ->
-                                                ( { model | games = updateGameStatus urlPath ( BGameInProgress Nothing [] [] newPlayers (BStartTimerRunning Five) False False, newSeed ) games }
-                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
-                                                )
-
+                                            -- 4 ->
+                                            --     ( { model | games = updateGameStatus urlPath ( BGameInProgress Nothing [] [] newPlayers (BStartTimerRunning Five) False False, newSeed ) games }
+                                            --     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                            --     )
                                             _ ->
                                                 ( model
                                                 , Cmd.none
@@ -474,9 +445,9 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             Nothing ->
                                                 ( model, Lamdera.sendToFrontend clientId (UpdateGameToFrontend FGameAlreadyStartedWithoutYou) )
 
-                                    BGameEnded _ ->
+                                    BGameEnded players ->
                                         ( model
-                                        , Cmd.none
+                                        , Lamdera.sendToFrontend clientId (UpdateGameToFrontend <| backendGameStatusToFrontendGame Nothing (BGameEnded players))
                                         )
 
                             Nothing ->
@@ -511,6 +482,75 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                         , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
                                         )
+
+                                    _ ->
+                                        ( model, Cmd.none )
+
+                            Nothing ->
+                                ( model, Cmd.none )
+
+                    -- if all the players in the game are ready and there are 2 players or more, we can start the game
+                    -- otherwise, just update the player ready field to True and notify the players
+                    StartGameToBackend ->
+                        case maybeGame of
+                            Just game ->
+                                case game.status of
+                                    BWaitingForPlayers players ->
+                                        let
+                                            newPlayers =
+                                                List.map
+                                                    (\p ->
+                                                        if p.sessionId == sessionId then
+                                                            { p | ready = True }
+
+                                                        else
+                                                            p
+                                                    )
+                                                    players
+
+                                            allPlayersReady =
+                                                List.all .ready newPlayers
+                                        in
+                                        if allPlayersReady && List.length newPlayers >= 2 then
+                                            let
+                                                ( newDrawPile, newSeed ) =
+                                                    shuffleWithSeed game.seed Card.nonShuffledDeck
+
+                                                ( newDrawPile_, newPlayers_ ) =
+                                                    List.foldl
+                                                        (\player ( drawPile_, players_ ) ->
+                                                            let
+                                                                ( newDrawPile__, newPlayer ) =
+                                                                    distribute4CardsToPlayer drawPile_ player
+                                                            in
+                                                            ( newDrawPile__, players_ ++ [ newPlayer ] )
+                                                        )
+                                                        ( newDrawPile, [] )
+                                                        newPlayers
+
+                                                newGameStatus =
+                                                    BGameInProgress Nothing newDrawPile_ [] newPlayers_ (BStartTimerRunning Five) False False
+
+                                                frontendGame : FGame
+                                                frontendGame =
+                                                    backendGameStatusToFrontendGame Nothing newGameStatus
+                                            in
+                                            ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                            )
+
+                                        else
+                                            let
+                                                newGameStatus =
+                                                    BWaitingForPlayers newPlayers
+
+                                                frontendGame : FGame
+                                                frontendGame =
+                                                    backendGameStatusToFrontendGame Nothing newGameStatus
+                                            in
+                                            ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                            )
 
                                     _ ->
                                         ( model, Cmd.none )
@@ -745,9 +785,17 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                 newDiscardPile =
                                                                     { matchingCard | show = True } :: discardPile
 
+                                                                orderedPlayers =
+                                                                    players
+                                                                        |> List.sortBy
+                                                                            (\player ->
+                                                                                Card.tableHandScore player.tableHand
+                                                                            )
+                                                                        |> showAllCards
+
                                                                 newGameStatus =
                                                                     if isGameFinished then
-                                                                        BGameEnded sessionId
+                                                                        BGameEnded orderedPlayers
 
                                                                     else
                                                                         BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers bGameInProgressStatus True canUsePowerFromLastPlayer
@@ -1102,8 +1150,8 @@ backendGameStatusToFrontendGame maybeSessionId backendGame =
             in
             FGameInProgress tamalouOwner tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile (List.map backendPlayerToFrontendPlayer players) (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
 
-        BGameEnded sessionId_ ->
-            FGameEnded sessionId_
+        BGameEnded orderedPlayers ->
+            FGameEnded <| List.map backendPlayerToFrontendPlayer orderedPlayers
 
 
 toFGameProgressStatus : Maybe SessionId -> BGameInProgressStatus -> FGameInProgressStatus
@@ -1152,6 +1200,7 @@ backendPlayerToFrontendPlayer backendPlayer =
     , tableHand = List.map cardToFrontendCard backendPlayer.tableHand
     , clientId = backendPlayer.clientId
     , sessionId = backendPlayer.sessionId
+    , ready = backendPlayer.ready
     }
 
 
@@ -1189,7 +1238,11 @@ listOfFunnyPlaceHolderNames =
     ]
 
 
-generateRandomFunnyName : Random.Seed -> ( String, Random.Seed )
-generateRandomFunnyName seed =
-    Random.step (Random.int 0 (List.length listOfFunnyPlaceHolderNames - 1)) seed
-        |> (\( n, newSeed ) -> ( List.Extra.getAt n listOfFunnyPlaceHolderNames |> Maybe.withDefault "Anonymous", newSeed ))
+generateRandomFunnyName : Random.Seed -> List String -> ( String, Random.Seed )
+generateRandomFunnyName seed alreadyNames =
+    let
+        filteredNames =
+            List.filter (\name -> not (List.member name alreadyNames)) listOfFunnyPlaceHolderNames
+    in
+    Random.step (Random.int 0 (List.length filteredNames - 1)) seed
+        |> (\( n, newSeed ) -> ( List.Extra.getAt n filteredNames |> Maybe.withDefault "Anonymous", newSeed ))

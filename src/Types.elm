@@ -22,6 +22,7 @@ type alias FrontendModel =
     , admin : Bool
     , screenHeight : Int
     , screenWidth : Int
+    , ready : Bool
     }
 
 
@@ -38,6 +39,7 @@ type FrontendMsg
     | UrlChanged Url
     | GotWindowSize { height : Int, width : Int }
     | ChangeCurrentPlayerNameFrontend String
+    | StartGameFrontend
     | DrawCardFromDeckFrontend
     | TamalouFrontend
     | DiscardCardFrontend
@@ -58,6 +60,7 @@ type ToBackend
 type ActionFromGameToBackend
     = ConnectToBackend
     | ChangeCurrentPlayerNameToBackend String
+    | StartGameToBackend
     | DrawCardFromDrawPileToBackend
     | DiscardCardInHandToBackend
     | DrawFromDiscardPileToBackend
@@ -98,7 +101,7 @@ type alias BGame =
 type BGameStatus
     = BWaitingForPlayers (List BPlayer)
     | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool Bool
-    | BGameEnded SessionId
+    | BGameEnded (List BPlayer)
 
 
 type alias BPlayer =
@@ -106,6 +109,7 @@ type alias BPlayer =
     , tableHand : List Card
     , clientId : ClientId
     , sessionId : SessionId
+    , ready : Bool
     }
 
 
@@ -118,7 +122,7 @@ type alias TamalouOwner =
 type FGame
     = FWaitingForPlayers (List FPlayer)
     | FGameInProgress (Maybe TamalouOwner) FTableHand FDrawPile DiscardPile (List FPlayer) FGameInProgressStatus
-    | FGameEnded ClientId
+    | FGameEnded (List FPlayer)
     | FGameAlreadyStartedWithoutYou
 
 
@@ -163,6 +167,7 @@ type alias FPlayer =
     , tableHand : List FCard
     , clientId : ClientId
     , sessionId : SessionId
+    , ready : Bool
     }
 
 

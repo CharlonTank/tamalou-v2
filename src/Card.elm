@@ -231,7 +231,7 @@ toPower { rank } =
             Just PlayAgain
 
         Queen ->
-            Just Switch2Cards
+            Nothing
 
         King ->
             Just LookACard

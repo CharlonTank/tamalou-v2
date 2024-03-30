@@ -137,6 +137,7 @@ init url key =
       , admin = False
       , screenHeight = 0
       , screenWidth = 0
+      , ready = False
       }
     , Task.perform
         (\v ->
@@ -174,6 +175,9 @@ update msg ({ urlPath } as model) =
 
         NoOpFrontendMsg ->
             ( model, Cmd.none )
+
+        StartGameFrontend ->
+            ( { model | ready = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath StartGameToBackend )
 
         DrawCardFromDeckFrontend ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend )
@@ -311,16 +315,59 @@ displayGameLobby maybeSessionId players =
                     column [ width fill, height fill ]
                         [ el [ centerX, centerY ] <| text "Sorry, the game already started, you can't join"
                         , el [ centerX, centerY ] <| text "Wait for the next game"
-                        , column [ spacing 8, centerX ] <| List.map displayPlayer players
+                        , column [ centerX, spacing 4 ] <|
+                            let
+                                ( playersNotReady, playersReady ) =
+                                    List.partition (\player -> not player.ready) players
+                            in
+                            [ if not <| List.isEmpty playersNotReady then
+                                el [ centerX ] <| text <| "Players not ready:"
+
+                              else
+                                none
+                            , column [ spacing 8, centerX ] <| List.map displayPlayer playersNotReady
+                            , if not <| List.isEmpty playersReady then
+                                el [ centerX ] <| text <| "Players ready:"
+
+                              else
+                                none
+                            , column [ spacing 8, centerX ] <| List.map displayPlayer playersReady
+                            ]
                         ]
 
                 Just currentPlayer ->
                     column
                         [ width fill, height fill, spacing 20 ]
-                        [ Input.text [] { onChange = ChangeCurrentPlayerNameFrontend, text = currentPlayer.name, placeholder = Nothing, label = Input.labelAbove [] <| text "Your name" }
-                        , row [ spacing 8, centerX ] <| List.map displayPlayer otherPlayers
+                        [ el [ centerX ] <| text "Tamalou!"
+                        , Input.text [ centerX, width <| px 200 ]
+                            { onChange = ChangeCurrentPlayerNameFrontend
+                            , text = currentPlayer.name
+                            , placeholder = Nothing
+                            , label = Input.labelAbove [ centerX ] <| text "Your name"
+                            }
+                        , column [ centerX, spacing 4 ] <|
+                            let
+                                ( playersNotReady, playersReady ) =
+                                    List.partition (\player -> not player.ready) players
+                            in
+                            [ if not <| List.isEmpty playersNotReady then
+                                el [ centerX ] <| text <| "Players not ready:"
 
-                        -- , actionButton { onPress = Just StartGameFrontend, label = text "Start game" }
+                              else
+                                none
+                            , column [ spacing 8, centerX ] <| List.map displayPlayer playersNotReady
+                            , if not <| List.isEmpty playersReady then
+                                el [ centerX ] <| text <| "Players ready:"
+
+                              else
+                                none
+                            , column [ spacing 8, centerX ] <| List.map displayPlayer playersReady
+                            ]
+                        , if currentPlayer.ready then
+                            el [ centerX ] <| text "Waiting for other players to be ready"
+
+                          else
+                            el [ centerX ] <| actionButton { onPress = Just StartGameFrontend, label = text "I'm ready!" }
                         ]
 
 
@@ -342,11 +389,17 @@ displayGame ({ screenWidth } as model) =
                             [ width fill, height fill, spacing 20, scrollbars ]
                             [ displayGameLobby model.sessionId players ]
 
-                    -- (text "Waiting for players" :: List.map displayPlayer players)
+                    FGameInProgress _ _ _ _ players (FStartTimerRunning Five) ->
+                        column
+                            [ width fill, height fill, spacing 20, scrollbars ]
+                            [ el [ centerX, centerY ] <| displayStartTimer Five
+                            , displayPlayerView model.sessionId model.device.class players [ FaceDown, FaceDown, FaceDown, FaceDown ] Nothing
+                            ]
+
                     FGameInProgress _ hand _ _ players (FStartTimerRunning timer) ->
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
-                            [ displayStartTimer timer
+                            [ el [ centerX, centerY ] <| displayStartTimer timer
                             , displayPlayerView model.sessionId model.device.class players hand Nothing
                             ]
 
@@ -432,7 +485,7 @@ displayGame ({ screenWidth } as model) =
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
+                    FGameInProgress maybeTamalouOwner hand _ discardPile players (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then
@@ -770,18 +823,60 @@ displayGame ({ screenWidth } as model) =
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
-                    FGameEnded clientId ->
+                    FGameEnded orderedPlayers ->
+                        let
+                            rank =
+                                orderedPlayers
+                                    |> List.Extra.findIndex (\player -> Just player.sessionId == model.sessionId)
+                                    |> Maybe.withDefault -1
+                        in
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
-                            [ Element.text "Game ended"
-                            , Element.text clientId
+                            [ el [ centerX ] <|
+                                text <|
+                                    case rank of
+                                        0 ->
+                                            "You win!🥇"
+
+                                        1 ->
+                                            "Maybe next time!🥈"
+
+                                        2 ->
+                                            "Luck is not on your side!🥉"
+
+                                        3 ->
+                                            "You lost! Here's a cookie 🍪"
+
+                                        _ ->
+                                            "You lost!🤷\u{200D}♂️"
+                            , column [ centerX, spacing 4, width <| px <| (screenWidth * 80 // 100) ] <|
+                                List.indexedMap (\i player -> displayPlayerAndCards i player) orderedPlayers
                             ]
 
                     FGameAlreadyStartedWithoutYou ->
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
-                            [ Element.text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
+                            [ text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
                             ]
+
+
+medal : Int -> String
+medal rank =
+    case rank of
+        0 ->
+            "🥇"
+
+        1 ->
+            "🥈"
+
+        2 ->
+            "🥉"
+
+        3 ->
+            "🍪"
+
+        _ ->
+            "🤷\u{200D}♂️"
 
 
 displayTamalou : Maybe TamalouOwner -> Element FrontendMsg
@@ -891,8 +986,16 @@ displayEndTimer timer =
 
 displayPlayer : FPlayer -> Element FrontendMsg
 displayPlayer player =
+    let
+        isReadyColor =
+            if player.ready then
+                Element.rgb255 0 255 0
+
+            else
+                Element.rgb255 255 0 0
+    in
     column
-        [ width fill, spacing 12 ]
+        [ spacing 12, centerX, Background.color isReadyColor, Border.rounded 8, paddingXY 2 2 ]
         [ text <|
             case player.name of
                 "" ->
@@ -900,10 +1003,28 @@ displayPlayer player =
 
                 playerName ->
                     playerName
-
-        -- , row [ spacing 8 ] [ text "ClientId = ", text player.clientId ]
-        -- , row [ spacing 8 ] [ text "SessionId = ", text player.sessionId ]
         ]
+
+
+displayPlayerAndCards : Int -> FPlayer -> Element FrontendMsg
+displayPlayerAndCards rank player =
+    row
+        [ spacing 12, centerX, Border.rounded 8, paddingXY 2 2, Background.color veryLightGrey, width fill, height <| px 100 ]
+        [ text <| medal rank
+        , text <|
+            case player.name of
+                "" ->
+                    "Anonymous"
+
+                playerName ->
+                    playerName
+        , el [ width fill ] <| displayFCardsAtTheEnd player.tableHand
+        ]
+
+
+veryLightGrey : Color
+veryLightGrey =
+    Element.rgb255 240 240 240
 
 
 displayPlayerView : Maybe SessionId -> DeviceClass -> List FPlayer -> FTableHand -> Maybe CardClickEvent -> Element FrontendMsg
@@ -928,6 +1049,11 @@ displayFCards deviceClass cards maybeCardClickEvent =
     row [ spacing 4, centerX, width fill, paddingXY 128 0, height fill ] (List.indexedMap (onClickCard maybeCardClickEvent (displayFCard deviceClass)) cards)
 
 
+displayFCardsAtTheEnd : List FCard -> Element FrontendMsg
+displayFCardsAtTheEnd cards =
+    row [ spacing 4, centerX, height fill ] (List.map displayFCardAtTheEnd cards)
+
+
 onClickCard : Maybe CardClickEvent -> (FCard -> Element FrontendMsg) -> Int -> FCard -> Element FrontendMsg
 onClickCard maybeCardClickEvent tag index card =
     case maybeCardClickEvent of
@@ -944,9 +1070,20 @@ onClickCard maybeCardClickEvent tag index card =
             Element.el [ Events.onClick <| LookAtCardFrontend index, Border.color yellow, Border.rounded 8, Border.width 4, width fill ] (tag card)
 
 
-displayFCard : DeviceClass -> FCard -> Element msg
+displayFCard : DeviceClass -> FCard -> Element FrontendMsg
 displayFCard deviceClass frontendCard =
     image [ Border.rounded 100, width fill, height fill, centerX, centerY ] <|
+        case frontendCard of
+            FaceUp card ->
+                { src = "/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }
+
+            FaceDown ->
+                { src = "/cardImages/BackCovers/Pomegranate.png", description = "back" }
+
+
+displayFCardAtTheEnd : FCard -> Element FrontendMsg
+displayFCardAtTheEnd frontendCard =
+    image [ Border.rounded 100, height <| px 96, centerX, centerY ] <|
         case frontendCard of
             FaceUp card ->
                 { src = "/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }
