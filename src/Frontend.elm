@@ -119,7 +119,7 @@ app =
 
 subscriptions : FrontendModel -> Sub FrontendMsg
 subscriptions _ =
-    Browser.Events.onResize (\w h -> GotWindowSize (classifyDevice { width = w, height = h }))
+    Browser.Events.onResize (\w h -> GotWindowSize { width = w, height = h })
 
 
 init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
@@ -132,13 +132,13 @@ init url key =
       , device = Device Phone Landscape
       , errors = []
       , admin = False
+      , screenHeight = 0
       }
     , Task.perform
         (\v ->
             { height = round v.viewport.height
             , width = round v.viewport.width
             }
-                |> classifyDevice
                 |> GotWindowSize
         )
         Browser.Dom.getViewport
@@ -148,8 +148,8 @@ init url key =
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 update msg ({ urlPath } as model) =
     case msg of
-        GotWindowSize device ->
-            ( { model | device = device }
+        GotWindowSize viewPort ->
+            ( { model | device = classifyDevice viewPort, screenHeight = viewPort.height }
             , Cmd.none
             )
 
@@ -234,7 +234,7 @@ view model =
     , body =
         [ Element.layout
             [ width Element.fill
-            , height Element.fill
+            , height <| px model.screenHeight
             , Background.image "/background.png"
             , Background.color grey
             , htmlAttribute safeAreaStyle
@@ -866,7 +866,7 @@ displayGameDebug _ =
 
 displayFCards : DeviceClass -> List FCard -> Maybe CardClickEvent -> Element FrontendMsg
 displayFCards deviceClass cards maybeCardClickEvent =
-    row [ spacing 4, centerX, width fill, paddingXY 12 0 ] (List.indexedMap (onClickCard maybeCardClickEvent (displayFCard deviceClass)) cards)
+    row [ spacing 4, centerX, width fill, paddingXY 128 0, height fill ] (List.indexedMap (onClickCard maybeCardClickEvent (displayFCard deviceClass)) cards)
 
 
 onClickCard : Maybe CardClickEvent -> (FCard -> Element FrontendMsg) -> Int -> FCard -> Element FrontendMsg
@@ -887,22 +887,7 @@ onClickCard maybeCardClickEvent tag index card =
 
 displayFCard : DeviceClass -> FCard -> Element msg
 displayFCard deviceClass frontendCard =
-    let
-        cardWidth =
-            case deviceClass of
-                Phone ->
-                    px 96
-
-                Tablet ->
-                    px 128
-
-                Desktop ->
-                    px 128
-
-                BigDesktop ->
-                    px 128
-    in
-    image [ Border.rounded 100, width fill, centerX, centerY ] <|
+    image [ Border.rounded 100, width fill, height fill, centerX, centerY ] <|
         case frontendCard of
             FaceUp card ->
                 { src = "/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }

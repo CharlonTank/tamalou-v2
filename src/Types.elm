@@ -20,6 +20,7 @@ type alias FrontendModel =
     , urlPath : String
     , errors : List String
     , admin : Bool
+    , screenHeight : Int
     }
 
 
@@ -43,7 +44,7 @@ type FrontendMsg
     | ReplaceCardInFrontend Int
     | DoubleCardFrontend Int
     | LookAtCardFrontend Int
-    | GotWindowSize Device
+    | GotWindowSize { height : Int, width : Int }
 
 
 type ToBackend
