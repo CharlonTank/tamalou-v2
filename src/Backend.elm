@@ -15,10 +15,10 @@ import Types exposing (..)
 
 app : { init : ( BackendModel, Cmd BackendMsg ), update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg ), updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg ), subscriptions : BackendModel -> Sub BackendMsg }
 app =
-    DebugApp.backend
-        NoOpBackendMsg
-        "e465a26049dfca11"
-        -- Lamdera.backend
+    -- DebugApp.backend
+    --     NoOpBackendMsg
+    --     "e465a26049dfca11"
+    Lamdera.backend
         { init = init
         , update = update
         , updateFromFrontend = updateFromFrontend
@@ -339,11 +339,8 @@ distribute4CardsToPlayer drawPile player =
             ( [], { player | tableHand = [ { card1 | show = True }, card2, card3 ] } )
 
         card1 :: card2 :: card3 :: card4 :: drawPile_ ->
-            Debug.log "distribute4CardsToPlayer" ( drawPile_, { player | tableHand = [ { card1 | show = True }, { card4 | show = True } ] } )
-
-
-
--- ( drawPile_, { player | tableHand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
+            -- Debug.log "distribute4CardsToPlayer" ( drawPile_, { player | tableHand = [ { card1 | show = True }, { card4 | show = True } ] } )
+            ( drawPile_, { player | tableHand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
 
 
 updateGameStatus : String -> ( BGameStatus, Random.Seed ) -> List BGame -> List BGame
