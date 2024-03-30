@@ -181,13 +181,16 @@ update msg ({ urlPath } as model) =
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DiscardCardInHandToBackend )
 
         DrawFromDiscardPileFrontend ->
-            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawOrUsePowerFromDiscardPileToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
 
         ReplaceCardInFrontend cardIndex ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
 
         DoubleCardFrontend cardIndex ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
+
+        LookAtCardFrontend cardIndex ->
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (LookAtCardInTableHandToBackend cardIndex) )
 
         PowerIsUsedFrontend ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath PowerIsUsedToBackend )
@@ -203,16 +206,18 @@ updateFromBackend msg model =
             ( model, Cmd.none )
 
         UpdateAdminToFrontend errors ->
-            ( { model | admin = True, errors = errors }, Cmd.none )
+            ( { model | errors = errors }, Cmd.none )
 
         GotSessionIdAndClientIdToFrontend sessionId clientId ->
-            ( { model | clientId = Just clientId, sessionId = Just sessionId }
-            , if model.urlPath == "/admin" then
-                Lamdera.sendToBackend ConnectToAdminToBackend
+            if model.urlPath == "/admin" then
+                ( { model | clientId = Just clientId, sessionId = Just sessionId, admin = True }
+                , Lamdera.sendToBackend ConnectToAdminToBackend
+                )
 
-              else
-                Lamdera.sendToBackend (ActionFromGameToBackend model.urlPath ConnectToBackend)
-            )
+            else
+                ( { model | clientId = Just clientId, sessionId = Just sessionId }
+                , Lamdera.sendToBackend (ActionFromGameToBackend model.urlPath ConnectToBackend)
+                )
 
         UpdateGameToFrontend game ->
             ( { model | gameFrontend = game }, Cmd.none )
@@ -230,7 +235,7 @@ view model =
         [ Element.layout
             [ width Element.fill
             , height Element.fill
-            , Background.image "/background.jpg"
+            , Background.image "/background.png"
             , Background.color grey
             , htmlAttribute safeAreaStyle
             ]
@@ -255,6 +260,7 @@ displayModel model =
 type CardClickEvent
     = CardClickReplacement
     | CardClickDouble
+    | LookThisCard
 
 
 displayAdmin : FrontendModel -> Element FrontendMsg
@@ -572,6 +578,143 @@ displayGame model =
                             , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
                             ]
 
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay _ (FPlayerLookACard counter)) ->
+                        let
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else
+                                    Just CardClickDouble
+
+                            drawColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
+                                    , elEmplacement <|
+                                        if List.isEmpty drawPile then
+                                            none
+
+                                        else
+                                            displayFCard Phone FaceDown
+                                    , none
+                                    ]
+
+                            currentCardColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Card drawn"
+                                    , elEmplacement <| none
+                                    , none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8 ]
+                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
+                                        :: displayDiscardCards discardPile False Nothing
+                                    )
+                        in
+                        column
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ spacing 16, centerX, centerY ]
+                                [ drawColumn
+                                , currentCardColumn
+                                , discardPileColumn
+                                ]
+                            , displayTamalou maybeTamalouOwner
+                            , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
+                            ]
+
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard Nothing)) ->
+                        let
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else
+                                    Just LookThisCard
+
+                            drawColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
+                                    , elEmplacement <|
+                                        if List.isEmpty drawPile then
+                                            none
+
+                                        else
+                                            displayFCard Phone FaceDown
+                                    , none
+                                    ]
+
+                            currentCardColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Card drawn"
+                                    , elEmplacement <| none
+                                    , none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8 ]
+                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
+                                        :: displayDiscardCards discardPile False Nothing
+                                    )
+                        in
+                        column
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ spacing 16, centerX, centerY ]
+                                [ drawColumn
+                                , currentCardColumn
+                                , discardPileColumn
+                                ]
+                            , displayTamalou maybeTamalouOwner
+                            , el [ centerX ] <| text "Click on a card to look at it"
+                            , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
+                            ]
+
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard (Just counter))) ->
+                        let
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else
+                                    Just LookThisCard
+
+                            drawColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
+                                    , elEmplacement <|
+                                        if List.isEmpty drawPile then
+                                            none
+
+                                        else
+                                            displayFCard Phone FaceDown
+                                    , none
+                                    ]
+
+                            currentCardColumn =
+                                column [ spacing 8 ]
+                                    [ el [ Font.center, width fill ] <| text "Card drawn"
+                                    , elEmplacement <| none
+                                    , none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8 ]
+                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
+                                        :: displayDiscardCards discardPile False Nothing
+                                    )
+                        in
+                        column
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ spacing 16, centerX, centerY ]
+                                [ drawColumn
+                                , currentCardColumn
+                                , discardPileColumn
+                                ]
+                            , displayTamalou maybeTamalouOwner
+                            , el [ centerX ] <| displayEndTimer counter
+                            , displayPlayerView model.sessionId model.device.class players hand cardClickEvent
+                            ]
+
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FEndTimerRunning timer) ->
                         let
                             cardClickEvent =
@@ -632,10 +775,6 @@ displayGame model =
                             ]
 
 
-
---
-
-
 displayTamalou : Maybe TamalouOwner -> Element FrontendMsg
 displayTamalou maybeTamalouOwner =
     case maybeTamalouOwner of
@@ -655,9 +794,20 @@ displayCard card =
     el [ width <| px 36, height <| px 43, Background.image ("/cardImages/" ++ Card.toString card ++ ".png"), Border.rounded 8 ] none
 
 
+
+-- 255 × 380
+
+
 elEmplacement : Element FrontendMsg -> Element FrontendMsg
 elEmplacement cardToDisplay =
-    el [ width <| px 144, height <| px 172, Background.image "/emplacement.png", Border.rounded 8 ] <| el [ width fill, height fill ] cardToDisplay
+    el
+        [ width <| px 122
+        , height <| px 182
+        , Background.image "/emplacement.png"
+        , Border.rounded 8
+        ]
+    <|
+        el [ width fill, height fill ] cardToDisplay
 
 
 displayDiscardCards : DiscardPile -> Bool -> Maybe Card.Power -> List (Element FrontendMsg)
@@ -680,7 +830,7 @@ displayDiscardCards discardPile canDrawCard maybePowerCard =
             ]
 
         ( head :: _, True, Just power ) ->
-            [ el [ Events.onClick DrawFromDiscardPileFrontend ] <| elEmplacement <| displayFCard Phone (FaceUp head)
+            [ elEmplacement <| displayFCard Phone (FaceUp head)
             , Input.button [] { onPress = Just PowerIsUsedFrontend, label = text <| Card.powerToString power }
             ]
 
@@ -770,10 +920,13 @@ onClickCard maybeCardClickEvent tag index card =
             tag card
 
         Just CardClickDouble ->
-            Element.el [ Events.onClick (DoubleCardFrontend index) ] (tag card)
+            Element.el [ Events.onClick <| DoubleCardFrontend index ] (tag card)
 
         Just CardClickReplacement ->
-            Element.el [ Events.onClick (ReplaceCardInFrontend index) ] (tag card)
+            Element.el [ Events.onClick <| ReplaceCardInFrontend index ] (tag card)
+
+        Just LookThisCard ->
+            Element.el [ Events.onClick <| LookAtCardFrontend index ] (tag card)
 
 
 displayFCard : DeviceClass -> FCard -> Element msg

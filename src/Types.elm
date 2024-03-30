@@ -26,6 +26,7 @@ type alias FrontendModel =
 type alias BackendModel =
     { games : List BGame
     , errors : List String
+    , admins : List SessionId
     }
 
 
@@ -41,6 +42,7 @@ type FrontendMsg
     | PowerPassFrontend
     | ReplaceCardInFrontend Int
     | DoubleCardFrontend Int
+    | LookAtCardFrontend Int
     | GotWindowSize Device
 
 
@@ -54,9 +56,10 @@ type ActionFromGameToBackend
     = ConnectToBackend
     | DrawCardFromDrawPileToBackend
     | DiscardCardInHandToBackend
-    | DrawOrUsePowerFromDiscardPileToBackend
+    | DrawFromDiscardPileToBackend
     | ReplaceCardInTableHandToBackend Int
     | DoubleCardInTableHandToBackend Int
+    | LookAtCardInTableHandToBackend Int
     | PowerIsUsedToBackend
     | PowerIsNotUsedToBackend
     | TamalouToBackend
@@ -90,7 +93,7 @@ type alias BGame =
 
 type BGameStatus
     = BWaitingForPlayers (List BPlayer)
-    | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool
+    | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool Bool
     | BGameEnded SessionId
 
 
@@ -126,6 +129,7 @@ type FPlayerToPlayStatus
     = FWaitingPlayerAction (Maybe Power)
     | FPlayerHasDraw FCard
     | FPlayerHasDiscard Power
+    | FPlayerLookACard (Maybe Counter)
 
 
 type BGameInProgressStatus
@@ -147,6 +151,7 @@ type BPlayerToPlayStatus
     = BWaitingPlayerAction (Maybe Power)
     | BPlayerHasDraw Card
     | BPlayerHasDiscard Power
+    | BPlayerLookACard (Maybe Counter)
 
 
 type alias FPlayer =
