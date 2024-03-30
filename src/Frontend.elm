@@ -310,8 +310,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -322,16 +321,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| none
+                                    [ elEmplacement <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False Nothing
-                                    )
+                                    (displayDiscardCards discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -355,8 +351,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8, width fill ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -367,16 +362,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8, width fill ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| displayFCard Phone FaceDown
+                                    [ elEmplacement <| displayFCard Phone FaceDown
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8, width fill ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False Nothing
-                                    )
+                                    (displayDiscardCards discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -400,37 +392,32 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
-                                        if List.isEmpty drawPile then
-                                            none
-
-                                        else
+                                    [ elEmplacement <|
+                                        el
+                                            ([ Events.onClick DrawCardFromDeckFrontend
+                                             , centerX
+                                             , centerY
+                                             ]
+                                                ++ actionBorder
+                                            )
+                                        <|
                                             displayFCard Phone FaceDown
-                                    , if List.isEmpty drawPile then
-                                        none
-
-                                      else
-                                        Input.button [] { onPress = Just DrawCardFromDeckFrontend, label = text "Draw from drawPile" }
                                     ]
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| none
+                                    [ elEmplacement <| none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile True maybePowerCard
-                                    )
+                                    (displayDiscardCards discardPile True maybePowerCard)
 
                             tamalouButton =
-                                Input.button [ centerX, height fill ] { onPress = Just TamalouFrontend, label = text "Tamalou" }
+                                el [ centerX ] <| actionButton { onPress = Just TamalouFrontend, label = text "Tamalou" }
                         in
                         column
-                            [ width fill, height fill ]
+                            [ width fill, height fill, spacing 4 ]
                             [ row [ spacing 16, centerX, centerY ]
                                 [ drawColumn
                                 , currentCardColumn
@@ -449,8 +436,7 @@ displayGame model =
                         let
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -460,16 +446,12 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| displayFCard Phone fCard
-                                    , Input.button [] { onPress = Just DiscardCardFrontend, label = text "Discard" }
+                                    [ elEmplacement <| el ([ centerX, centerY, Events.onClick DiscardCardFrontend ] ++ actionBorder) <| displayFCard Phone fCard
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False Nothing
-                                    )
+                                    (displayDiscardCards discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -493,8 +475,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -504,21 +485,18 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| none
+                                    [ elEmplacement <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False (Just power)
-                                    )
+                                    (displayDiscardCards discardPile False (Just power))
 
                             displayUsePowerOrPass =
                                 row [ centerX, spacing 8 ]
-                                    [ Input.button [ Border.rounded 8, Border.width 1 ] { onPress = Just PowerIsUsedFrontend, label = text <| Card.powerToString power }
-                                    , Input.button [ Border.rounded 8, Border.width 1 ] { onPress = Just PowerPassFrontend, label = text "Pass" }
+                                    [ actionButton { onPress = Just PowerIsUsedFrontend, label = text <| Card.powerToString power }
+                                    , actionButton { onPress = Just PowerPassFrontend, label = text "Pass" }
                                     ]
                         in
                         column
@@ -544,8 +522,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -556,16 +533,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| none
+                                    [ elEmplacement <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False Nothing
-                                    )
+                                    (displayDiscardCards discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -589,8 +563,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -601,16 +574,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| none
+                                    [ elEmplacement <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False Nothing
-                                    )
+                                    (displayDiscardCards discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -634,8 +604,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -646,16 +615,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| none
+                                    [ elEmplacement <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False Nothing
-                                    )
+                                    (displayDiscardCards discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -680,8 +646,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -692,16 +657,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| none
+                                    [ elEmplacement <| none
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False Nothing
-                                    )
+                                    (displayDiscardCards discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -726,8 +688,7 @@ displayGame model =
 
                             drawColumn =
                                 column [ spacing 8, width fill ]
-                                    [ el [ Font.center, width fill ] <| text "Draw Pile"
-                                    , elEmplacement <|
+                                    [ elEmplacement <|
                                         if List.isEmpty drawPile then
                                             none
 
@@ -738,16 +699,13 @@ displayGame model =
 
                             currentCardColumn =
                                 column [ spacing 8, width fill ]
-                                    [ el [ Font.center, width fill ] <| text "Card drawn"
-                                    , elEmplacement <| displayFCard Phone FaceDown
+                                    [ elEmplacement <| displayFCard Phone FaceDown
                                     , none
                                     ]
 
                             discardPileColumn =
                                 column [ spacing 8, width fill ]
-                                    ((el [ Font.center, width fill ] <| text "Discarded Pile")
-                                        :: displayDiscardCards discardPile False Nothing
-                                    )
+                                    (displayDiscardCards discardPile False Nothing)
                         in
                         column
                             [ width fill, height fill, spacing 20 ]
@@ -820,14 +778,12 @@ displayDiscardCards discardPile canDrawCard maybePowerCard =
             [ elEmplacement <| displayFCard Phone (FaceUp head) ]
 
         ( head :: _, True, Nothing ) ->
-            [ el [ Events.onClick DrawFromDiscardPileFrontend ] <| elEmplacement <| displayFCard Phone (FaceUp head)
-            , case Card.toPower head of
+            case Card.toPower head of
                 Just _ ->
-                    none
+                    [ elEmplacement <| displayFCard Phone (FaceUp head) ]
 
                 Nothing ->
-                    Input.button [] { onPress = Just DrawFromDiscardPileFrontend, label = text "Draw the discardPile" }
-            ]
+                    [ elEmplacement <| el ([ centerX, centerY, Events.onClick DrawFromDiscardPileFrontend ] ++ actionBorder) <| displayFCard Phone (FaceUp head) ]
 
         ( head :: _, True, Just power ) ->
             [ elEmplacement <| displayFCard Phone (FaceUp head)
@@ -910,7 +866,7 @@ displayGameDebug _ =
 
 displayFCards : DeviceClass -> List FCard -> Maybe CardClickEvent -> Element FrontendMsg
 displayFCards deviceClass cards maybeCardClickEvent =
-    wrappedRow [ spacing 12, centerX ] (List.indexedMap (onClickCard maybeCardClickEvent (displayFCard deviceClass)) cards)
+    row [ spacing 4, centerX, width fill, paddingXY 12 0 ] (List.indexedMap (onClickCard maybeCardClickEvent (displayFCard deviceClass)) cards)
 
 
 onClickCard : Maybe CardClickEvent -> (FCard -> Element FrontendMsg) -> Int -> FCard -> Element FrontendMsg
@@ -920,13 +876,13 @@ onClickCard maybeCardClickEvent tag index card =
             tag card
 
         Just CardClickDouble ->
-            Element.el [ Events.onClick <| DoubleCardFrontend index ] (tag card)
+            Element.el [ Events.onClick <| DoubleCardFrontend index, Border.color blue, Border.rounded 8, Border.width 4, width fill ] (tag card)
 
         Just CardClickReplacement ->
-            Element.el [ Events.onClick <| ReplaceCardInFrontend index ] (tag card)
+            Element.el [ Events.onClick <| ReplaceCardInFrontend index, Border.color yellow, Border.rounded 8, Border.width 4, width fill ] (tag card)
 
         Just LookThisCard ->
-            Element.el [ Events.onClick <| LookAtCardFrontend index ] (tag card)
+            Element.el [ Events.onClick <| LookAtCardFrontend index, Border.color yellow, Border.rounded 8, Border.width 4, width fill ] (tag card)
 
 
 displayFCard : DeviceClass -> FCard -> Element msg
@@ -946,10 +902,34 @@ displayFCard deviceClass frontendCard =
                 BigDesktop ->
                     px 128
     in
-    image [ Border.rounded 100, width cardWidth, centerX, centerY ] <|
+    image [ Border.rounded 100, width fill, centerX, centerY ] <|
         case frontendCard of
             FaceUp card ->
                 { src = "/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }
 
             FaceDown ->
                 { src = "/cardImages/BackCovers/Pomegranate.png", description = "back" }
+
+
+actionBorder : List (Attribute FrontendMsg)
+actionBorder =
+    [ Border.rounded 8, Border.width 4, Border.color yellow ]
+
+
+doubleActionBorder : List (Attribute FrontendMsg)
+doubleActionBorder =
+    [ Border.rounded 8, Border.width 4, Border.color blue ]
+
+
+yellow : Color
+yellow =
+    Element.rgb255 255 255 0
+
+
+blue : Color
+blue =
+    Element.rgb255 0 0 255
+
+
+actionButton =
+    Input.button actionBorder
