@@ -15,10 +15,10 @@ import Types exposing (..)
 
 app : { init : ( BackendModel, Cmd BackendMsg ), update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg ), updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg ), subscriptions : BackendModel -> Sub BackendMsg }
 app =
-    DebugApp.backend
-        NoOpBackendMsg
-        "e465a26049dfca11"
-        -- Lamdera.backend
+    -- DebugApp.backend
+    --     NoOpBackendMsg
+    --     "e465a26049dfca11"
+    Lamdera.backend
         { init = init
         , update = update
         , updateFromFrontend = updateFromFrontend
