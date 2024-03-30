@@ -170,6 +170,7 @@ type alias FPlayer =
     , clientId : ClientId
     , sessionId : SessionId
     , ready : Bool
+    , score : Maybe Int
     }
 
 

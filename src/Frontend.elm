@@ -1013,7 +1013,7 @@ displayPlayer player =
 displayPlayerAndCards : Int -> FPlayer -> Element FrontendMsg
 displayPlayerAndCards rank player =
     row
-        [ spacing 12, centerX, Border.rounded 8, paddingXY 2 2, Background.color veryLightGrey, width fill, height <| px 100 ]
+        [ spacing 12, centerX, Border.rounded 8, paddingXY 12 12, Background.color veryLightGrey, width fill, height <| px 100 ]
         [ text <| medal rank
         , text <|
             case player.name of
@@ -1023,6 +1023,12 @@ displayPlayerAndCards rank player =
                 playerName ->
                     playerName
         , el [ width fill ] <| displayFCardsAtTheEnd player.tableHand
+        , case player.score of
+            Just score ->
+                text <| String.fromInt score
+
+            Nothing ->
+                none
         ]
 
 

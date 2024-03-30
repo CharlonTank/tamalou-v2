@@ -325,11 +325,8 @@ distribute4CardsToPlayer drawPile player =
             ( [], { player | tableHand = [ { card1 | show = True }, card2, card3 ] } )
 
         card1 :: card2 :: card3 :: card4 :: drawPile_ ->
-            Debug.log "distribute4CardsToPlayer" ( drawPile_, { player | tableHand = [ { card1 | show = True } ] } )
-
-
-
--- ( drawPile_, { player | tableHand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
+            -- Debug.log "distribute4CardsToPlayer" ( drawPile_, { player | tableHand = [ { card1 | show = True } ] } )
+            ( drawPile_, { player | tableHand = [ { card1 | show = True }, card2, card3, { card4 | show = True } ] } )
 
 
 updateGameStatus : String -> ( BGameStatus, Random.Seed ) -> List BGame -> List BGame
@@ -1171,7 +1168,7 @@ backendGameStatusToFrontendGame : Maybe SessionId -> BGameStatus -> FGame
 backendGameStatusToFrontendGame maybeSessionId backendGame =
     case backendGame of
         BWaitingForPlayers players ->
-            FWaitingForPlayers (List.map backendPlayerToFrontendPlayer players)
+            FWaitingForPlayers (List.map (backendPlayerToFrontendPlayer False) players)
 
         BGameInProgress Nothing bDrawPile discardPile players bGameInProgressStatus _ _ ->
             let
@@ -1186,7 +1183,7 @@ backendGameStatusToFrontendGame maybeSessionId backendGame =
                         Nothing ->
                             [ FaceUp Card.sampleCard ]
             in
-            FGameInProgress Nothing tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile (List.map backendPlayerToFrontendPlayer players) (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
+            FGameInProgress Nothing tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile (List.map (backendPlayerToFrontendPlayer False) players) (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
 
         BGameInProgress (Just tamalouOwnerSessionId) bDrawPile discardPile players bGameInProgressStatus _ _ ->
             let
@@ -1205,10 +1202,10 @@ backendGameStatusToFrontendGame maybeSessionId backendGame =
                     List.Extra.find ((==) tamalouOwnerSessionId << .sessionId) players
                         |> Maybe.map (\p -> TamalouOwner p.sessionId p.tableHand)
             in
-            FGameInProgress tamalouOwner tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile (List.map backendPlayerToFrontendPlayer players) (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
+            FGameInProgress tamalouOwner tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile (List.map (backendPlayerToFrontendPlayer False) players) (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
 
         BGameEnded orderedPlayers ->
-            FGameEnded <| List.map backendPlayerToFrontendPlayer orderedPlayers
+            FGameEnded <| List.map (backendPlayerToFrontendPlayer True) orderedPlayers
 
 
 toFGameProgressStatus : Maybe SessionId -> BGameInProgressStatus -> FGameInProgressStatus
@@ -1251,13 +1248,19 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
             FEndTimerRunning timer
 
 
-backendPlayerToFrontendPlayer : BPlayer -> FPlayer
-backendPlayerToFrontendPlayer backendPlayer =
+backendPlayerToFrontendPlayer : Bool -> BPlayer -> FPlayer
+backendPlayerToFrontendPlayer sendScore backendPlayer =
     { name = backendPlayer.name
     , tableHand = List.map cardToFrontendCard backendPlayer.tableHand
     , clientId = backendPlayer.clientId
     , sessionId = backendPlayer.sessionId
     , ready = backendPlayer.ready
+    , score =
+        if sendScore then
+            Just <| Card.tableHandScore backendPlayer.tableHand
+
+        else
+            Nothing
     }
 
 
