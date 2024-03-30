@@ -749,7 +749,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 
                                                         Nothing ->
                                                             if isLastTurnOver then
-                                                                BGameInProgress maybeTamalouOwner drawPile newDiscardPile players (BEndTimerRunning Five) False False
+                                                                BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BEndTimerRunning Five) False False
 
                                                             else
                                                                 BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ players) (BWaitingPlayerAction Nothing)) False False
