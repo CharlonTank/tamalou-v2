@@ -14,7 +14,7 @@ import Url exposing (Url)
 type alias FrontendModel =
     { key : Key
     , device : Device
-    , gameFrontend : FGame
+    , fGame : FGame
     , clientId : Maybe ClientId
     , sessionId : Maybe SessionId
     , urlPath : String
@@ -23,6 +23,7 @@ type alias FrontendModel =
     , screenHeight : Int
     , screenWidth : Int
     , ready : Bool
+    , maybeName : Maybe String
     }
 
 

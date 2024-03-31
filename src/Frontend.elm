@@ -128,7 +128,7 @@ subscriptions _ =
 init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
 init url key =
     ( { key = key
-      , gameFrontend = FWaitingForPlayers []
+      , fGame = FWaitingForPlayers []
       , clientId = Nothing
       , sessionId = Nothing
       , urlPath = url.path
@@ -138,6 +138,7 @@ init url key =
       , screenHeight = 0
       , screenWidth = 0
       , ready = False
+      , maybeName = Nothing
       }
     , Task.perform
         (\v ->
@@ -186,7 +187,7 @@ update msg ({ urlPath } as model) =
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend )
 
         ChangeCurrentPlayerNameFrontend newName ->
-            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChangeCurrentPlayerNameToBackend newName) )
+            ( { model | maybeName = Just newName }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChangeCurrentPlayerNameToBackend newName) )
 
         TamalouFrontend ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath TamalouToBackend )
@@ -233,8 +234,49 @@ updateFromBackend msg model =
                 , Lamdera.sendToBackend (ActionFromGameToBackend model.urlPath ConnectToBackend)
                 )
 
-        UpdateGameToFrontend game ->
-            ( { model | gameFrontend = game }, Cmd.none )
+        UpdateGameToFrontend fGame ->
+            ( { model
+                | fGame = fGame
+                , maybeName =
+                    case model.maybeName of
+                        Just _ ->
+                            model.maybeName
+
+                        Nothing ->
+                            Just <| getMyName model.sessionId fGame
+              }
+            , Cmd.none
+            )
+
+
+fPlayersFromFGame : FGame -> List FPlayer
+fPlayersFromFGame game =
+    case game of
+        FWaitingForPlayers players ->
+            players
+
+        FGameInProgress _ _ _ _ players _ ->
+            players
+
+        FGameEnded orderedPlayers ->
+            orderedPlayers
+
+        FGameAlreadyStartedWithoutYou ->
+            []
+
+
+getMyName : Maybe SessionId -> FGame -> String
+getMyName maybeSessionId fGame =
+    let
+        players =
+            fPlayersFromFGame fGame
+    in
+    case List.Extra.find (\player -> maybeSessionId == Just player.sessionId) players of
+        Just player ->
+            player.name
+
+        Nothing ->
+            ""
 
 
 view : FrontendModel -> Browser.Document FrontendMsg
@@ -302,9 +344,9 @@ listfindAndRemove predicate list =
             ( Nothing, list )
 
 
-displayGameLobby : Maybe SessionId -> List FPlayer -> Element FrontendMsg
-displayGameLobby maybeSessionId players =
-    case maybeSessionId of
+displayGameLobby : FrontendModel -> List FPlayer -> Element FrontendMsg
+displayGameLobby fModel players =
+    case fModel.sessionId of
         Nothing ->
             el [ centerX, centerY ] <| text "-"
 
@@ -344,7 +386,7 @@ displayGameLobby maybeSessionId players =
                         [ el [ centerX ] <| text "Tamalou!"
                         , Input.text [ centerX, width <| px 200 ]
                             { onChange = ChangeCurrentPlayerNameFrontend
-                            , text = currentPlayer.name
+                            , text = fModel.maybeName |> Maybe.withDefault ""
                             , placeholder = Nothing
                             , label = Input.labelAbove [ centerX ] <| text "Your name"
                             }
@@ -386,11 +428,11 @@ displayGame ({ screenWidth } as model) =
 
         _ ->
             el [ width fill, height fill, padding 12 ] <|
-                case model.gameFrontend of
+                case model.fGame of
                     FWaitingForPlayers players ->
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
-                            [ displayGameLobby model.sessionId players ]
+                            [ displayGameLobby model players ]
 
                     FGameInProgress _ _ _ _ players (FStartTimerRunning Five) ->
                         column
@@ -831,27 +873,29 @@ displayGame ({ screenWidth } as model) =
                             rank =
                                 orderedPlayers
                                     |> List.Extra.findIndex (\player -> Just player.sessionId == model.sessionId)
-                                    |> Maybe.withDefault -1
                         in
                         column
                             [ width fill, height fill, spacing 20, scrollbars ]
                             [ el [ centerX ] <|
                                 text <|
                                     case rank of
-                                        0 ->
+                                        Just 0 ->
                                             "You win!🥇"
 
-                                        1 ->
+                                        Just 1 ->
                                             "Maybe next time!🥈"
 
-                                        2 ->
+                                        Just 2 ->
                                             "Luck is not on your side!🥉"
 
-                                        3 ->
+                                        Just 3 ->
                                             "You lost! Here's a cookie 🍪"
 
-                                        _ ->
+                                        Just _ ->
                                             "You lost!🤷\u{200D}♂️"
+
+                                        Nothing ->
+                                            "Game ended!"
                             , column [ centerX, spacing 4, width <| px <| (screenWidth * 80 // 100) ] <|
                                 List.indexedMap (\i player -> displayPlayerAndCards i player) orderedPlayers
                             , el [ centerX ] <| actionButton { onPress = Just ReStartGameFrontend, label = text "Play again!" }
