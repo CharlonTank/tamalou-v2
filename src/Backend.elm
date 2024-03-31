@@ -532,7 +532,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     game.chat ++ [ ( Maybe.withDefault "" (List.Extra.find ((==) sessionId << .sessionId) newPlayers |> Maybe.map .name), "Let's go I'm ready!" ) ]
 
                                                 newGame =
-                                                    { game | chat = newChat }
+                                                    { game | chat = newChat, status = newGameStatus }
                                             in
                                             ( { model | games = updateGame newGame games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameAndChatToFrontend ( frontendGame, newChat ))) newPlayers
