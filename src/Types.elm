@@ -24,6 +24,8 @@ type alias FrontendModel =
     , screenWidth : Int
     , ready : Bool
     , maybeName : Maybe String
+    , chatInput : String
+    , chat : List ( String, String )
     }
 
 
@@ -51,6 +53,8 @@ type FrontendMsg
     | ReplaceCardInFrontend Int
     | DoubleCardFrontend Int
     | LookAtCardFrontend Int
+    | ChangeChatInputFrontend String
+    | SendMessageFrontend
 
 
 type ToBackend
@@ -73,6 +77,7 @@ type ActionFromGameToBackend
     | PowerIsUsedToBackend
     | PowerIsNotUsedToBackend
     | TamalouToBackend
+    | SendMessageToBackend String
 
 
 type BackendMsg
@@ -90,13 +95,16 @@ type BackendMsgFromGame
 type ToFrontend
     = NoOpToFrontend
     | UpdateAdminToFrontend (List String)
-    | UpdateGameToFrontend FGame
+    | UpdateGameStatusToFrontend FGame
+    | UpdateGameAndChatToFrontend ( FGame, List ( String, String ) )
+    | UpdateChatToFrontend (List ( String, String ))
     | GotSessionIdAndClientIdToFrontend SessionId ClientId
 
 
 type alias BGame =
     { urlPath : String
     , status : BGameStatus
+    , chat : List ( String, String )
     , seed : Random.Seed
     }
 

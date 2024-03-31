@@ -133,7 +133,7 @@ update msg ({ games } as model) =
                                         in
                                         if List.length newPlayers /= List.length players then
                                             ( { game | status = newGameStatus }
-                                            , List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame Nothing newGameStatus) newPlayers
+                                            , List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame Nothing newGameStatus) newPlayers
                                             )
 
                                         else
@@ -177,7 +177,7 @@ update msg ({ games } as model) =
                                             }
                                     in
                                     ( { model | games = updateGame newGame games }
-                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
+                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
                                     )
 
                                 BGameInProgress m a b (p1 :: restOfPlayers) (BEndTimerRunning nb) lastMoveIsDouble canUsePowerFromLastPlayer ->
@@ -188,7 +188,7 @@ update msg ({ games } as model) =
                                                     { game | status = BGameInProgress m a b (p1 :: restOfPlayers) (BEndTimerRunning nb_) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
                                             )
 
                                         Nothing ->
@@ -206,7 +206,7 @@ update msg ({ games } as model) =
                                                     { game | status = BGameEnded orderedPlayers }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) (p1 :: restOfPlayers)
                                             )
 
                                 BGameInProgress m a b players (BPlayerToPlay sessionId_ (BPlayerLookACard maybeNb)) lastMoveIsDouble canUsePowerFromLastPlayer ->
@@ -217,7 +217,7 @@ update msg ({ games } as model) =
                                                     { game | status = BGameInProgress m a b players (BPlayerToPlay sessionId_ (BPlayerLookACard (Just nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) players
                                             )
 
                                         Nothing ->
@@ -244,7 +244,7 @@ update msg ({ games } as model) =
                                                     }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGame.status) players
                                             )
 
                                 _ ->
@@ -260,12 +260,13 @@ update msg ({ games } as model) =
 
                         newGame =
                             { urlPath = urlPath
-                            , seed = newSeed
                             , status = BWaitingForPlayers [ { name = funnyName, tableHand = [], clientId = clientId, sessionId = sessionId, ready = False } ]
+                            , chat = []
+                            , seed = newSeed
                             }
                     in
                     ( { model | games = newGame :: games }
-                    , Lamdera.sendToFrontend clientId (UpdateGameToFrontend (backendGameStatusToFrontendGame (Just sessionId) newGame.status))
+                    , Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend (backendGameStatusToFrontendGame (Just sessionId) newGame.status))
                     )
 
 
@@ -394,35 +395,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             frontendGame =
                                                 backendGameStatusToFrontendGame Nothing newGameStatus
                                         in
-                                        case List.length newPlayers of
-                                            1 ->
-                                                ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
-                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
-                                                )
-
-                                            2 ->
-                                                ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
-                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
-                                                )
-
-                                            3 ->
-                                                ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
-                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
-                                                )
-
-                                            4 ->
-                                                ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
-                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
-                                                )
-
-                                            -- 4 ->
-                                            --     ( { model | games = updateGameStatus urlPath ( BGameInProgress Nothing [] [] newPlayers (BStartTimerRunning Five) False False, newSeed ) games }
-                                            --     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
-                                            --     )
-                                            _ ->
-                                                ( model
-                                                , Cmd.none
-                                                )
+                                        ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
+                                        , Cmd.batch <|
+                                            Lamdera.sendToFrontend clientId (UpdateChatToFrontend game.chat)
+                                                :: List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
+                                        )
 
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players progressStatus lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         case List.Extra.find ((==) sessionId << .sessionId) players of
@@ -444,15 +421,15 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 in
                                                 ( { model | games = updateGameStatus urlPath ( newGame, game.seed ) games }
                                                 , Cmd.batch <|
-                                                    List.map (\p -> Lamdera.sendToFrontend p.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just p.sessionId) newGame) updateClientIdInPlayers
+                                                    List.map (\p -> Lamdera.sendToFrontend p.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just p.sessionId) newGame) updateClientIdInPlayers
                                                 )
 
                                             Nothing ->
-                                                ( model, Lamdera.sendToFrontend clientId (UpdateGameToFrontend FGameAlreadyStartedWithoutYou) )
+                                                ( model, Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend FGameAlreadyStartedWithoutYou) )
 
                                     BGameEnded players ->
                                         ( model
-                                        , Lamdera.sendToFrontend clientId (UpdateGameToFrontend <| backendGameStatusToFrontendGame Nothing (BGameEnded players))
+                                        , Lamdera.sendToFrontend clientId (UpdateGameAndChatToFrontend ( backendGameStatusToFrontendGame Nothing (BGameEnded players), game.chat ))
                                         )
 
                             Nothing ->
@@ -485,7 +462,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 backendGameStatusToFrontendGame Nothing newGameStatus
                                         in
                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
                                         )
 
                                     _ ->
@@ -539,7 +516,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     backendGameStatusToFrontendGame Nothing newGameStatus
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
                                             )
 
                                         else
@@ -552,7 +529,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     backendGameStatusToFrontendGame Nothing newGameStatus
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameToFrontend frontendGame)) newPlayers
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
                                             )
 
                                     _ ->
@@ -585,7 +562,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 backendGameStatusToFrontendGame Nothing newGameStatus
                                         in
                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                        , Lamdera.sendToFrontend clientId (UpdateGameToFrontend frontendGame)
+                                        , Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend frontendGame)
                                         )
 
                                     BWaitingForPlayers players ->
@@ -608,7 +585,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 backendGameStatusToFrontendGame Nothing newGameStatus
                                         in
                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                        , Lamdera.sendToFrontend clientId (UpdateGameToFrontend frontendGame)
+                                        , Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend frontendGame)
                                         )
 
                                     _ ->
@@ -654,7 +631,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     BGameInProgress maybeTamalouOwner drawPile rest players (BPlayerToPlay sessionId_ (BPlayerHasDraw head)) False False
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) players
                                             )
 
                                         else
@@ -689,7 +666,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                 BGameInProgress maybeTamalouOwner drawPile (card :: discardPile) players (BPlayerToPlay (nextPlayerSessionId sessionId_ players) (BWaitingPlayerAction Nothing)) False False
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) players
                                             )
 
                                         else
@@ -755,7 +732,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                 BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ players) (BWaitingPlayerAction Nothing)) False False
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
                                             )
 
                                         else
@@ -860,7 +837,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                         BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers bGameInProgressStatus True canUsePowerFromLastPlayer
                                                             in
                                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
+                                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
                                                             )
 
                                                         _ ->
@@ -886,7 +863,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                             BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile updatedPlayers bGameInProgressStatus False canUsePowerFromLastPlayer
                                                                     in
                                                                     ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-                                                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
+                                                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
                                                                     )
 
                                                                 ( Nothing, _ ) ->
@@ -937,7 +914,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BPlayerToPlay sessionId_ (BPlayerLookACard (Just Three))) lastMoveIsDouble canUsePowerFromLastPlayer
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) newPlayers
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) newPlayers
                                             )
 
                                         else
@@ -994,7 +971,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                 BGameInProgress Nothing newDrawPile newDiscardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ updatedPlayers) (BWaitingPlayerAction Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer
                                                         in
                                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-                                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
+                                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
                                                         )
 
                                                     ( Nothing, _ ) ->
@@ -1021,7 +998,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         BGameInProgress (Just sessionId) drawPile discardPile updatedPlayers (BPlayerToPlay (nextPlayerSessionId sessionId_ updatedPlayers) (BWaitingPlayerAction Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer
                                                 in
                                                 ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
+                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) updatedPlayers
                                                 )
 
                                         else
@@ -1113,6 +1090,58 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                             Nothing ->
                                 ( model, Cmd.none )
 
+                    SendMessageToBackend newMessage ->
+                        -- The chat is a list of (name, message) tuples, so we can use playerName to get the name of the player, no need to check the game status, we just need to update the chat and notify the players
+                        case maybeGame of
+                            Just game ->
+                                let
+                                    playerName_ =
+                                        playerName sessionId game
+
+                                    newChat =
+                                        game.chat ++ [ ( playerName_, newMessage ) ]
+
+                                    newGame =
+                                        { game | chat = newChat }
+                                in
+                                ( { model | games = updateGame newGame games }
+                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateChatToFrontend newChat) (bPlayersFromFGame newGame)
+                                )
+
+                            Nothing ->
+                                ( model, Cmd.none )
+
+
+playerName : SessionId -> BGame -> String
+playerName sessionId bGame =
+    -- use bPlayersFromFGame to get the player name
+    let
+        players =
+            bPlayersFromFGame bGame
+
+        player =
+            List.Extra.find ((==) sessionId << .sessionId) players
+    in
+    case player of
+        Just p ->
+            p.name
+
+        Nothing ->
+            "Unknown"
+
+
+bPlayersFromFGame : BGame -> List BPlayer
+bPlayersFromFGame game =
+    case game.status of
+        BWaitingForPlayers players ->
+            players
+
+        BGameInProgress _ _ _ players _ _ _ ->
+            players
+
+        BGameEnded orderedPlayers ->
+            orderedPlayers
+
 
 drawCardFromDrawPile : BGame -> ( Maybe Card, ( BDrawPile, DiscardPile, Random.Seed ) )
 drawCardFromDrawPile game =
@@ -1157,7 +1186,7 @@ drawCardFromDrawPile game =
 updateGameStateAndNotifyPlayers : BackendModel -> String -> ( BGameStatus, Random.Seed ) -> List BPlayer -> ( BackendModel, Cmd BackendMsg )
 updateGameStateAndNotifyPlayers ({ games } as model) urlPath ( newGameStatus, newSeed ) players =
     ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) players
+    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| backendGameStatusToFrontendGame (Just player.sessionId) newGameStatus) players
     )
 
 

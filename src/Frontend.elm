@@ -11,6 +11,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import Html
 import Html.Attributes as HA
 import Lamdera exposing (SessionId)
 import List.Extra
@@ -139,6 +140,8 @@ init url key =
       , screenWidth = 0
       , ready = False
       , maybeName = Nothing
+      , chatInput = ""
+      , chat = []
       }
     , Task.perform
         (\v ->
@@ -149,6 +152,16 @@ init url key =
         )
         Browser.Dom.getViewport
     )
+
+
+scrollToBottom : String -> Cmd FrontendMsg
+scrollToBottom elementId =
+    Browser.Dom.getViewportOf elementId
+        |> Task.andThen
+            (\viewport ->
+                Browser.Dom.setViewportOf elementId 0 viewport.scene.height
+            )
+        |> Task.attempt (always NoOpFrontendMsg)
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -189,6 +202,16 @@ update msg ({ urlPath } as model) =
         ChangeCurrentPlayerNameFrontend newName ->
             ( { model | maybeName = Just newName }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChangeCurrentPlayerNameToBackend newName) )
 
+        SendMessageFrontend ->
+            ( { model | chatInput = "", chat = model.chat ++ [ ( Maybe.withDefault "" model.maybeName, model.chatInput ) ] }
+            , Cmd.batch
+                [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (SendMessageToBackend model.chatInput)
+
+                -- we want to scrolldown after sending a message
+                , scrollToBottom "chatty"
+                ]
+            )
+
         TamalouFrontend ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath TamalouToBackend )
 
@@ -213,6 +236,9 @@ update msg ({ urlPath } as model) =
         PowerPassFrontend ->
             ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath PowerIsNotUsedToBackend )
 
+        ChangeChatInputFrontend newChatInput ->
+            ( { model | chatInput = newChatInput }, Cmd.none )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 updateFromBackend msg model =
@@ -234,7 +260,7 @@ updateFromBackend msg model =
                 , Lamdera.sendToBackend (ActionFromGameToBackend model.urlPath ConnectToBackend)
                 )
 
-        UpdateGameToFrontend fGame ->
+        UpdateGameStatusToFrontend fGame ->
             ( { model
                 | fGame = fGame
                 , maybeName =
@@ -247,6 +273,24 @@ updateFromBackend msg model =
               }
             , Cmd.none
             )
+
+        UpdateGameAndChatToFrontend ( fGame, chat ) ->
+            ( { model
+                | fGame = fGame
+                , maybeName =
+                    case model.maybeName of
+                        Just _ ->
+                            model.maybeName
+
+                        Nothing ->
+                            Just <| getMyName model.sessionId fGame
+                , chat = chat
+              }
+            , scrollToBottom "chatty"
+            )
+
+        UpdateChatToFrontend chat ->
+            ( { model | chat = chat }, scrollToBottom "chatty" )
 
 
 fPlayersFromFGame : FGame -> List FPlayer
@@ -360,60 +404,84 @@ displayGameLobby fModel players =
                     column [ width fill, height fill ]
                         [ el [ centerX, centerY ] <| text "Sorry, the game already started, you can't join"
                         , el [ centerX, centerY ] <| text "Wait for the next game"
-                        , column [ centerX, spacing 4 ] <|
-                            let
-                                ( playersNotReady, playersReady ) =
-                                    List.partition (\player -> not player.ready) players
-                            in
-                            [ if not <| List.isEmpty playersNotReady then
-                                el [ centerX ] <| text <| "Players not ready:"
-
-                              else
-                                none
-                            , column [ spacing 8, centerX ] <| List.map displayPlayer playersNotReady
-                            , if not <| List.isEmpty playersReady then
-                                el [ centerX ] <| text <| "Players ready:"
-
-                              else
-                                none
-                            , column [ spacing 8, centerX ] <| List.map displayPlayer playersReady
+                        , column [ centerX, spacing 4 ]
+                            [ el [ centerX ] <| text <| "Players playing"
+                            , column [ spacing 8, centerX ] <| List.map displayPlayer players
                             ]
                         ]
 
                 Just currentPlayer ->
-                    column
-                        [ width fill, height fill, spacing 20 ]
-                        [ el [ centerX ] <| text "Tamalou!"
-                        , Input.text [ centerX, width <| px 200 ]
-                            { onChange = ChangeCurrentPlayerNameFrontend
-                            , text = fModel.maybeName |> Maybe.withDefault ""
-                            , placeholder = Nothing
-                            , label = Input.labelAbove [ centerX ] <| text "Your name"
-                            }
-                        , column [ centerX, spacing 4 ] <|
-                            let
-                                ( playersNotReady, playersReady ) =
-                                    List.partition (\player -> not player.ready) players
-                            in
-                            [ if not <| List.isEmpty playersNotReady then
-                                el [ centerX ] <| text <| "Players not ready:"
+                    row
+                        [ width fill, height fill ]
+                        [ column [ width <| fillPortion 3, height fill, spacing 20 ]
+                            [ el [ centerX ] <| text "Tamalou!"
+                            , Input.text [ centerX, width <| px 200 ]
+                                { onChange = ChangeCurrentPlayerNameFrontend
+                                , text = fModel.maybeName |> Maybe.withDefault ""
+                                , placeholder = Nothing
+                                , label = Input.labelAbove [ centerX ] <| text "Your name"
+                                }
+                            , column [ centerX, spacing 4 ] <|
+                                let
+                                    ( playersNotReady, playersReady ) =
+                                        List.partition (\player -> not player.ready) players
+                                in
+                                [ if not <| List.isEmpty playersNotReady then
+                                    el [ centerX ] <| text <| "Players not ready:"
+
+                                  else
+                                    none
+                                , column [ spacing 8, centerX ] <| List.map displayPlayer playersNotReady
+                                , if not <| List.isEmpty playersReady then
+                                    el [ centerX ] <| text <| "Players ready:"
+
+                                  else
+                                    none
+                                , column [ spacing 8, centerX ] <| List.map displayPlayer playersReady
+                                ]
+                            , if currentPlayer.ready then
+                                el [ centerX ] <| text "Waiting for other players to be ready"
 
                               else
-                                none
-                            , column [ spacing 8, centerX ] <| List.map displayPlayer playersNotReady
-                            , if not <| List.isEmpty playersReady then
-                                el [ centerX ] <| text <| "Players ready:"
-
-                              else
-                                none
-                            , column [ spacing 8, centerX ] <| List.map displayPlayer playersReady
+                                el [ centerX ] <| actionButton { onPress = Just StartGameFrontend, label = text "I'm ready!" }
                             ]
-                        , if currentPlayer.ready then
-                            el [ centerX ] <| text "Waiting for other players to be ready"
-
-                          else
-                            el [ centerX ] <| actionButton { onPress = Just StartGameFrontend, label = text "I'm ready!" }
+                        , displayChat fModel.screenWidth fModel.screenHeight fModel.chatInput fModel.chat
                         ]
+
+
+displayChat : Int -> Int -> String -> List ( String, String ) -> Element FrontendMsg
+displayChat screenWidth screenHeight chatInput chat =
+    column
+        [ width <| fillPortion 4, height fill, spacing 8, paddingXY 12 12, Background.color veryLightGrey, Border.rounded 8 ]
+        [ el [ centerX ] <| text "Chat between players"
+        , column [ spacing 6, height <| px <| screenHeight * 70 // 100, scrollbars, htmlAttribute <| HA.id "chatty", width fill ] <| List.map (displayChatMessage screenWidth) chat
+        , row [ alignBottom, spacing 4 ]
+            [ Input.text [ centerX, width <| px <| screenWidth * 40 // 100 ]
+                { onChange = ChangeChatInputFrontend
+                , text = chatInput
+                , placeholder = Nothing
+                , label = Input.labelHidden "mess"
+                }
+            , Input.button [ centerY ]
+                { onPress =
+                    if chatInput == "" then
+                        Nothing
+
+                    else
+                        Just SendMessageFrontend
+                , label = text "Send"
+                }
+            ]
+        ]
+
+
+displayChatMessage : Int -> ( String, String ) -> Element FrontendMsg
+displayChatMessage screenWidth ( name, message ) =
+    column
+        [ width fill, spacing 2 ]
+        [ row [ width <| fill ] [ el [ width fill, Font.size 12 ] <| text name ]
+        , row [ width <| fill, paddingXY 12 0 ] [ el [ width fill, Font.size 16, Background.color lightGrey, Border.rounded 8, paddingXY 4 4 ] <| paragraph [ width fill ] [ text message ] ]
+        ]
 
 
 displayGame : FrontendModel -> Element FrontendMsg
@@ -1079,6 +1147,11 @@ displayPlayerAndCards rank player =
 veryLightGrey : Color
 veryLightGrey =
     Element.rgb255 240 240 240
+
+
+lightGrey : Color
+lightGrey =
+    Element.rgb255 220 220 220
 
 
 displayPlayerView : Maybe SessionId -> DeviceClass -> List FPlayer -> FTableHand -> Maybe CardClickEvent -> Element FrontendMsg
