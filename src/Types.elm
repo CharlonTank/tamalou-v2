@@ -42,7 +42,7 @@ type FrontendMsg
     | UrlChanged Url
     | GotWindowSize { height : Int, width : Int }
     | ChangeCurrentPlayerNameFrontend String
-    | StartGameFrontend
+    | ImReadyFrontend
     | ReStartGameFrontend
     | DrawCardFromDeckFrontend
     | TamalouFrontend
@@ -66,7 +66,7 @@ type ToBackend
 type ActionFromGameToBackend
     = ConnectToBackend
     | ChangeCurrentPlayerNameToBackend String
-    | StartGameToBackend
+    | ImReadyToBackend
     | ReStartGameToBackend
     | DrawCardFromDrawPileToBackend
     | DiscardCardInHandToBackend

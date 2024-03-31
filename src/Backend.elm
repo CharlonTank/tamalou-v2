@@ -471,7 +471,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                             Nothing ->
                                 ( model, Cmd.none )
 
-                    StartGameToBackend ->
+                    ImReadyToBackend ->
                         case maybeGame of
                             Just game ->
                                 case game.status of
@@ -527,9 +527,15 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 frontendGame : FGame
                                                 frontendGame =
                                                     backendGameStatusToFrontendGame Nothing newGameStatus
+
+                                                newChat =
+                                                    game.chat ++ [ ( Maybe.withDefault "" (List.Extra.find ((==) sessionId << .sessionId) newPlayers |> Maybe.map .name), "Let's go I'm ready!" ) ]
+
+                                                newGame =
+                                                    { game | chat = newChat }
                                             in
-                                            ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
+                                            ( { model | games = updateGame newGame games }
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameAndChatToFrontend ( frontendGame, newChat ))) newPlayers
                                             )
 
                                     _ ->

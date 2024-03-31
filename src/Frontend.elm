@@ -190,8 +190,13 @@ update msg ({ urlPath } as model) =
         NoOpFrontendMsg ->
             ( model, Cmd.none )
 
-        StartGameFrontend ->
-            ( { model | ready = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath StartGameToBackend )
+        ImReadyFrontend ->
+            ( { model
+                | ready = True
+                , chat = model.chat ++ [ ( Maybe.withDefault "" model.maybeName, "Let's go I'm ready!" ) ]
+              }
+            , Lamdera.sendToBackend <| ActionFromGameToBackend urlPath ImReadyToBackend
+            )
 
         ReStartGameFrontend ->
             ( { model | ready = False }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath ReStartGameToBackend )
@@ -206,8 +211,6 @@ update msg ({ urlPath } as model) =
             ( { model | chatInput = "", chat = model.chat ++ [ ( Maybe.withDefault "" model.maybeName, model.chatInput ) ] }
             , Cmd.batch
                 [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (SendMessageToBackend model.chatInput)
-
-                -- we want to scrolldown after sending a message
                 , scrollToBottom "chatty"
                 ]
             )
@@ -443,7 +446,7 @@ displayGameLobby fModel players =
                                 el [ centerX ] <| text "Waiting for other players to be ready"
 
                               else
-                                el [ centerX ] <| actionButton { onPress = Just StartGameFrontend, label = text "I'm ready!" }
+                                el [ centerX ] <| actionButton { onPress = Just ImReadyFrontend, label = text "I'm ready!" }
                             ]
                         , displayChat fModel.screenWidth fModel.screenHeight fModel.chatInput fModel.chat
                         ]
