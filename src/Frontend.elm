@@ -483,7 +483,22 @@ displayChatMessage screenWidth ( name, message ) =
     column
         [ width fill, spacing 2 ]
         [ row [ width <| fill ] [ el [ width fill, Font.size 12 ] <| text name ]
-        , row [ width <| fill, paddingXY 12 0 ] [ el [ width fill, Font.size 16, Background.color lightGrey, Border.rounded 8, paddingXY 4 4 ] <| paragraph [ width fill ] [ text message ] ]
+        , row [ width <| fill, paddingXY 12 0 ]
+            [ el
+                [ width fill
+                , Font.size 16
+                , Background.color <|
+                    if message == "Let's go I'm ready!" then
+                        green
+
+                    else
+                        lightGrey
+                , Border.rounded 8
+                , paddingXY 4 4
+                ]
+              <|
+                paragraph [ width fill ] [ text message ]
+            ]
         ]
 
 
@@ -1108,7 +1123,7 @@ displayPlayer player =
     let
         isReadyColor =
             if player.ready then
-                Element.rgb255 0 255 0
+                green
 
             else
                 Element.rgb255 255 0 0
@@ -1224,7 +1239,21 @@ displayFCardAtTheEnd frontendCard =
 
 actionBorder : List (Attribute FrontendMsg)
 actionBorder =
-    [ Border.rounded 8, Border.width 4, Border.color yellow ]
+    [ Border.rounded 8
+    , Background.color yellow
+    , paddingXY 4 4
+    , minimalistShadow
+    ]
+
+
+minimalistShadow : Attr decorative FrontendMsg
+minimalistShadow =
+    Border.shadow
+        { offset = ( 2, 2 ) -- A slight offset to the right and bottom.
+        , size = 0 -- No spread size to keep the shadow tight.
+        , blur = 4 -- A small blur radius to soften the shadow.
+        , color = Element.rgba 0 0 0 0.1 -- A very light grey color with low opacity for subtlety.
+        }
 
 
 doubleActionBorder : List (Attribute FrontendMsg)
@@ -1234,12 +1263,17 @@ doubleActionBorder =
 
 yellow : Color
 yellow =
-    Element.rgb255 255 255 0
+    Element.rgb255 238 221 136
 
 
 blue : Color
 blue =
-    Element.rgb255 0 0 255
+    Element.rgb255 0 68 221
+
+
+green : Color
+green =
+    Element.rgb255 35 187 34
 
 
 actionButton : { onPress : Maybe FrontendMsg, label : Element FrontendMsg } -> Element FrontendMsg
