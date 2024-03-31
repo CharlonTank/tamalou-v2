@@ -458,21 +458,21 @@ displayChat screenWidth screenHeight chatInput chat =
         [ width <| fillPortion 4, height fill, spacing 8, paddingXY 12 12, Background.color veryLightGrey, Border.rounded 8 ]
         [ el [ centerX ] <| text "Chat between players"
         , column [ spacing 6, height <| px <| screenHeight * 70 // 100, scrollbars, htmlAttribute <| HA.id "chatty", width fill ] <| List.map (displayChatMessage screenWidth) chat
-        , row [ alignBottom, spacing 4 ]
-            [ Input.text [ centerX, width <| px <| screenWidth * 40 // 100 ]
+        , row [ alignBottom, spacing 4, width fill ]
+            [ Input.text [ centerX, width <| px <| screenWidth * 40 // 100, alignLeft ]
                 { onChange = ChangeChatInputFrontend
                 , text = chatInput
                 , placeholder = Nothing
                 , label = Input.labelHidden "mess"
                 }
-            , Input.button [ centerY ]
+            , Input.button [ centerX ]
                 { onPress =
                     if chatInput == "" then
                         Nothing
 
                     else
                         Just SendMessageFrontend
-                , label = text "Send"
+                , label = el [ Border.color lightGrey, Border.width 1, paddingXY 12 12, Border.rounded 8 ] <| text "Send"
                 }
             ]
         ]
@@ -629,11 +629,8 @@ displayGame ({ screenWidth } as model) =
                                 column [ spacing 8 ]
                                     [ elEmplacement screenWidth <|
                                         el
-                                            ([ Events.onClick DrawCardFromDeckFrontend
-                                             , centerX
-                                             , centerY
-                                             ]
-                                                ++ actionBorder
+                                            (Events.onClick DrawCardFromDeckFrontend
+                                                :: cardActionBorder yellow
                                             )
                                         <|
                                             displayFCard Phone FaceDown
@@ -641,18 +638,19 @@ displayGame ({ screenWidth } as model) =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement screenWidth <| none
-                                    ]
+                                    [ elEmplacement screenWidth <| none ]
 
                             discardPileColumn =
                                 column [ spacing 8 ]
                                     (displayDiscardCards screenWidth discardPile True maybePowerCard)
 
                             tamalouButton =
-                                el [ centerX ] <| actionButton { onPress = Just TamalouFrontend, label = text "Tamalou" }
+                                el [ centerX, paddingEach { edges | bottom = 24, top = 12 }, Font.color blue, Font.italic ] <|
+                                    Input.button (cardActionBorder yellow)
+                                        { onPress = Just TamalouFrontend, label = text "\"Tamalou!\"" }
                         in
                         column
-                            [ width fill, height fill, spacing 4 ]
+                            [ width fill, height fill ]
                             [ row [ spacing 16, centerX, centerY ]
                                 [ drawColumn
                                 , currentCardColumn
@@ -681,7 +679,7 @@ displayGame ({ screenWidth } as model) =
 
                             currentCardColumn =
                                 column [ spacing 8 ]
-                                    [ elEmplacement screenWidth <| el ([ centerX, centerY, Events.onClick DiscardCardFrontend ] ++ actionBorder) <| displayFCard Phone fCard
+                                    [ elEmplacement screenWidth <| el (Events.onClick DiscardCardFrontend :: cardActionBorder yellow) <| displayFCard Phone fCard
                                     ]
 
                             discardPileColumn =
@@ -1064,7 +1062,7 @@ displayDiscardCards widthOfScreen discardPile canDrawCard maybePowerCard =
                     [ elEmplacement widthOfScreen <| displayFCard Phone (FaceUp head) ]
 
                 Nothing ->
-                    [ elEmplacement widthOfScreen <| el ([ centerX, centerY, Events.onClick DrawFromDiscardPileFrontend ] ++ actionBorder) <| displayFCard Phone (FaceUp head) ]
+                    [ elEmplacement widthOfScreen <| el (Events.onClick DrawFromDiscardPileFrontend :: cardActionBorder yellow) <| displayFCard Phone (FaceUp head) ]
 
         ( head :: _, True, Just power ) ->
             [ elEmplacement widthOfScreen <| displayFCard Phone (FaceUp head)
@@ -1126,10 +1124,10 @@ displayPlayer player =
                 green
 
             else
-                Element.rgb255 255 0 0
+                red
     in
     column
-        [ spacing 12, centerX, Background.color isReadyColor, Border.rounded 8, paddingXY 2 2 ]
+        [ spacing 12, centerX, Background.color isReadyColor, Border.rounded 8, paddingXY 4 4 ]
         [ text <|
             case player.name of
                 "" ->
@@ -1206,18 +1204,18 @@ onClickCard maybeCardClickEvent tag index card =
             tag card
 
         Just CardClickDouble ->
-            Element.el [ Events.onClick <| DoubleCardFrontend index, Border.color blue, Border.rounded 8, Border.width 4, width fill ] (tag card)
+            el ([ Events.onClick <| DoubleCardFrontend index, width fill ] ++ cardActionBorder blue) (tag card)
 
         Just CardClickReplacement ->
-            Element.el [ Events.onClick <| ReplaceCardInFrontend index, Border.color yellow, Border.rounded 8, Border.width 4, width fill ] (tag card)
+            el ([ Events.onClick <| ReplaceCardInFrontend index, width fill ] ++ cardActionBorder yellow) (tag card)
 
         Just LookThisCard ->
-            Element.el [ Events.onClick <| LookAtCardFrontend index, Border.color yellow, Border.rounded 8, Border.width 4, width fill ] (tag card)
+            el ([ Events.onClick <| LookAtCardFrontend index, width fill ] ++ cardActionBorder yellow) (tag card)
 
 
 displayFCard : DeviceClass -> FCard -> Element FrontendMsg
 displayFCard deviceClass frontendCard =
-    image [ Border.rounded 100, width fill, height fill, centerX, centerY ] <|
+    image [ Border.rounded 100, width fill, height fill ] <|
         case frontendCard of
             FaceUp card ->
                 { src = "/cardImages/" ++ Card.toString card ++ ".png", description = Card.toString card }
@@ -1246,19 +1244,32 @@ actionBorder =
     ]
 
 
+cardActionBorder : Element.Color -> List (Attribute FrontendMsg)
+cardActionBorder color =
+    [ Border.rounded 8
+    , Background.color color
+    , bigShadow color
+    ]
+
+
 minimalistShadow : Attr decorative FrontendMsg
 minimalistShadow =
     Border.shadow
-        { offset = ( 2, 2 ) -- A slight offset to the right and bottom.
-        , size = 0 -- No spread size to keep the shadow tight.
-        , blur = 4 -- A small blur radius to soften the shadow.
-        , color = Element.rgba 0 0 0 0.1 -- A very light grey color with low opacity for subtlety.
+        { offset = ( 2, 2 )
+        , size = 1
+        , blur = 4
+        , color = Element.rgba 0 0 0 0.2
         }
 
 
-doubleActionBorder : List (Attribute FrontendMsg)
-doubleActionBorder =
-    [ Border.rounded 8, Border.width 4, Border.color blue ]
+bigShadow : Element.Color -> Attr decorative FrontendMsg
+bigShadow color =
+    Border.shadow
+        { offset = ( 0, 0 )
+        , size = 6
+        , blur = 8
+        , color = color
+        }
 
 
 yellow : Color
@@ -1276,6 +1287,20 @@ green =
     Element.rgb255 35 187 34
 
 
+red : Color
+red =
+    Element.rgb255 224 38 15
+
+
 actionButton : { onPress : Maybe FrontendMsg, label : Element FrontendMsg } -> Element FrontendMsg
 actionButton =
     Input.button actionBorder
+
+
+edges : { top : Int, right : Int, bottom : Int, left : Int }
+edges =
+    { top = 0
+    , right = 0
+    , bottom = 0
+    , left = 0
+    }
