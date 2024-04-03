@@ -53,6 +53,8 @@ type FrontendMsg
     | ReplaceCardInFrontend Int
     | DoubleCardFrontend Int
     | LookAtCardFrontend Int
+    | ChooseOwnCardToSwitchFrontend Int
+    | ChooseOpponentCardToSwitchFrontend ( SessionId, Int )
     | ChangeChatInputFrontend String
     | SendMessageFrontend
 
@@ -74,6 +76,8 @@ type ActionFromGameToBackend
     | ReplaceCardInTableHandToBackend Int
     | DoubleCardInTableHandToBackend Int
     | LookAtCardInTableHandToBackend Int
+    | ChooseOwnCardToSwitchToBackend Int
+    | ChooseOpponentCardToSwitchToBackend ( SessionId, Int )
     | PowerIsUsedToBackend
     | PowerIsNotUsedToBackend
     | TamalouToBackend
@@ -139,7 +143,7 @@ type FGame
 
 type FGameInProgressStatus
     = FStartTimerRunning Counter
-    | FPlayerToPlay SessionId FPlayerToPlayStatus
+    | FPlayerToPlay FPlayer FPlayerToPlayStatus
     | FYourTurn FPlayerToPlayStatus
     | FEndTimerRunning Counter
 
@@ -149,11 +153,12 @@ type FPlayerToPlayStatus
     | FPlayerHasDraw FCard
     | FPlayerHasDiscard Power
     | FPlayerLookACard LookACardStatus
+    | FPlayerSwitch2Cards Switch2CardsStatus
 
 
 type BGameInProgressStatus
     = BStartTimerRunning Counter
-    | BPlayerToPlay SessionId BPlayerToPlayStatus
+    | BPlayerToPlay BPlayer BPlayerToPlayStatus
     | BEndTimerRunning Counter
 
 
@@ -171,15 +176,17 @@ type BPlayerToPlayStatus
     | BPlayerHasDraw Card
     | BPlayerHasDiscard Power
     | BPlayerLookACard LookACardStatus
-
-
-
--- | BPlayerSwitch2Cards ( Maybe Int, Maybe Int )
+    | BPlayerSwitch2Cards Switch2CardsStatus
 
 
 type LookACardStatus
     = ChooseCardToLook
     | LookingACard Counter
+
+
+type Switch2CardsStatus
+    = ChooseOwnCardToSwitch
+    | OwnCardChosen Int
 
 
 type alias FPlayer =
