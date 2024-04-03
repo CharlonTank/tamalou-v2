@@ -18,8 +18,8 @@ import List.Extra
 import Random
 import Random.Extra
 import Simple.Animation as Animation exposing (Animation)
-import Simple.Animation.Animated as Animated
-import Simple.Animation.Property as P
+import Simple.Animation.Animated as Anim
+import Simple.Animation.Property as Anim
 import Svg exposing (Svg)
 import Svg.Attributes as SvgA
 import Task
@@ -35,29 +35,29 @@ grey =
 phoneRotateAnimation : Animation
 phoneRotateAnimation =
     Animation.steps
-        { startAt = [ P.rotate 0, customTransformOrigin "center" ]
+        { startAt = [ Anim.rotate 0, customTransformOrigin "center" ]
         , options = [ Animation.loop ]
         }
-        [ Animation.step 500 [ P.rotate 90, customTransformOrigin "center" ]
+        [ Animation.step 500 [ Anim.rotate 90, customTransformOrigin "center" ]
         , Animation.wait 300
-        , Animation.step 200 [ P.rotate 0, customTransformOrigin "center" ]
+        , Animation.step 200 [ Anim.rotate 0, customTransformOrigin "center" ]
         , Animation.wait 300
         ]
 
 
-customTransformOrigin : String -> P.Property
+customTransformOrigin : String -> Anim.Property
 customTransformOrigin origin =
-    P.property "transform-origin" origin
+    Anim.property "transform-origin" origin
 
 
 minimalistPhoneWithHint : Svg FrontendMsg
 minimalistPhoneWithHint =
     Svg.svg [ SvgA.viewBox "0 0 100 100" ]
-        [ Animated.svg { class = SvgA.class } Svg.g phoneRotateAnimation [] [ phoneSvg ]
+        [ Anim.svg { class = SvgA.class } Svg.g phoneRotateAnimation [] [ phoneSvg ]
         ]
 
 
-redSquare : Svg msg
+redSquare : Svg FrontendMsg
 redSquare =
     Svg.rect
         [ SvgA.width "50"
