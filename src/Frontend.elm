@@ -820,7 +820,7 @@ displayGame ({ screenWidth } as model) =
                             , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent True
                             ]
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard Nothing)) ->
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard ChooseCardToLook)) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then
@@ -859,7 +859,7 @@ displayGame ({ screenWidth } as model) =
                             , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent True
                             ]
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard (Just counter))) ->
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard (LookingACard counter))) ->
                         let
                             cardClickEvent =
                                 if List.isEmpty discardPile then

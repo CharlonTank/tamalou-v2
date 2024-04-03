@@ -47,7 +47,7 @@ launchTimer games =
                     BGameInProgress _ _ _ _ (BEndTimerRunning _) _ _ ->
                         Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
 
-                    BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerLookACard (Just _))) _ _ ->
+                    BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerLookACard (LookingACard _))) _ _ ->
                         Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
 
                     _ ->
@@ -209,12 +209,12 @@ update msg ({ games } as model) =
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) (p1 :: restOfBPlayers)
                                             )
 
-                                BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay sessionId_ (BPlayerLookACard maybeNb)) lastMoveIsDouble canUsePowerFromLastPlayer ->
-                                    case Maybe.andThen decrementCounter maybeNb of
+                                BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay sessionId_ (BPlayerLookACard (LookingACard counter))) lastMoveIsDouble canUsePowerFromLastPlayer ->
+                                    case decrementCounter counter of
                                         Just nb ->
                                             let
                                                 newGame =
-                                                    { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay sessionId_ (BPlayerLookACard (Just nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                                    { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay sessionId_ (BPlayerLookACard (LookingACard nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
                                             ( { model | games = updateGame newGame games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
@@ -906,7 +906,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerLookACard Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerLookACard ChooseCardToLook)) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         if sessionId == sessionId_ then
                                             let
                                                 newPlayers =
@@ -932,7 +932,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             )
 
                                                 newGameStatus =
-                                                    BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BPlayerToPlay sessionId_ (BPlayerLookACard (Just Two))) lastMoveIsDouble canUsePowerFromLastPlayer
+                                                    BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BPlayerToPlay sessionId_ (BPlayerLookACard (LookingACard Two))) lastMoveIsDouble canUsePowerFromLastPlayer
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) newPlayers
@@ -1056,10 +1056,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BWaitingPlayerAction (Just powerCard))) lastMoveIsDouble True
 
                                                         Card.Switch2Cards ->
-                                                            BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BWaitingPlayerAction (Just powerCard))) lastMoveIsDouble True
+                                                            Debug.todo "asd"
 
+                                                        -- BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerSwitch2Cards Nothing)) lastMoveIsDouble True
                                                         Card.LookACard ->
-                                                            BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerLookACard Nothing)) lastMoveIsDouble True
+                                                            BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerLookACard ChooseCardToLook)) lastMoveIsDouble True
                                             in
                                             updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
@@ -1075,10 +1076,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble False
 
                                                         Card.Switch2Cards ->
-                                                            BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble False
+                                                            Debug.todo "asd"
 
+                                                        -- BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerSwitch2Cards Nothing)) lastMoveIsDouble False
                                                         Card.LookACard ->
-                                                            BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerLookACard Nothing)) lastMoveIsDouble False
+                                                            BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay sessionId_ (BPlayerLookACard ChooseCardToLook)) lastMoveIsDouble False
                                             in
                                             updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
@@ -1314,12 +1316,12 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
                     else
                         FPlayerToPlay sessionId (FPlayerHasDiscard powerCard)
 
-                BPlayerLookACard maybeTimer ->
+                BPlayerLookACard lookAtCardStatus ->
                     if maybeSessionId == Just sessionId then
-                        FYourTurn (FPlayerLookACard maybeTimer)
+                        FYourTurn (FPlayerLookACard lookAtCardStatus)
 
                     else
-                        FPlayerToPlay sessionId (FPlayerLookACard Nothing)
+                        FPlayerToPlay sessionId (FPlayerLookACard lookAtCardStatus)
 
         BEndTimerRunning timer ->
             FEndTimerRunning timer

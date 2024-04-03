@@ -148,7 +148,7 @@ type FPlayerToPlayStatus
     = FWaitingPlayerAction (Maybe Power)
     | FPlayerHasDraw FCard
     | FPlayerHasDiscard Power
-    | FPlayerLookACard (Maybe Counter)
+    | FPlayerLookACard LookACardStatus
 
 
 type BGameInProgressStatus
@@ -170,7 +170,16 @@ type BPlayerToPlayStatus
     = BWaitingPlayerAction (Maybe Power)
     | BPlayerHasDraw Card
     | BPlayerHasDiscard Power
-    | BPlayerLookACard (Maybe Counter)
+    | BPlayerLookACard LookACardStatus
+
+
+
+-- | BPlayerSwitch2Cards ( Maybe Int, Maybe Int )
+
+
+type LookACardStatus
+    = ChooseCardToLook
+    | LookingACard Counter
 
 
 type alias FPlayer =
