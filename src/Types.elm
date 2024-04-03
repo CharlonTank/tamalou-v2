@@ -43,7 +43,7 @@ type FrontendMsg
     | GotWindowSize { height : Int, width : Int }
     | ChangeCurrentPlayerNameFrontend String
     | ImReadyFrontend
-    | ReStartGameFrontend
+    | ReStartGameFrontend (Maybe FPlayer)
     | DrawCardFromDeckFrontend
     | TamalouFrontend
     | DiscardCardFrontend
@@ -67,7 +67,7 @@ type ActionFromGameToBackend
     = ConnectToBackend
     | ChangeCurrentPlayerNameToBackend String
     | ImReadyToBackend
-    | ReStartGameToBackend
+    | ReStartGameToBackend (Maybe FPlayer)
     | DrawCardFromDrawPileToBackend
     | DiscardCardInHandToBackend
     | DrawFromDiscardPileToBackend
