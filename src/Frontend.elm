@@ -610,6 +610,88 @@ displayGame ({ screenWidth } as model) =
                             , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent False
                             ]
 
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay sessionId (FPlayerHasDiscard power)) ->
+                        let
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
+                                    Nothing
+
+                                else
+                                    Just CardClickDouble
+
+                            currentCardColumn =
+                                column [ spacing 8 ]
+                                    [ elEmplacement screenWidth <| none
+                                    , none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8 ]
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
+
+                            opponentsDisposition =
+                                toOpponentsDisposition players
+                        in
+                        column
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ height <| px 64, width fill ] [ displayOpponent (Just sessionId) <| TopLeftPlayer opponentsDisposition.topLeftPlayer, displayOpponent (Just sessionId) <| TopRightPlayer opponentsDisposition.topRightPlayer ]
+                            , row
+                                [ width fill ]
+                                [ displayOpponent (Just sessionId) <| LeftPlayer opponentsDisposition.leftPlayer
+                                , row [ spacing 16, centerX, centerY ]
+                                    [ displayDrawColumn screenWidth drawPile False
+                                    , currentCardColumn
+                                    , discardPileColumn
+                                    ]
+                                , displayOpponent (Just sessionId) <| RightPlayer opponentsDisposition.rightPlayer
+                                ]
+                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent False
+                            ]
+
+                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay sessionId (FPlayerLookACard counter)) ->
+                        let
+                            cardClickEvent =
+                                if List.isEmpty discardPile then
+                                    Nothing
+
+                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
+                                    Nothing
+
+                                else
+                                    Just CardClickDouble
+
+                            currentCardColumn =
+                                column [ spacing 8 ]
+                                    [ elEmplacement screenWidth <| none
+                                    , none
+                                    ]
+
+                            discardPileColumn =
+                                column [ spacing 8 ]
+                                    (displayDiscardCards screenWidth discardPile False Nothing)
+
+                            opponentsDisposition =
+                                toOpponentsDisposition players
+                        in
+                        column
+                            [ width fill, height fill, spacing 20 ]
+                            [ row [ height <| px 64, width fill ] [ displayOpponent (Just sessionId) <| TopLeftPlayer opponentsDisposition.topLeftPlayer, displayOpponent (Just sessionId) <| TopRightPlayer opponentsDisposition.topRightPlayer ]
+                            , row
+                                [ width fill ]
+                                [ displayOpponent (Just sessionId) <| LeftPlayer opponentsDisposition.leftPlayer
+                                , row [ spacing 16, centerX, centerY ]
+                                    [ displayDrawColumn screenWidth drawPile False
+                                    , currentCardColumn
+                                    , discardPileColumn
+                                    ]
+                                , displayOpponent (Just sessionId) <| RightPlayer opponentsDisposition.rightPlayer
+                                ]
+                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent False
+                            ]
+
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
                         let
                             cardClickEvent =
@@ -735,88 +817,6 @@ displayGame ({ screenWidth } as model) =
                                 , displayOpponent Nothing <| RightPlayer opponentsDisposition.rightPlayer
                                 ]
                             , displayUsePowerOrPass
-                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent True
-                            ]
-
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay sessionId (FPlayerHasDiscard power)) ->
-                        let
-                            cardClickEvent =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just CardClickDouble
-
-                            currentCardColumn =
-                                column [ spacing 8 ]
-                                    [ elEmplacement screenWidth <| none
-                                    , none
-                                    ]
-
-                            discardPileColumn =
-                                column [ spacing 8 ]
-                                    (displayDiscardCards screenWidth discardPile False Nothing)
-
-                            opponentsDisposition =
-                                toOpponentsDisposition players
-                        in
-                        column
-                            [ width fill, height fill, spacing 20 ]
-                            [ row [ height <| px 64, width fill ] [ displayOpponent (Just sessionId) <| TopLeftPlayer opponentsDisposition.topLeftPlayer, displayOpponent (Just sessionId) <| TopRightPlayer opponentsDisposition.topRightPlayer ]
-                            , row
-                                [ width fill ]
-                                [ displayOpponent (Just sessionId) <| LeftPlayer opponentsDisposition.leftPlayer
-                                , row [ spacing 16, centerX, centerY ]
-                                    [ displayDrawColumn screenWidth drawPile False
-                                    , currentCardColumn
-                                    , discardPileColumn
-                                    ]
-                                , displayOpponent (Just sessionId) <| RightPlayer opponentsDisposition.rightPlayer
-                                ]
-                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent False
-                            ]
-
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay sessionId (FPlayerLookACard counter)) ->
-                        let
-                            cardClickEvent =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just CardClickDouble
-
-                            currentCardColumn =
-                                column [ spacing 8 ]
-                                    [ elEmplacement screenWidth <| none
-                                    , none
-                                    ]
-
-                            discardPileColumn =
-                                column [ spacing 8 ]
-                                    (displayDiscardCards screenWidth discardPile False Nothing)
-
-                            opponentsDisposition =
-                                toOpponentsDisposition players
-                        in
-                        column
-                            [ width fill, height fill, spacing 20 ]
-                            [ row [ height <| px 64, width fill ] [ displayOpponent (Just sessionId) <| TopLeftPlayer opponentsDisposition.topLeftPlayer, displayOpponent (Just sessionId) <| TopRightPlayer opponentsDisposition.topRightPlayer ]
-                            , row
-                                [ width fill ]
-                                [ displayOpponent (Just sessionId) <| LeftPlayer opponentsDisposition.leftPlayer
-                                , row [ spacing 16, centerX, centerY ]
-                                    [ displayDrawColumn screenWidth drawPile False
-                                    , currentCardColumn
-                                    , discardPileColumn
-                                    ]
-                                , displayOpponent (Just sessionId) <| RightPlayer opponentsDisposition.rightPlayer
-                                ]
                             , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent True
                             ]
 
