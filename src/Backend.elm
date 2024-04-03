@@ -170,7 +170,7 @@ update msg ({ games } as model) =
                                                 | status =
                                                     case newNb of
                                                         Nothing ->
-                                                            BGameInProgress m a b (stopDisplayCards (p1 :: restOfBPlayers)) (BPlayerToPlay p1.sessionId (BWaitingPlayerAction Nothing)) False False
+                                                            BGameInProgress m a b (stopDisplayCards Nothing (p1 :: restOfBPlayers)) (BPlayerToPlay p1.sessionId (BWaitingPlayerAction Nothing)) False False
 
                                                         Just newNb_ ->
                                                             BGameInProgress m a b (p1 :: restOfBPlayers) (BStartTimerRunning newNb_) False False
@@ -233,7 +233,7 @@ update msg ({ games } as model) =
                                                                     BGameInProgress maybeTamalouOwner
                                                                         a
                                                                         b
-                                                                        (stopDisplayCards players)
+                                                                        (stopDisplayCards Nothing players)
                                                                         (BPlayerToPlay nextPlayerSessionId_
                                                                             (BWaitingPlayerAction
                                                                                 (if canUsePowerFromLastPlayer then
@@ -251,7 +251,7 @@ update msg ({ games } as model) =
                                                         Nothing ->
                                                             { game
                                                                 | status =
-                                                                    BGameInProgress maybeTamalouOwner a b (stopDisplayCards players) (BEndTimerRunning Five) lastMoveIsDouble canUsePowerFromLastPlayer
+                                                                    BGameInProgress maybeTamalouOwner a b (stopDisplayCards Nothing players) (BEndTimerRunning Five) lastMoveIsDouble canUsePowerFromLastPlayer
                                                             }
                                             in
                                             ( { model | games = updateGame newGame games }
@@ -312,13 +312,26 @@ decrementCounter counter =
             Nothing
 
 
-stopDisplayCards : List BPlayer -> List BPlayer
-stopDisplayCards players =
-    List.map
-        (\({ tableHand } as player) ->
-            { player | tableHand = List.map (\card -> { card | show = False }) tableHand }
-        )
-        players
+stopDisplayCards : Maybe SessionId -> List BPlayer -> List BPlayer
+stopDisplayCards tamalouOwnerSessionId players =
+    case tamalouOwnerSessionId of
+        Just ownerId ->
+            List.map
+                (\player ->
+                    if player.sessionId == ownerId then
+                        player
+
+                    else
+                        { player | tableHand = List.map (\card -> { card | show = False }) player.tableHand }
+                )
+                players
+
+        Nothing ->
+            List.map
+                (\player ->
+                    { player | tableHand = List.map (\card -> { card | show = False }) player.tableHand }
+                )
+                players
 
 
 distribute4CardsToPlayer : BDrawPile -> BPlayer -> ( BDrawPile, BPlayer )
@@ -597,7 +610,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 toFGame Nothing newGameStatus
                                         in
                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                        , Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend frontendGame)
+                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
                                         )
 
                                     _ ->
@@ -1229,10 +1242,10 @@ toFGame maybeSessionId backendGame =
                         |> (\( maybeCurrentPlayer, opponents_ ) ->
                                 case maybeCurrentPlayer of
                                     Just currentPlayer ->
-                                        ( List.map toFCard currentPlayer.tableHand, List.map (toFPlayer False) opponents_ )
+                                        ( List.map toFCard currentPlayer.tableHand, opponents_ |> stopDisplayCards Nothing |> List.map (toFPlayer False) )
 
                                     Nothing ->
-                                        ( [], List.map (toFPlayer False) opponents_ )
+                                        ( [], opponents_ |> stopDisplayCards Nothing |> List.map (toFPlayer False) )
                            )
             in
             FGameInProgress Nothing tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile opponents (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
@@ -1255,11 +1268,11 @@ toFGame maybeSessionId backendGame =
 
                                           else
                                             List.map toFCard currentPlayer.tableHand
-                                        , opponents_ |> List.map (toFPlayer False)
+                                        , opponents_ |> stopDisplayCards (Just tamalouOwnerSessionId) |> List.map (toFPlayer False)
                                         )
 
                                     Nothing ->
-                                        ( [], List.map (toFPlayer False) opponents_ )
+                                        ( [], opponents_ |> stopDisplayCards (Just tamalouOwnerSessionId) |> List.map (toFPlayer False) )
                            )
 
                 tamalouOwner =
