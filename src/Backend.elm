@@ -946,7 +946,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             let
                                                 newGameStatus : BGameStatus
                                                 newGameStatus =
-                                                    case Card.toPower card of
+                                                    case Card.toPower (maybeTamalouOwner == Nothing || List.length players > 2) card of
                                                         Just powerCard ->
                                                             BGameInProgress maybeTamalouOwner drawPile (card :: discardPile) players (BPlayerToPlay bPlayer (BPlayerHasDiscard powerCard)) False False
 
@@ -1016,7 +1016,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 
                                                 newGameStatus : BGameStatus
                                                 newGameStatus =
-                                                    case Maybe.andThen Card.toPower cardToDiscard of
+                                                    case Maybe.andThen (Card.toPower (maybeTamalouOwner == Nothing || List.length players > 2)) cardToDiscard of
                                                         Just powerCard ->
                                                             BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay bPlayer (BPlayerHasDiscard powerCard)) False False
 
@@ -1365,15 +1365,6 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 ( model, Cmd.none )
 
                     PowerIsUsedToBackend ->
-                        -- in this case we will apply the power, to apply the power, we can be in to possible configurations:
-                        -- 1. The player just discarded a card so the game status is BPlayerHasDiscard powerCard
-                        -- in this case, we update the status to BWaitingPlayerAction (Just powerCard) and we notify the players
-                        -- 2. The last player used the power of their powerCard which led the currentPlayer to (BWaitingPlayerAction (Just power)), in this case the user can also use the power and
-                        -- This action can only be done if the game status is BPlayerHasDiscard power or BWaitingPlayerAction (Just power). BPlayerHasDiscard will go to BWaitingPlayerAction (Just power) and BWaitingPlayerAction (Just power) will go to BWaitingPlayerAction Nothing
-                        -- There are 3 powers :
-                        -- 1) Jack is PlayAgain, which will result in setting the game status to BWaitingPlayerAction (Just power)
-                        -- 2) Queen is Switch2Cards, which will result in the ability to switch 1 card from the player hand with 1 card from any other player tableHand, for now, we will just do the same as PlayAgain
-                        -- 3) King is LookACard, which will result in the ability to look 1 card form the player hand for 5 seconds
                         case maybeGame of
                             Just game ->
                                 case game.status of
@@ -1387,6 +1378,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BWaitingPlayerAction (Just powerCard))) lastMoveIsDouble True
 
                                                         Card.Switch2Cards ->
+                                                            -- This should not be possible to reach this case if
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards ChooseOwnCardToSwitch)) lastMoveIsDouble True
 
                                                         Card.LookACard ->
@@ -1415,13 +1407,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
                                         else
-                                            ( { model | errors = "1: PowerIsUsedToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                            ( { model | errors = "1: PowerIsUsedToBackend: Wrong player playing" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                                     bGameStatus ->
                                         ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "PowerIsUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
-                                ( { model | errors = "3: PowerIsUsedToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                ( { model | errors = "3: PowerIsUsedToBackend: Game not found" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                     PowerIsNotUsedToBackend ->
                         case maybeGame of
@@ -1442,13 +1434,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
                                         else
-                                            ( model, Cmd.none )
+                                            ( { model | errors = "1: PowerIsNotUsedToBackend: Wrong player playing" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
-                                    _ ->
-                                        ( model, Cmd.none )
+                                    bGameStatus ->
+                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "PowerIsNotUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
-                                ( model, Cmd.none )
+                                ( { model | errors = "3: PowerIsNotUsedToBackend: Game not found" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                     TamalouToBackend ->
                         case maybeGame of

@@ -1172,11 +1172,6 @@ medal rank =
             "🤷\u{200D}♂️"
 
 
-
--- 255 × 380
--- 182/122
-
-
 elEmplacement : Int -> Element FrontendMsg -> Element FrontendMsg
 elEmplacement widthOfScreen cardToDisplay =
     el
@@ -1201,7 +1196,9 @@ displayDiscardCards widthOfScreen discardPile canDrawCard maybePowerCard =
             ]
 
         ( head :: _, True, Nothing ) ->
-            case Card.toPower head of
+            -- Warning, here, we put True because it's not possible that the queen power has been used the turn before with someone with a valid tamalou && 2 players.
+            -- We could pass the nb players and maybeTamalouOwner but it's not necessary for now, we come up with a better solution later.
+            case Card.toPower True head of
                 Just _ ->
                     [ elEmplacement widthOfScreen <| displayFCard Phone (FaceUp head) ]
 

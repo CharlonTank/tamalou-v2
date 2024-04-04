@@ -224,14 +224,18 @@ tableHandScore hand =
         hand
 
 
-toPower : Card -> Maybe Power
-toPower { rank } =
+toPower : Bool -> Card -> Maybe Power
+toPower validQueen { rank } =
     case rank of
         Jack ->
             Just PlayAgain
 
         Queen ->
-            Just Switch2Cards
+            if validQueen then
+                Just Switch2Cards
+
+            else
+                Nothing
 
         King ->
             Just LookACard
