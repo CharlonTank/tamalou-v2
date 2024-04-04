@@ -22,6 +22,10 @@ import NoMissingTypeAnnotationInLetIn
 import NoMissingTypeExpose
 import NoPrematureLetComputation
 import NoSimpleLetBody
+import NoUnsortedCases
+import NoUnsortedLetDeclarations
+import NoUnsortedRecords
+import NoUnsortedTopLevelDeclarations
 import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
@@ -55,6 +59,21 @@ config =
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     , Simplify.rule Simplify.defaults
+    , NoUnsortedCases.rule NoUnsortedCases.defaults
+    , NoUnsortedLetDeclarations.rule
+        (NoUnsortedLetDeclarations.sortLetDeclarations
+            |> NoUnsortedLetDeclarations.alphabetically
+        )
+    , NoUnsortedRecords.rule
+        (NoUnsortedRecords.defaults
+            |> NoUnsortedRecords.reportAmbiguousRecordsWithoutFix
+        )
+    , NoUnsortedTopLevelDeclarations.rule
+        (NoUnsortedTopLevelDeclarations.sortTopLevelDeclarations
+            |> NoUnsortedTopLevelDeclarations.portsFirst
+            -- |> NoUnsortedTopLevelDeclarations.exposedOrderWithPrivateLast
+            -- |> NoUnsortedTopLevelDeclarations.alphabetically
+        )
     ]
         |> List.map (Rule.ignoreErrorsForDirectories [ "src/Evergreen/" ])
         |> List.map (Rule.ignoreErrorsForFiles [ "src/DebugApp.elm" ])

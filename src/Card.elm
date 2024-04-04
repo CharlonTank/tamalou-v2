@@ -13,97 +13,9 @@ type FCard
     | FaceDown
 
 
-type Suit
-    = Clubs
-    | Diamonds
-    | Hearts
-    | Spades
-
-
-type Rank
-    = Ace
-    | Two
-    | Three
-    | Four
-    | Five
-    | Six
-    | Seven
-    | Eight
-    | Nine
-    | Ten
-    | Jack
-    | Queen
-    | King
-
-
-type Power
-    = PlayAgain
-    | Switch2Cards
-    | LookACard
-
-
-toString : Card -> String
-toString card =
-    suitToString card.suit ++ "/" ++ rankToString card.rank
-
-
-suitToString : Suit -> String
-suitToString suit =
-    case suit of
-        Clubs ->
-            "Clubs"
-
-        Diamonds ->
-            "Diamonds"
-
-        Hearts ->
-            "Hearts"
-
-        Spades ->
-            "Spades"
-
-
-rankToString : Rank -> String
-rankToString rank =
-    case rank of
-        Ace ->
-            "A"
-
-        Two ->
-            "2"
-
-        Three ->
-            "3"
-
-        Four ->
-            "4"
-
-        Five ->
-            "5"
-
-        Six ->
-            "6"
-
-        Seven ->
-            "7"
-
-        Eight ->
-            "8"
-
-        Nine ->
-            "9"
-
-        Ten ->
-            "10"
-
-        Jack ->
-            "J"
-
-        Queen ->
-            "Q"
-
-        King ->
-            "K"
+handIsLessThanFive : List Card -> Bool
+handIsLessThanFive tableHand =
+    tableHandScore tableHand <= 5
 
 
 nonShuffledDeck : List Card
@@ -163,6 +75,107 @@ nonShuffledDeck =
     ]
 
 
+type Power
+    = PlayAgain
+    | Switch2Cards
+    | LookACard
+
+
+powerToString : Power -> String
+powerToString power =
+    case power of
+        PlayAgain ->
+            "Play Again"
+
+        Switch2Cards ->
+            "Switch 2 Cards"
+
+        LookACard ->
+            "Look a Card"
+
+
+type Rank
+    = Ace
+    | Two
+    | Three
+    | Four
+    | Five
+    | Six
+    | Seven
+    | Eight
+    | Nine
+    | Ten
+    | Jack
+    | Queen
+    | King
+
+
+rankToString : Rank -> String
+rankToString rank =
+    case rank of
+        Ace ->
+            "A"
+
+        Two ->
+            "2"
+
+        Three ->
+            "3"
+
+        Four ->
+            "4"
+
+        Five ->
+            "5"
+
+        Six ->
+            "6"
+
+        Seven ->
+            "7"
+
+        Eight ->
+            "8"
+
+        Nine ->
+            "9"
+
+        Ten ->
+            "10"
+
+        Jack ->
+            "J"
+
+        Queen ->
+            "Q"
+
+        King ->
+            "K"
+
+
+type Suit
+    = Clubs
+    | Diamonds
+    | Hearts
+    | Spades
+
+
+suitToString : Suit -> String
+suitToString suit =
+    case suit of
+        Clubs ->
+            "Clubs"
+
+        Diamonds ->
+            "Diamonds"
+
+        Hearts ->
+            "Hearts"
+
+        Spades ->
+            "Spades"
+
+
 tableHandScore : List Card -> Int
 tableHandScore hand =
     List.foldl
@@ -211,11 +224,6 @@ tableHandScore hand =
         hand
 
 
-handIsLessThanFive : List Card -> Bool
-handIsLessThanFive tableHand =
-    tableHandScore tableHand <= 5
-
-
 toPower : Card -> Maybe Power
 toPower { rank } =
     case rank of
@@ -232,14 +240,6 @@ toPower { rank } =
             Nothing
 
 
-powerToString : Power -> String
-powerToString power =
-    case power of
-        PlayAgain ->
-            "Play Again"
-
-        Switch2Cards ->
-            "Switch 2 Cards"
-
-        LookACard ->
-            "Look a Card"
+toString : Card -> String
+toString card =
+    suitToString card.suit ++ "/" ++ rankToString card.rank
