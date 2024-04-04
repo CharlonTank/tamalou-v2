@@ -1,6 +1,7 @@
 module Backend exposing (app)
 
-import Card exposing (Card, FCard(..), Power(..), handIsLessThanFive)
+import Card exposing (Card, FCard(..), handIsLessThanFive)
+import DebugApp
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
 import Random
@@ -12,8 +13,8 @@ import Types exposing (..)
 app : { init : ( BackendModel, Cmd BackendMsg ), subscriptions : BackendModel -> Sub BackendMsg, update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg ), updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg ) }
 app =
     -- DebugApp.backend
-    --     NoOpBackendMsg
-    --     "e465a26049dfca11"
+    -- NoOpBackendMsg
+    -- "e465a26049dfca11"
     Lamdera.backend
         { init = init
         , subscriptions = subscriptions
@@ -1246,24 +1247,24 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             )
 
                                         else
-                                            ( { model | errors = "You are not allowed to look at a card 1 " :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                            ( { model | errors = "1: LookAtCardInTableHandToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
-                                    _ ->
-                                        ( { model | errors = "You are not allowed to look at a card 2" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                    bGameStatus ->
+                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "LookAtCardInTableHandToBackend" bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
-                                ( { model | errors = "You are not allowed to look at a card 3" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                ( { model | errors = "3: LookAtCardInTableHandToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                     ChooseOwnCardToSwitchToBackend cardIndex ->
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards ChooseOwnCardToSwitch)) lastMoveIsDouble _ ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards ChooseOwnCardToSwitch)) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         if sessionId == bPlayer.sessionId then
                                             let
                                                 newGameStatus : BGameStatus
                                                 newGameStatus =
-                                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble True
+                                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble canUsePowerFromLastPlayer
                                             in
                                             updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
@@ -1280,7 +1281,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble _ ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         let
                                             maybeNextPlayer : Maybe BPlayer
                                             maybeNextPlayer =
@@ -1290,7 +1291,22 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             newGameStatus =
                                                 case maybeNextPlayer of
                                                     Just nextPlayer_ ->
-                                                        BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction (Just Switch2Cards))) lastMoveIsDouble False
+                                                        BGameInProgress maybeTamalouOwner
+                                                            drawPile
+                                                            discardPile
+                                                            newPlayers
+                                                            (BPlayerToPlay nextPlayer_
+                                                                (BWaitingPlayerAction
+                                                                    (if canUsePowerFromLastPlayer then
+                                                                        Just Card.Switch2Cards
+
+                                                                     else
+                                                                        Nothing
+                                                                    )
+                                                                )
+                                                            )
+                                                            lastMoveIsDouble
+                                                            canUsePowerFromLastPlayer
 
                                                     Nothing ->
                                                         BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BEndTimerRunning Five) lastMoveIsDouble False
@@ -1399,13 +1415,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
                                         else
-                                            ( model, Cmd.none )
+                                            ( { model | errors = "1: PowerIsUsedToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
-                                    _ ->
-                                        ( model, Cmd.none )
+                                    bGameStatus ->
+                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "PowerIsUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
-                                ( model, Cmd.none )
+                                ( { model | errors = "3: PowerIsUsedToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                     PowerIsNotUsedToBackend ->
                         case maybeGame of

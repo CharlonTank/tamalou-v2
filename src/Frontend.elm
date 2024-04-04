@@ -362,12 +362,12 @@ type CardClickEvent
 displayAdmin : FrontendModel -> Element FrontendMsg
 displayAdmin model =
     List.map displayError model.errors
-        |> column [ width fill, height fill ]
+        |> column [ width fill, height fill, spacing 16 ]
 
 
 displayError : String -> Element FrontendMsg
 displayError error =
-    text error
+    paragraph [] [ text error ]
 
 
 listfindAndRemove : (a -> Bool) -> List a -> ( Maybe a, List a )
@@ -709,7 +709,7 @@ displayGame ({ screenWidth } as model) =
                         let
                             cardClickEvent : Maybe CardClickEvent
                             cardClickEvent =
-                                Just SwitchCard
+                                Just CardClickDouble
 
                             currentCardColumn : Element FrontendMsg
                             currentCardColumn =
@@ -741,14 +741,14 @@ displayGame ({ screenWidth } as model) =
                                 , displayOpponent (Just fPlayer.sessionId) False <| RightPlayer opponentsDisposition.rightPlayer
                                 ]
                             , el [ centerX ] <| text <| fPlayer.name ++ " is choosing a card to switch"
-                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent True
+                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent False
                             ]
 
                     FGameInProgress _ hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OwnCardChosen _))) ->
                         let
                             cardClickEvent : Maybe CardClickEvent
                             cardClickEvent =
-                                Just SwitchCard
+                                Just CardClickDouble
 
                             currentCardColumn : Element FrontendMsg
                             currentCardColumn =
@@ -779,7 +779,7 @@ displayGame ({ screenWidth } as model) =
                                 , displayOpponent (Just fPlayer.sessionId) False <| RightPlayer opponentsDisposition.rightPlayer
                                 ]
                             , el [ centerX ] <| text <| fPlayer.name ++ " chose his card, now choose a card to switch with"
-                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent True
+                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent False
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
@@ -1046,10 +1046,6 @@ displayGame ({ screenWidth } as model) =
 
                     FGameInProgress _ hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards (OwnCardChosen _))) ->
                         let
-                            cardClickEvent : Maybe CardClickEvent
-                            cardClickEvent =
-                                Just SwitchCard
-
                             currentCardColumn : Element FrontendMsg
                             currentCardColumn =
                                 column [ spacing 8 ]
@@ -1080,7 +1076,7 @@ displayGame ({ screenWidth } as model) =
                                 , displayOpponent Nothing True <| RightPlayer opponentsDisposition.rightPlayer
                                 ]
                             , el [ centerX ] <| text <| "You chose your card, now choose a card to switch with"
-                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand cardClickEvent True
+                            , displayPlayerView model.sessionId model.maybeName model.device.class players hand Nothing True
                             ]
 
                     -- FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards (OtherCardChosen ( sessionId, cardIndex1 ) ( sessionId2, cardIndex2 )))) ->
@@ -1490,73 +1486,37 @@ displayDrawColumn screenWidth drawPile drawAllowed =
             displayFCard Phone FaceDown
 
 
-
--- displayCurrentCardColumn : Int -> FCard -> Element FrontendMsg
--- displayCurrentCardColumn screenWidth currentCard =
---     column
---         [ spacing 8 ]
---         [ elEmplacement screenWidth <| displayFCard Phone FaceDown
---         , none
---         ]
--- displayDiscardPileColumn : Int -> DiscardPile -> Element FrontendMsg
--- displayDiscardPileColumn screenWidth discardPile =
---     column
---         [ spacing 8 ]
---         (displayDiscardCards screenWidth discardPile False Nothing)
--- displayPlayerViewWithPower : Maybe SessionId -> DeviceClass -> List FPlayer -> FTableHand -> Maybe Card.Power -> Element FrontendMsg
--- displayOtherPlayers : List FPlayer -> Element FrontendMsg
--- displayOtherPlayers players =
---     -- can have 4 players max
---     case players of
---         [] ->
---             none
---         [ oneOpponent ] ->
---             column
---                 [ width fill, height fill, spacing 20 ]
---                 [ el [ alignLeft ] <| displayOpponentRow oneOpponent
---                 ]
---         [ firstOpponent, secondOpponent ] ->
---             column
---                 [ width fill, height fill, spacing 20 ]
---                 [ row [ width fill ] [ el [ alignLeft ] <| displayOpponentRow firstOpponent, el [ alignRight ] <| displayOpponentRow secondOpponent ]
---                 ]
---         [ firstOpponent, secondOpponent, thirdOpponent ] ->
---             column
---                 [ width fill, height fill, spacing 20 ]
---                 [ row [ width fill ] [ el [ alignLeft ] <| displayOpponentRow secondOpponent, el [ alignRight ] <| displayOpponentRow thirdOpponent ]
---                 , column [ height fill ] [ el [ alignLeft ] <| displayOpponentColumn firstOpponent ]
---                 ]
---         _ ->
---             -- too many players
---             none
-
-
 displayOpponentRow : FPlayer -> Bool -> Bool -> Element FrontendMsg
 displayOpponentRow player isPlayerTurn switchingCard =
     let
-        attrs : List (Attr decorative FrontendMsg)
-        attrs =
+        attrsOwnTurn : List (Attribute FrontendMsg)
+        attrsOwnTurn =
             if isPlayerTurn then
                 [ Background.color yellow, Border.color yellow ]
 
             else
                 [ Border.color blue ]
+
+        switchingCardsAttrs : Int -> List (Attribute FrontendMsg)
+        switchingCardsAttrs index =
+            if switchingCard then
+                cardActionBorder green <| ChooseOpponentCardToSwitchFrontend ( player.sessionId, index )
+
+            else
+                []
     in
     row
         [ spacing 8 ]
-        [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4 ] ++ attrs) <| text player.name
+        [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4 ] ++ attrsOwnTurn) <| text player.name
         , row [ spacing 4, centerX, height fill ] <|
             List.indexedMap
                 (\index card ->
                     el
-                        [ width fill
-                        , height fill
-                        , if switchingCard then
-                            Events.onClick <| ChooseOpponentCardToSwitchFrontend ( player.sessionId, index )
-
-                          else
-                            attributeNone
-                        ]
+                        ([ width fill
+                         , height fill
+                         ]
+                            ++ switchingCardsAttrs index
+                        )
                     <|
                         displayFCardSized (px 60) card
                 )
@@ -1567,28 +1527,34 @@ displayOpponentRow player isPlayerTurn switchingCard =
 displayOpponentColumn : FPlayer -> Bool -> Bool -> Element FrontendMsg
 displayOpponentColumn player isPlayerTurn switchingCard =
     let
-        attrs : List (Attr decorative FrontendMsg)
-        attrs =
+        attrsOwnTurn : List (Attribute FrontendMsg)
+        attrsOwnTurn =
             if isPlayerTurn then
                 [ Background.color yellow, Border.color yellow ]
 
             else
                 [ Border.color blue ]
+
+        switchingCardsAttrs : Int -> List (Attribute FrontendMsg)
+        switchingCardsAttrs index =
+            if switchingCard then
+                cardActionBorder green <| ChooseOpponentCardToSwitchFrontend ( player.sessionId, index )
+
+            else
+                []
     in
     column
         [ spacing 8, alignTop ]
-        [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4 ] ++ attrs) <| text player.name
+        [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4 ] ++ attrsOwnTurn) <| text player.name
         , column [ spacing -16, centerX, width fill ] <|
             List.indexedMap
                 (\index card ->
                     el
-                        [ height fill
-                        , if switchingCard then
-                            Events.onClick <| ChooseOpponentCardToSwitchFrontend ( player.sessionId, index )
-
-                          else
-                            attributeNone
-                        ]
+                        ([ height fill
+                         , width fill
+                         ]
+                            ++ switchingCardsAttrs index
+                        )
                     <|
                         displayFCardSizedVertically (px 60) card
                 )
@@ -1675,8 +1641,3 @@ displayOpponent maybeSessionId switchingCard opponentDisposition =
 
         _ ->
             none
-
-
-attributeNone : Attribute FrontendMsg
-attributeNone =
-    htmlAttribute <| HA.class ""
