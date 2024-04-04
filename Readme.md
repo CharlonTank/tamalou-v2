@@ -19,8 +19,10 @@ Here are some of the features that are yet to be implemented:
 [x] : timer at the end to be able to double
 [x] : Impossible to double as the tamalouOwner
 [x] : power of King
-[ ] : visibility of other cards
-[ ] : power of Queen
+[x] : visibility of other cards
+[x] : power of Queen
+[ ] : Way to see what cards has been choosen when doubling or for each power
+[ ] : Add card animations
 [ ] : better way to start a game
 [ ] : better way to end a game
 
