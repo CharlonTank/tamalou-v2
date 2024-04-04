@@ -1,13 +1,9 @@
-module Backend exposing (..)
+module Backend exposing (app)
 
 import Card exposing (Card, FCard(..), Power(..), handIsLessThanFive)
-import DebugApp
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
-import Maybe.Extra as Maybe
 import Random
-import Random.Extra as Random
-import Random.List as Random
 import Task
 import Time
 import Types exposing (..)
@@ -71,33 +67,13 @@ shuffleWithSeed initialSeed list =
                     )
                     ( [], initialSeed )
 
+        shuffledList : List a
         shuffledList =
             taggedList
                 |> List.sortBy Tuple.second
                 |> List.map Tuple.first
     in
     ( shuffledList, finalSeed )
-
-
-shuffleList : List a -> Random.Generator (List a)
-shuffleList list =
-    Random.map
-        (\independentSeed ->
-            list
-                |> List.foldl
-                    (\item ( acc, seed ) ->
-                        let
-                            ( tag, nextSeed ) =
-                                Random.step (Random.int Random.minInt Random.maxInt) seed
-                        in
-                        ( ( item, tag ) :: acc, nextSeed )
-                    )
-                    ( [], independentSeed )
-                |> Tuple.first
-                |> List.sortBy Tuple.second
-                |> List.map Tuple.first
-        )
-        Random.independentSeed
 
 
 init : ( BackendModel, Cmd BackendMsg )
@@ -125,13 +101,16 @@ update msg ({ games } as model) =
                                 case game.status of
                                     BWaitingForPlayers players ->
                                         let
+                                            newPlayers : List BPlayer
                                             newPlayers =
                                                 List.filter ((/=) sessionId << .sessionId) players
-
-                                            newGameStatus =
-                                                BWaitingForPlayers newPlayers
                                         in
                                         if List.length newPlayers /= List.length players then
+                                            let
+                                                newGameStatus : BGameStatus
+                                                newGameStatus =
+                                                    BWaitingForPlayers newPlayers
+                                            in
                                             ( { game | status = newGameStatus }
                                             , List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame Nothing newGameStatus) newPlayers
                                             )
@@ -151,20 +130,23 @@ update msg ({ games } as model) =
             ( { model | games = updatedGames }, Cmd.batch cmds )
 
         BackendMsgFromGame urlPath toBackend ->
-            let
-                maybeGame =
-                    List.Extra.find ((==) urlPath << .urlPath) games
-            in
             case toBackend of
                 TimerTick _ ->
+                    let
+                        maybeGame : Maybe BGame
+                        maybeGame =
+                            List.Extra.find ((==) urlPath << .urlPath) games
+                    in
                     case maybeGame of
                         Just game ->
                             case game.status of
                                 BGameInProgress m a b (p1 :: restOfBPlayers) (BStartTimerRunning nb) _ _ ->
                                     let
+                                        newNb : Maybe Counter
                                         newNb =
                                             decrementCounter nb
 
+                                        newGame : BGame
                                         newGame =
                                             { game
                                                 | status =
@@ -184,6 +166,7 @@ update msg ({ games } as model) =
                                     case decrementCounter nb of
                                         Just nb_ ->
                                             let
+                                                newGame : BGame
                                                 newGame =
                                                     { game | status = BGameInProgress m a b (p1 :: restOfBPlayers) (BEndTimerRunning nb_) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
@@ -193,6 +176,7 @@ update msg ({ games } as model) =
 
                                         Nothing ->
                                             let
+                                                orderedPlayers : List BPlayer
                                                 orderedPlayers =
                                                     (p1 :: restOfBPlayers)
                                                         |> List.sortBy
@@ -200,8 +184,8 @@ update msg ({ games } as model) =
                                                                 Card.tableHandScore player.tableHand
                                                             )
                                                         |> showAllCardsOfAllPlayers
-                                            in
-                                            let
+
+                                                newGame : BGame
                                                 newGame =
                                                     { game | status = BGameEnded orderedPlayers }
                                             in
@@ -213,6 +197,7 @@ update msg ({ games } as model) =
                                     case decrementCounter counter of
                                         Just nb ->
                                             let
+                                                newGame : BGame
                                                 newGame =
                                                     { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
@@ -222,9 +207,11 @@ update msg ({ games } as model) =
 
                                         Nothing ->
                                             let
+                                                maybeNextPlayer : Maybe BPlayer
                                                 maybeNextPlayer =
                                                     nextPlayer maybeTamalouOwner bPlayer.sessionId players
 
+                                                newGame : BGame
                                                 newGame =
                                                     case maybeNextPlayer of
                                                         Just nextPlayer_ ->
@@ -269,6 +256,7 @@ update msg ({ games } as model) =
                         ( funnyName, newSeed ) =
                             generateRandomFunnyName (Random.initialSeed (posix |> Time.posixToMillis)) []
 
+                        newGame : BGame
                         newGame =
                             { urlPath = urlPath
                             , status = BWaitingForPlayers [ { name = funnyName, tableHand = [], clientId = clientId, sessionId = sessionId, ready = False } ]
@@ -385,6 +373,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 
             else
                 let
+                    maybeGame : Maybe BGame
                     maybeGame =
                         List.Extra.find ((==) urlPath << .urlPath) games
                 in
@@ -398,6 +387,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             ( funnyName, newSeed ) =
                                                 generateRandomFunnyName game.seed (List.map .name players)
 
+                                            newPlayers : List BPlayer
                                             newPlayers =
                                                 case List.Extra.find ((==) sessionId << .sessionId) players of
                                                     Just _ ->
@@ -412,6 +402,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         }
                                                             :: players
 
+                                            newGameStatus : BGameStatus
                                             newGameStatus =
                                                 BWaitingForPlayers newPlayers
 
@@ -429,6 +420,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                         case List.Extra.find ((==) sessionId << .sessionId) players of
                                             Just _ ->
                                                 let
+                                                    updateClientIdInPlayers : List BPlayer
                                                     updateClientIdInPlayers =
                                                         List.map
                                                             (\p ->
@@ -440,12 +432,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             )
                                                             players
 
-                                                    newGame =
+                                                    newGameStatus : BGameStatus
+                                                    newGameStatus =
                                                         BGameInProgress maybeTamalouOwner drawPile discardPile updateClientIdInPlayers progressStatus lastMoveIsDouble canUsePowerFromLastPlayer
                                                 in
-                                                ( { model | games = updateGameStatus urlPath ( newGame, game.seed ) games }
+                                                ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                                 , Cmd.batch <|
-                                                    List.map (\p -> Lamdera.sendToFrontend p.clientId <| UpdateGameStatusToFrontend <| toFGame (Just p.sessionId) newGame) updateClientIdInPlayers
+                                                    List.map (\p -> Lamdera.sendToFrontend p.clientId <| UpdateGameStatusToFrontend <| toFGame (Just p.sessionId) newGameStatus) updateClientIdInPlayers
                                                 )
 
                                             Nothing ->
@@ -467,6 +460,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BWaitingForPlayers players ->
                                         let
+                                            newPlayers : List BPlayer
                                             newPlayers =
                                                 List.map
                                                     (\p ->
@@ -478,6 +472,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     )
                                                     players
 
+                                            newGameStatus : BGameStatus
                                             newGameStatus =
                                                 BWaitingForPlayers newPlayers
 
@@ -501,6 +496,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BWaitingForPlayers players ->
                                         let
+                                            newPlayers : List BPlayer
                                             newPlayers =
                                                 List.map
                                                     (\p ->
@@ -512,6 +508,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     )
                                                     players
 
+                                            allPlayersReady : Bool
                                             allPlayersReady =
                                                 List.all .ready newPlayers
                                         in
@@ -532,6 +529,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         ( newDrawPile, [] )
                                                         newPlayers
 
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     BGameInProgress Nothing newDrawPile_ [] newPlayers_ (BStartTimerRunning Five) False False
 
@@ -545,6 +543,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 
                                         else
                                             let
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     BWaitingForPlayers newPlayers
 
@@ -552,9 +551,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 frontendGame =
                                                     toFGame Nothing newGameStatus
 
+                                                newChat : List ( String, String )
                                                 newChat =
                                                     game.chat ++ [ ( Maybe.withDefault "" (List.Extra.find ((==) sessionId << .sessionId) newPlayers |> Maybe.map .name), "Let's go I'm ready!" ) ]
 
+                                                newGame : BGame
                                                 newGame =
                                                     { game | chat = newChat, status = newGameStatus }
                                             in
@@ -574,6 +575,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BGameEnded players ->
                                         let
+                                            newPlayers : List BPlayer
                                             newPlayers =
                                                 players
                                                     -- Warning, here we remove all the other players in case they disconnect wihtout clicking restart, In the future, we want to send the score instead of the players so that we can remove them from the game on disconnect
@@ -586,6 +588,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             }
                                                         )
 
+                                            newGameStatus : BGameStatus
                                             newGameStatus =
                                                 BWaitingForPlayers newPlayers
 
@@ -599,9 +602,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 
                                     BWaitingForPlayers players ->
                                         let
+                                            newPlayers : List BPlayer
                                             newPlayers =
                                                 players ++ [ maybeFPlayer |> Maybe.map toBPlayer |> Maybe.map (\p -> { p | ready = False }) |> Maybe.withDefault (emptyBPlayer sessionId clientId) ]
 
+                                            newGameStatus : BGameStatus
                                             newGameStatus =
                                                 BWaitingForPlayers newPlayers
 
@@ -628,6 +633,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             case drawCardFromDrawPile game of
                                                 ( Just cardDrew, ( newDrawPile, newDiscardPile, newSeed ) ) ->
                                                     let
+                                                        newGameStatus : BGameStatus
                                                         newGameStatus =
                                                             BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile players (BPlayerToPlay bPlayer (BPlayerHasDraw cardDrew)) lastMoveIsDouble canUsePowerFromLastPlayer
                                                     in
@@ -652,6 +658,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile (head :: rest) players (BPlayerToPlay bPlayer (BWaitingPlayerAction _)) _ _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     BGameInProgress maybeTamalouOwner drawPile rest players (BPlayerToPlay bPlayer (BPlayerHasDraw head)) False False
                                             in
@@ -675,6 +682,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDraw card)) _ _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     case Card.toPower card of
                                                         Just powerCard ->
@@ -708,9 +716,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDraw cardInHand)) _ _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
-                                                currentPlayer =
+                                                maybeCurrentPlayer : Maybe BPlayer
+                                                maybeCurrentPlayer =
                                                     List.Extra.find ((==) sessionId << .sessionId) players
 
+                                                updatedPlayers : List BPlayer
                                                 updatedPlayers =
                                                     List.map
                                                         (\p ->
@@ -733,12 +743,15 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         )
                                                         players
 
+                                                cardToDiscard : Maybe Card
                                                 cardToDiscard =
-                                                    currentPlayer |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+                                                    maybeCurrentPlayer |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
 
+                                                newDiscardPile : DiscardPile
                                                 newDiscardPile =
                                                     cardToDiscard |> Maybe.map (\c -> { c | show = True }) |> Maybe.map (\c -> c :: discardPile) |> Maybe.withDefault discardPile
 
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     case Maybe.andThen Card.toPower cardToDiscard of
                                                         Just powerCard ->
@@ -771,6 +784,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players bGameInProgressStatus lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         let
+                                            canTryToDouble : Bool
                                             canTryToDouble =
                                                 (maybeTamalouOwner /= Just sessionId)
                                                     && (case bGameInProgressStatus of
@@ -779,9 +793,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 
                                                             BPlayerToPlay bPlayer bPlayerToPlayStatus ->
                                                                 let
+                                                                    isPlayerTurn : Bool
                                                                     isPlayerTurn =
                                                                         sessionId == bPlayer.sessionId
 
+                                                                    hasPlayerDrawn : Bool
                                                                     hasPlayerDrawn =
                                                                         case bPlayerToPlayStatus of
                                                                             BPlayerHasDraw _ ->
@@ -800,6 +816,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             case discardPile of
                                                 discardPileHead :: _ ->
                                                     let
+                                                        currentPlayer : Maybe BPlayer
                                                         currentPlayer =
                                                             List.Extra.find ((==) sessionId << .sessionId) players
 
@@ -839,22 +856,27 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                             )
                                                                             ( [], False )
 
-                                                                newDiscardPile =
-                                                                    { matchingCard | show = True } :: discardPile
-
-                                                                orderedPlayers =
-                                                                    updatedPlayers
-                                                                        |> List.sortBy
-                                                                            (\player ->
-                                                                                Card.tableHandScore player.tableHand
-                                                                            )
-                                                                        |> showAllCardsOfAllPlayers
-
+                                                                newGameStatus : BGameStatus
                                                                 newGameStatus =
                                                                     if isGameFinished then
+                                                                        let
+                                                                            orderedPlayers : List BPlayer
+                                                                            orderedPlayers =
+                                                                                updatedPlayers
+                                                                                    |> List.sortBy
+                                                                                        (\player ->
+                                                                                            Card.tableHandScore player.tableHand
+                                                                                        )
+                                                                                    |> showAllCardsOfAllPlayers
+                                                                        in
                                                                         BGameEnded orderedPlayers
 
                                                                     else
+                                                                        let
+                                                                            newDiscardPile : DiscardPile
+                                                                            newDiscardPile =
+                                                                                { matchingCard | show = True } :: discardPile
+                                                                        in
                                                                         BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers bGameInProgressStatus True canUsePowerFromLastPlayer
                                                             in
                                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
@@ -865,6 +887,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             case drawCardFromDrawPile game of
                                                                 ( Just cardDrew, ( newDrawPile, newDiscardPile, newSeed ) ) ->
                                                                     let
+                                                                        updatedPlayers : List BPlayer
                                                                         updatedPlayers =
                                                                             players
                                                                                 |> List.map
@@ -876,6 +899,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                                             p
                                                                                     )
 
+                                                                        newGameStatus : BGameStatus
                                                                         newGameStatus =
                                                                             BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile updatedPlayers bGameInProgressStatus False canUsePowerFromLastPlayer
                                                                     in
@@ -905,6 +929,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerLookACard ChooseCardToLook)) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         if sessionId == bPlayer.sessionId then
                                             let
+                                                newPlayers : List BPlayer
                                                 newPlayers =
                                                     players
                                                         |> List.map
@@ -927,6 +952,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                     p
                                                             )
 
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard Two))) lastMoveIsDouble canUsePowerFromLastPlayer
                                             in
@@ -950,6 +976,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress Nothing drawPile discardPile players (BPlayerToPlay bPlayer (BWaitingPlayerAction _)) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         if sessionId == bPlayer.sessionId then
                                             let
+                                                currentPlayer : Maybe BPlayer
                                                 currentPlayer =
                                                     List.Extra.find ((==) sessionId << .sessionId) players
 
@@ -965,6 +992,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         Nothing ->
                                                             False
 
+                                                nextPlayer_ : BPlayer
                                                 nextPlayer_ =
                                                     nextPlayer Nothing bPlayer.sessionId players |> Maybe.withDefault bPlayer
                                             in
@@ -972,6 +1000,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 case drawCardFromDrawPile game of
                                                     ( Just singleCard, ( newDrawPile, newDiscardPile, newSeed ) ) ->
                                                         let
+                                                            updatedPlayers : List BPlayer
                                                             updatedPlayers =
                                                                 players
                                                                     |> List.map
@@ -987,6 +1016,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                                 p
                                                                         )
 
+                                                            newGameStatus : BGameStatus
                                                             newGameStatus =
                                                                 BGameInProgress Nothing newDrawPile newDiscardPile updatedPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer
                                                         in
@@ -999,6 +1029,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 
                                             else
                                                 let
+                                                    updatedPlayers : List BPlayer
                                                     updatedPlayers =
                                                         players
                                                             |> List.map
@@ -1010,6 +1041,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                         p
                                                                 )
 
+                                                    newGameStatus : BGameStatus
                                                     newGameStatus =
                                                         BGameInProgress (Just sessionId) drawPile discardPile updatedPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer
                                                 in
@@ -1042,6 +1074,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDiscard powerCard)) lastMoveIsDouble _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     case powerCard of
                                                         Card.PlayAgain ->
@@ -1061,6 +1094,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BWaitingPlayerAction (Just powerCard))) lastMoveIsDouble True ->
                                         if sessionId == bPlayer.sessionId then
                                             let
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     case powerCard of
                                                         Card.PlayAgain ->
@@ -1090,6 +1124,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDiscard _)) lastMoveIsDouble _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
                                                     case nextPlayer maybeTamalouOwner bPlayer.sessionId players of
                                                         Just nextPlayer_ ->
@@ -1113,12 +1148,15 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                         case maybeGame of
                             Just game ->
                                 let
+                                    playerName_ : String
                                     playerName_ =
                                         playerName sessionId game
 
+                                    newChat : List ( String, String )
                                     newChat =
                                         game.chat ++ [ ( playerName_, newMessage ) ]
 
+                                    newGame : BGame
                                     newGame =
                                         { game | chat = newChat }
                                 in
@@ -1136,19 +1174,9 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards ChooseOwnCardToSwitch)) lastMoveIsDouble _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
-                                                -- currentPlayer =
-                                                --     List.Extra.find ((==) sessionId << .sessionId) players
-                                                -- maybeCardToSwitch : Maybe Card
-                                                -- maybeCardToSwitch =
-                                                --     currentPlayer
-                                                --         |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+                                                newGameStatus : BGameStatus
                                                 newGameStatus =
-                                                    -- case maybeCardToSwitch of
-                                                    --     Just cardToSwitch ->
                                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble True
-
-                                                -- Nothing ->
-                                                --     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BWaitingPlayerAction Nothing)) lastMoveIsDouble False
                                             in
                                             updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
@@ -1167,12 +1195,15 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble _ ->
                                         let
+                                            ownCard : Maybe Card
                                             ownCard =
                                                 bPlayer.tableHand |> List.Extra.getAt cardIndex
 
+                                            opponentCard : Maybe Card
                                             opponentCard =
                                                 players |> List.Extra.find ((==) opponentSessionId << .sessionId) |> Maybe.andThen (\p -> List.Extra.getAt opponentCardIndex p.tableHand)
 
+                                            newPlayers : List BPlayer
                                             newPlayers =
                                                 players
                                                     |> List.map
@@ -1209,9 +1240,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                 p
                                                         )
 
+                                            maybeNextPlayer : Maybe BPlayer
                                             maybeNextPlayer =
                                                 nextPlayer maybeTamalouOwner bPlayer.sessionId newPlayers
 
+                                            newGameStatus : BGameStatus
                                             newGameStatus =
                                                 case maybeNextPlayer of
                                                     Just nextPlayer_ ->
@@ -1232,9 +1265,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
 playerName : SessionId -> BGame -> String
 playerName sessionId bGame =
     let
+        players : List BPlayer
         players =
             bPlayersFromFGame bGame
 
+        player : Maybe BPlayer
         player =
             List.Extra.find ((==) sessionId << .sessionId) players
     in
@@ -1343,6 +1378,7 @@ toFGame maybeSessionId backendGame =
 
         BGameInProgress (Just tamalouOwnerSessionId) bDrawPile discardPile players bGameInProgressStatus _ _ ->
             let
+                newPlayers : List BPlayer
                 newPlayers =
                     showTamalouOwnerCards tamalouOwnerSessionId players
 
@@ -1366,6 +1402,7 @@ toFGame maybeSessionId backendGame =
                                         ( [], opponents_ |> stopDisplayCards (Just tamalouOwnerSessionId) |> List.map (toFPlayer False) )
                            )
 
+                tamalouOwner : Maybe TamalouOwner
                 tamalouOwner =
                     List.Extra.find ((==) tamalouOwnerSessionId << .sessionId) players
                         |> Maybe.map (\p -> TamalouOwner p.sessionId p.tableHand)
@@ -1499,6 +1536,7 @@ listOfFunnyPlaceHolderNames =
 generateRandomFunnyName : Random.Seed -> List String -> ( String, Random.Seed )
 generateRandomFunnyName seed alreadyNames =
     let
+        filteredNames : List String
         filteredNames =
             List.filter (\name -> not (List.member name alreadyNames)) listOfFunnyPlaceHolderNames
     in
@@ -1509,9 +1547,11 @@ generateRandomFunnyName seed alreadyNames =
 findAndFilter : (a -> Bool) -> List a -> ( Maybe a, List a )
 findAndFilter predicate list =
     let
+        found : Maybe a
         found =
             List.filter predicate list |> List.head
 
+        filtered : List a
         filtered =
             List.filter (\x -> not (predicate x)) list
     in

@@ -1,7 +1,6 @@
-module Types exposing (..)
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Browser exposing (UrlRequest)
-import Browser.Dom
 import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard, Power)
 import Element exposing (Device)
@@ -197,14 +196,6 @@ type alias FPlayer =
     , ready : Bool
     , score : Maybe Int
     }
-
-
-type alias Deck =
-    List Card
-
-
-type GameId
-    = GameId Int
 
 
 type alias DiscardPile =

@@ -1,7 +1,4 @@
-module Card exposing (..)
-
-import Element exposing (..)
-import Element.Border as Border
+module Card exposing (Card, FCard(..), Power(..), Rank(..), Suit(..), handIsLessThanFive, nonShuffledDeck, powerToString, tableHandScore, toPower, toString)
 
 
 type alias Card =
@@ -109,11 +106,6 @@ rankToString rank =
             "K"
 
 
-sampleCard : Card
-sampleCard =
-    { suit = Clubs, rank = Ace, show = False }
-
-
 nonShuffledDeck : List Card
 nonShuffledDeck =
     [ { suit = Clubs, rank = Ace, show = False }
@@ -204,7 +196,7 @@ tableHandScore hand =
                     acc + 9
 
                 Ten ->
-                    acc + 0
+                    acc
 
                 Jack ->
                     acc + 10
