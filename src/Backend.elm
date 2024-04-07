@@ -33,7 +33,7 @@ bPlayersFromFGame game =
             players
 
         BGameEnded orderedPlayers ->
-            orderedPlayers
+            orderedPlayers |> List.map Tuple.first
 
 
 decrementCounter : Counter -> Maybe Counter
@@ -252,11 +252,11 @@ showAllCards =
     List.map (\card -> { card | show = True })
 
 
-showAllCardsOfAllPlayers : List BPlayer -> List BPlayer
+showAllCardsOfAllPlayers : List ( BPlayer, Int ) -> List ( BPlayer, Int )
 showAllCardsOfAllPlayers players =
     List.map
-        (\({ tableHand } as player) ->
-            { player | tableHand = List.map (\card -> { card | show = True }) tableHand }
+        (\( { tableHand } as player, r ) ->
+            ( { player | tableHand = List.map (\card -> { card | show = True }) tableHand }, r )
         )
         players
 
@@ -403,7 +403,7 @@ toFGame maybeSessionId backendGame =
             FGameInProgress Nothing tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile opponents (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
 
         BGameEnded orderedPlayers ->
-            FGameEnded <| List.map (toFPlayer True) orderedPlayers
+            FGameEnded <| List.map (\( p, r ) -> ( toFPlayer True p, r )) orderedPlayers
 
 
 toFGameProgressStatus : Maybe SessionId -> BGameInProgressStatus -> FGameInProgressStatus
@@ -548,13 +548,13 @@ update msg ({ games } as model) =
                                     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) (p1 :: restOfBPlayers)
                                     )
 
-                                BGameInProgress m a b (p1 :: restOfBPlayers) (BEndTimerRunning nb) lastMoveIsDouble canUsePowerFromLastPlayer ->
+                                BGameInProgress maybeTamalouOwner a b (p1 :: restOfBPlayers) (BEndTimerRunning nb) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                     case decrementCounter nb of
                                         Just nb_ ->
                                             let
                                                 newGame : BGame
                                                 newGame =
-                                                    { game | status = BGameInProgress m a b (p1 :: restOfBPlayers) (BEndTimerRunning nb_) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                                    { game | status = BGameInProgress maybeTamalouOwner a b (p1 :: restOfBPlayers) (BEndTimerRunning nb_) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
                                             ( { model | games = updateGame newGame games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) (p1 :: restOfBPlayers)
@@ -566,13 +566,10 @@ update msg ({ games } as model) =
                                                 newGame =
                                                     { game | status = BGameEnded orderedPlayers }
 
-                                                orderedPlayers : List BPlayer
+                                                orderedPlayers : List ( BPlayer, Int )
                                                 orderedPlayers =
                                                     (p1 :: restOfBPlayers)
-                                                        |> List.sortBy
-                                                            (\player ->
-                                                                Card.tableHandScore player.tableHand
-                                                            )
+                                                        |> assignRanks maybeTamalouOwner
                                                         |> showAllCardsOfAllPlayers
                                             in
                                             ( { model | games = updateGame newGame games }
@@ -961,6 +958,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             newPlayers =
                                                 players
                                                     -- Warning, here we remove all the other players in case they disconnect wihtout clicking restart, In the future, we want to send the score instead of the players so that we can remove them from the game on disconnect
+                                                    |> List.map Tuple.first
                                                     |> List.filter ((==) sessionId << .sessionId)
                                                     |> List.map
                                                         (\p ->
@@ -1216,13 +1214,10 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                 newGameStatus =
                                                                     if isGameFinished then
                                                                         let
-                                                                            orderedPlayers : List BPlayer
+                                                                            orderedPlayers : List ( BPlayer, Int )
                                                                             orderedPlayers =
                                                                                 updatedPlayers
-                                                                                    |> List.sortBy
-                                                                                        (\player ->
-                                                                                            Card.tableHandScore player.tableHand
-                                                                                        )
+                                                                                    |> assignRanks maybeTamalouOwner
                                                                                     |> showAllCardsOfAllPlayers
                                                                         in
                                                                         BGameEnded orderedPlayers
@@ -1649,3 +1644,62 @@ updateGameStatus urlPath ( newGameStatus, newSeed ) games =
         ((==) urlPath << .urlPath)
         (\g -> { g | status = newGameStatus, seed = newSeed })
         games
+
+
+assignRanks : Maybe SessionId -> List BPlayer -> List ( BPlayer, Int )
+assignRanks maybeTamalouOwner players =
+    players
+        |> List.sortWith
+            (\playerA playerB ->
+                case compare (Card.tableHandScore playerA.tableHand) (Card.tableHandScore playerB.tableHand) of
+                    EQ ->
+                        case compare (List.length playerA.tableHand) (List.length playerB.tableHand) of
+                            EQ ->
+                                case maybeTamalouOwner of
+                                    Just ownerId ->
+                                        if ownerId == playerA.sessionId then
+                                            LT
+
+                                        else if ownerId == playerB.sessionId then
+                                            GT
+
+                                        else
+                                            EQ
+
+                                    Nothing ->
+                                        EQ
+
+                            ord ->
+                                ord
+
+                    ord ->
+                        ord
+            )
+        |> List.foldl
+            (\player ( ( acc, lastScore ), ( lastCount, nextRank ) ) ->
+                let
+                    currentCount : Int
+                    currentCount =
+                        List.length player.tableHand
+
+                    currentScore : Int
+                    currentScore =
+                        Card.tableHandScore player.tableHand
+
+                    isOwner : Bool
+                    isOwner =
+                        Just player.sessionId == maybeTamalouOwner
+
+                    ( rank, newNextRank ) =
+                        if lastScore == currentScore && lastCount == currentCount && not isOwner then
+                            ( nextRank - 1, nextRank )
+
+                        else
+                            ( nextRank, nextRank + 1 )
+                in
+                ( ( ( player, rank ) :: acc, currentScore ), ( currentCount, newNextRank ) )
+            )
+            ( ( [], -1 ), ( -1, 1 ) )
+        |> Tuple.first
+        |> Tuple.first
+        |> List.reverse

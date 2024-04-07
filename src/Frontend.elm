@@ -300,7 +300,7 @@ fPlayersFromFGame game =
             players
 
         FGameEnded orderedPlayers ->
-            orderedPlayers
+            List.map Tuple.first orderedPlayers
 
         FGameAlreadyStartedWithoutYou ->
             []
@@ -1274,32 +1274,27 @@ displayGame ({ screenWidth } as model) =
                                 ]
                             ]
 
-                    FGameEnded orderedPlayers ->
+                    FGameEnded orderedPlayersAndRank ->
                         let
-                            currentPlayer : Maybe { name : String, tableHand : List FCard, clientId : Lamdera.ClientId, sessionId : SessionId, ready : Bool, score : Maybe Int }
-                            currentPlayer =
-                                List.Extra.find (\player -> Just player.sessionId == model.sessionId) orderedPlayers
-
-                            rank : Maybe Int
-                            rank =
-                                orderedPlayers
-                                    |> List.Extra.findIndex (\player -> Just player.sessionId == model.sessionId)
+                            currentPlayerAndRank : Maybe ( FPlayer, Int )
+                            currentPlayerAndRank =
+                                List.Extra.find (\( player, _ ) -> Just player.sessionId == model.sessionId) orderedPlayersAndRank
                         in
                         column
-                            [ width fill, height fill, spacing 20 ]
+                            [ width fill, spacing 12, padding 12 ]
                             [ el [ centerX ] <|
                                 text <|
-                                    case rank of
-                                        Just 0 ->
+                                    case currentPlayerAndRank of
+                                        Just ( _, 1 ) ->
                                             "You win!🥇"
 
-                                        Just 1 ->
+                                        Just ( _, 2 ) ->
                                             "Maybe next time!🥈"
 
-                                        Just 2 ->
+                                        Just ( _, 3 ) ->
                                             "Luck is not on your side!🥉"
 
-                                        Just 3 ->
+                                        Just ( _, 4 ) ->
                                             "You lost! Here's a cookie 🍪"
 
                                         Just _ ->
@@ -1308,8 +1303,8 @@ displayGame ({ screenWidth } as model) =
                                         Nothing ->
                                             "Game ended!"
                             , column [ centerX, spacing 4, width <| px <| (screenWidth * 80 // 100) ] <|
-                                List.indexedMap (\i player -> displayPlayerAndCards i player) orderedPlayers
-                            , el [ centerX ] <| actionButton { label = text "Play again!", onPress = Just (ReStartGameFrontend currentPlayer) }
+                                List.map (\player -> displayPlayerAndCards player) orderedPlayersAndRank
+                            , el [ centerX ] <| actionButton { label = text "Play again!", onPress = Just (ReStartGameFrontend (currentPlayerAndRank |> Maybe.map Tuple.first)) }
                             ]
 
                     FGameAlreadyStartedWithoutYou ->
@@ -1322,16 +1317,16 @@ displayGame ({ screenWidth } as model) =
 medal : Int -> String
 medal rank =
     case rank of
-        0 ->
+        1 ->
             "🥇"
 
-        1 ->
+        2 ->
             "🥈"
 
-        2 ->
+        3 ->
             "🥉"
 
-        3 ->
+        4 ->
             "🍪"
 
         _ ->
@@ -1437,22 +1432,23 @@ displayPlayerName player =
         ]
 
 
-displayPlayerAndCards : Int -> FPlayer -> Element FrontendMsg
-displayPlayerAndCards rank player =
+displayPlayerAndCards : ( FPlayer, Int ) -> Element FrontendMsg
+displayPlayerAndCards ( player, rank ) =
     row
-        [ spacing 12, centerX, Border.rounded 8, paddingXY 12 12, Background.color veryLightGrey, width fill, height <| px 100 ]
+        [ spacing 12, centerX, Border.rounded 8, paddingXY 12 12, Background.color veryLightGrey, width fill, height <| px 64 ]
         [ text <| medal rank
-        , text <|
-            case player.name of
-                "" ->
-                    "Anonymous"
+        , el [ width <| px 250 ] <|
+            text <|
+                case player.name of
+                    "" ->
+                        "Anonymous"
 
-                playerName ->
-                    playerName
-        , el [ width fill ] <| displayFCardsAtTheEnd player.tableHand
+                    playerName ->
+                        playerName
+        , el [] <| displayFCardsAtTheEnd player.tableHand
         , case player.score of
             Just score ->
-                text <| String.fromInt score
+                el [ alignRight ] <| text <| String.fromInt score
 
             Nothing ->
                 none
@@ -1607,7 +1603,7 @@ displayFCardSized length maybeCardClickMsg maybeIndex index frontendCard =
 
 displayFCardAtTheEnd : Int -> FCard -> Element FrontendMsg
 displayFCardAtTheEnd =
-    displayFCardSized (px 96) Nothing Nothing
+    displayFCardSized (px 41) Nothing Nothing
 
 
 actionBorder : Element.Color -> List (Attribute FrontendMsg)

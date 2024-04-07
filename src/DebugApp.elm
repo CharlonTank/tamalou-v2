@@ -160,7 +160,7 @@ bGameInProgressLogs msg status =
             msg ++ "BGameInProgress: " ++ (List.map bPlayerLogs players |> String.join ", ") ++ ", gameInProgressStatus: " ++ bGameInProgressStatusLogs gameInProgressStatus ++ ", lastMoveIsDouble: " ++ String.fromBool lastMoveIsDouble ++ " canUsePowerFromLastPlayer: " ++ String.fromBool canUsePowerFromLastPlayer
 
         BGameEnded players ->
-            msg ++ "BGameEnded: " ++ (List.map bPlayerLogs players |> String.join ", ")
+            msg ++ "BGameEnded: " ++ (List.map bPlayerLogs (List.map Tuple.first players) |> String.join ", ")
 
 
 bGameInProgressStatusLogs : BGameInProgressStatus -> String

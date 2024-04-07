@@ -50,7 +50,7 @@ type BGameInProgressStatus
 type BGameStatus
     = BWaitingForPlayers (List BPlayer)
     | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool Bool
-    | BGameEnded (List BPlayer)
+    | BGameEnded (List ( BPlayer, Int ))
 
 
 type alias BPlayer =
@@ -119,7 +119,7 @@ type alias FDrawPile =
 type FGame
     = FWaitingForPlayers (List FPlayer)
     | FGameInProgress (Maybe TamalouOwner) FTableHand FDrawPile DiscardPile (List FPlayer) FGameInProgressStatus
-    | FGameEnded (List FPlayer)
+    | FGameEnded (List ( FPlayer, Int ))
     | FGameAlreadyStartedWithoutYou
 
 
