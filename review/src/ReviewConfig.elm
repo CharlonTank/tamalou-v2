@@ -70,9 +70,9 @@ config =
         )
     , NoUnsortedTopLevelDeclarations.rule
         (NoUnsortedTopLevelDeclarations.sortTopLevelDeclarations
-            |> NoUnsortedTopLevelDeclarations.portsFirst
+            -- |> NoUnsortedTopLevelDeclarations.portsFirst
             -- |> NoUnsortedTopLevelDeclarations.exposedOrderWithPrivateLast
-            -- |> NoUnsortedTopLevelDeclarations.alphabetically
+            |> NoUnsortedTopLevelDeclarations.alphabetically
         )
     ]
         |> List.map (Rule.ignoreErrorsForDirectories [ "src/Evergreen/" ])

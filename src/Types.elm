@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
@@ -64,7 +64,7 @@ type alias BPlayer =
 
 type BPlayerToPlayStatus
     = BWaitingPlayerAction (Maybe Power)
-    | BPlayerHasDraw Card
+    | BPlayerHasDrawn Card
     | BPlayerHasDiscard Power
     | BPlayerLookACard LookACardStatus
     | BPlayerSwitch2Cards Switch2CardsStatus
@@ -89,13 +89,23 @@ type BackendMsgFromGame
     | CreateGame Posix ClientId SessionId
 
 
+type CardClickMsg
+    = DrawCardFromDeckFrontend
+    | DrawFromDiscardPileFrontend
+    | DiscardCardFrontend
+    | CardClickReplacement Int
+    | DoubleCardFrontend Int
+    | LookAtCardFrontend Int
+    | ChooseOwnCardToSwitchFrontend Int
+    | ChooseOpponentCardToSwitchFrontend SessionId Int
+
+
 type Counter
     = Five
     | Four
     | Three
     | Two
     | One
-    | Zero
 
 
 type alias DiscardPile =
@@ -168,29 +178,23 @@ type FrontendMsg
     | ChangeCurrentPlayerNameFrontend String
     | ImReadyFrontend
     | ReStartGameFrontend (Maybe FPlayer)
-    | DrawCardFromDeckFrontend
     | TamalouFrontend
-    | DiscardCardFrontend
-    | DrawFromDiscardPileFrontend
     | PowerIsUsedFrontend
     | PowerPassFrontend
-    | ReplaceCardInFrontend Int
-    | DoubleCardFrontend Int
-    | LookAtCardFrontend Int
-    | ChooseOwnCardToSwitchFrontend Int
-    | ChooseOpponentCardToSwitchFrontend ( SessionId, Int )
     | ChangeChatInputFrontend String
     | SendMessageFrontend
+    | CardClickMsg CardClickMsg
 
 
 type LookACardStatus
     = ChooseCardToLook
-    | LookingACard Counter
+    | LookingACard Int Counter
 
 
 type Switch2CardsStatus
     = ChooseOwnCardToSwitch
     | OwnCardChosen Int
+    | OpponentCardChosen Int { sessionId : SessionId, index : Int } Counter
 
 
 type alias TamalouOwner =

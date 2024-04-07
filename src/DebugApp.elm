@@ -1,4 +1,4 @@
-module DebugApp exposing (..)
+module DebugApp exposing (bGameInProgressLogs)
 
 import Card exposing (Rank(..))
 import Http
@@ -189,7 +189,7 @@ bPlayerToPlayStatusLogs status =
                             "Nothing"
                    )
 
-        BPlayerHasDraw card ->
+        BPlayerHasDrawn card ->
             "BPlayerHasDraw: " ++ Card.toString card
 
         BPlayerHasDiscard power ->
@@ -211,6 +211,9 @@ switch2CardsStatusLogs status =
         OwnCardChosen index ->
             "OwnCardChosen: " ++ String.fromInt index
 
+        OpponentCardChosen ownCardIndex opponentCardChoosen counter ->
+            "OpponentCardChosen: ownCardIndex: " ++ String.fromInt ownCardIndex ++ ", opponentCardChoosen: { sessionId: " ++ opponentCardChoosen.sessionId ++ ", index: " ++ String.fromInt opponentCardChoosen.index ++ " }, " ++ counterToString counter
+
 
 lookACardStatusLogs : LookACardStatus -> String
 lookACardStatusLogs status =
@@ -218,8 +221,8 @@ lookACardStatusLogs status =
         ChooseCardToLook ->
             "ChooseCardToLook"
 
-        LookingACard counter ->
-            "LookingACard: " ++ counterToString counter
+        LookingACard index counter ->
+            "LookingACard: " ++ String.fromInt index ++ ", " ++ counterToString counter
 
 
 counterToString : Counter -> String
@@ -239,9 +242,6 @@ counterToString counter =
 
         Types.One ->
             "One"
-
-        Types.Zero ->
-            "Zero"
 
 
 bPlayerLogs : BPlayer -> String

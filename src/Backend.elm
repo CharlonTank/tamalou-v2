@@ -52,9 +52,6 @@ decrementCounter counter =
             Just One
 
         One ->
-            Just Zero
-
-        Zero ->
             Nothing
 
 
@@ -169,7 +166,10 @@ launchTimer games =
                     BGameInProgress _ _ _ _ (BStartTimerRunning _) _ _ ->
                         Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
 
-                    BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerLookACard (LookingACard _))) _ _ ->
+                    BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerLookACard (LookingACard _ _))) _ _ ->
+                        Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
+
+                    BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerSwitch2Cards (OpponentCardChosen _ _ _))) _ _ ->
                         Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
 
                     BGameInProgress _ _ _ _ (BEndTimerRunning _) _ _ ->
@@ -413,7 +413,7 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
                     else
                         FPlayerToPlay (toFPlayer False bPlayer) (FWaitingPlayerAction maybePowerCard)
 
-                BPlayerHasDraw card ->
+                BPlayerHasDrawn card ->
                     if maybeSessionId == Just bPlayer.sessionId then
                         FYourTurn (FPlayerHasDraw (FaceUp card))
 
@@ -571,13 +571,13 @@ update msg ({ games } as model) =
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) (p1 :: restOfBPlayers)
                                             )
 
-                                BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard counter))) lastMoveIsDouble canUsePowerFromLastPlayer ->
+                                BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard index counter))) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                     case decrementCounter counter of
                                         Just nb ->
                                             let
                                                 newGame : BGame
                                                 newGame =
-                                                    { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                                    { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard index nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
                                             ( { model | games = updateGame newGame games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
@@ -603,6 +603,58 @@ update msg ({ games } as model) =
                                                                             (BWaitingPlayerAction
                                                                                 (if canUsePowerFromLastPlayer then
                                                                                     Just Card.LookACard
+
+                                                                                 else
+                                                                                    Nothing
+                                                                                )
+                                                                            )
+                                                                        )
+                                                                        lastMoveIsDouble
+                                                                        canUsePowerFromLastPlayer
+                                                            }
+
+                                                        Nothing ->
+                                                            { game
+                                                                | status =
+                                                                    BGameInProgress maybeTamalouOwner a b (stopDisplayCards Nothing players) (BEndTimerRunning Five) lastMoveIsDouble canUsePowerFromLastPlayer
+                                                            }
+                                            in
+                                            ( { model | games = updateGame newGame games }
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
+                                            )
+
+                                BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OpponentCardChosen ownCardIndex opponentCard counter))) lastMoveIsDouble canUsePowerFromLastPlayer ->
+                                    case decrementCounter counter of
+                                        Just nb ->
+                                            let
+                                                newGame : BGame
+                                                newGame =
+                                                    { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OpponentCardChosen ownCardIndex opponentCard nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                            in
+                                            ( { model | games = updateGame newGame games }
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
+                                            )
+
+                                        Nothing ->
+                                            let
+                                                maybeNextPlayer : Maybe BPlayer
+                                                maybeNextPlayer =
+                                                    nextPlayer maybeTamalouOwner bPlayer.sessionId players
+
+                                                newGame : BGame
+                                                newGame =
+                                                    case maybeNextPlayer of
+                                                        Just nextPlayer_ ->
+                                                            { game
+                                                                | status =
+                                                                    BGameInProgress maybeTamalouOwner
+                                                                        a
+                                                                        b
+                                                                        (stopDisplayCards Nothing players)
+                                                                        (BPlayerToPlay nextPlayer_
+                                                                            (BWaitingPlayerAction
+                                                                                (if canUsePowerFromLastPlayer then
+                                                                                    Just Card.Switch2Cards
 
                                                                                  else
                                                                                     Nothing
@@ -921,7 +973,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     let
                                                         newGameStatus : BGameStatus
                                                         newGameStatus =
-                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile players (BPlayerToPlay bPlayer (BPlayerHasDraw cardDrew)) lastMoveIsDouble canUsePowerFromLastPlayer
+                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile players (BPlayerToPlay bPlayer (BPlayerHasDrawn cardDrew)) lastMoveIsDouble canUsePowerFromLastPlayer
                                                     in
                                                     updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, newSeed ) players
 
@@ -941,7 +993,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDraw card)) _ _ ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDrawn card)) _ _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
                                                 newGameStatus : BGameStatus
@@ -980,7 +1032,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             let
                                                 newGameStatus : BGameStatus
                                                 newGameStatus =
-                                                    BGameInProgress maybeTamalouOwner drawPile rest players (BPlayerToPlay bPlayer (BPlayerHasDraw head)) False False
+                                                    BGameInProgress maybeTamalouOwner drawPile rest players (BPlayerToPlay bPlayer (BPlayerHasDrawn head)) False False
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) players
@@ -999,7 +1051,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                         case maybeGame of
                             Just game ->
                                 case game.status of
-                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDraw cardInHand)) _ _ ->
+                                    BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDrawn cardInHand)) _ _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
                                                 cardToDiscard : Maybe Card
@@ -1082,7 +1134,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                     hasPlayerDrawn : Bool
                                                                     hasPlayerDrawn =
                                                                         case bPlayerToPlayStatus of
-                                                                            BPlayerHasDraw _ ->
+                                                                            BPlayerHasDrawn _ ->
                                                                                 True
 
                                                                             _ ->
@@ -1175,7 +1227,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                     let
                                                                         newGameStatus : BGameStatus
                                                                         newGameStatus =
-                                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile updatedPlayers bGameInProgressStatus False canUsePowerFromLastPlayer
+                                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile updatedPlayers bGameInProgressStatus lastMoveIsDouble canUsePowerFromLastPlayer
 
                                                                         updatedPlayers : List BPlayer
                                                                         updatedPlayers =
@@ -1217,7 +1269,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             let
                                                 newGameStatus : BGameStatus
                                                 newGameStatus =
-                                                    BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard Two))) lastMoveIsDouble canUsePowerFromLastPlayer
+                                                    BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard cardIndex Two))) lastMoveIsDouble canUsePowerFromLastPlayer
 
                                                 newPlayers : List BPlayer
                                                 newPlayers =
@@ -1283,34 +1335,34 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         let
-                                            maybeNextPlayer : Maybe BPlayer
-                                            maybeNextPlayer =
-                                                nextPlayer maybeTamalouOwner bPlayer.sessionId newPlayers
-
+                                            -- maybeNextPlayer : Maybe BPlayer
+                                            -- maybeNextPlayer =
+                                            --     nextPlayer maybeTamalouOwner bPlayer.sessionId newPlayers
                                             newGameStatus : BGameStatus
                                             newGameStatus =
-                                                case maybeNextPlayer of
-                                                    Just nextPlayer_ ->
-                                                        BGameInProgress maybeTamalouOwner
-                                                            drawPile
-                                                            discardPile
-                                                            newPlayers
-                                                            (BPlayerToPlay nextPlayer_
-                                                                (BWaitingPlayerAction
-                                                                    (if canUsePowerFromLastPlayer then
-                                                                        Just Card.Switch2Cards
+                                                -- case maybeNextPlayer of
+                                                --     Just nextPlayer_ ->
+                                                BGameInProgress maybeTamalouOwner
+                                                    drawPile
+                                                    discardPile
+                                                    newPlayers
+                                                    (BPlayerToPlay bPlayer <|
+                                                        BPlayerSwitch2Cards (OpponentCardChosen cardIndex { sessionId = opponentSessionId, index = opponentCardIndex } Three)
+                                                    )
+                                                    -- (BPlayerToPlay nextPlayer_
+                                                    --     (BWaitingPlayerAction
+                                                    --         (if canUsePowerFromLastPlayer then
+                                                    --             Just Card.Switch2Cards
+                                                    --          else
+                                                    --             Nothing
+                                                    --         )
+                                                    --     )
+                                                    -- )
+                                                    lastMoveIsDouble
+                                                    canUsePowerFromLastPlayer
 
-                                                                     else
-                                                                        Nothing
-                                                                    )
-                                                                )
-                                                            )
-                                                            lastMoveIsDouble
-                                                            canUsePowerFromLastPlayer
-
-                                                    Nothing ->
-                                                        BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BEndTimerRunning Five) lastMoveIsDouble False
-
+                                            -- Nothing ->
+                                            --     BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BEndTimerRunning Five) lastMoveIsDouble False
                                             newPlayers : List BPlayer
                                             newPlayers =
                                                 players
