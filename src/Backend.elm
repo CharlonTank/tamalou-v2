@@ -125,18 +125,26 @@ emptyBPlayer sessionId clientId =
     }
 
 
-findAndFilter : (a -> Bool) -> List a -> ( Maybe a, List a )
-findAndFilter predicate list =
-    let
-        filtered : List a
-        filtered =
-            List.filter (\x -> not (predicate x)) list
+findAndRearrange : (a -> Bool) -> List a -> ( Maybe a, List a )
+findAndRearrange predicate list =
+    case List.Extra.findIndex predicate list of
+        Just index ->
+            let
+                after : List a
+                after =
+                    List.drop 1 foundAndAfter
 
-        found : Maybe a
-        found =
-            List.filter predicate list |> List.head
-    in
-    ( found, filtered )
+                ( before, foundAndAfter ) =
+                    List.Extra.splitAt index list
+
+                found : Maybe a
+                found =
+                    List.head foundAndAfter
+            in
+            ( found, after ++ before )
+
+        Nothing ->
+            ( Nothing, list )
 
 
 generateRandomFunnyName : Random.Seed -> List String -> ( String, Random.Seed )
@@ -354,7 +362,7 @@ toFGame maybeSessionId backendGame =
 
                 ( tableHand, opponents ) =
                     newPlayers
-                        |> findAndFilter ((==) maybeSessionId << Just << .sessionId)
+                        |> findAndRearrange ((==) maybeSessionId << Just << .sessionId)
                         |> (\( maybeCurrentPlayer, opponents_ ) ->
                                 case maybeCurrentPlayer of
                                     Just currentPlayer ->
@@ -382,7 +390,7 @@ toFGame maybeSessionId backendGame =
         BGameInProgress Nothing bDrawPile discardPile players bGameInProgressStatus _ _ ->
             let
                 ( tableHand, opponents ) =
-                    findAndFilter ((==) maybeSessionId << Just << .sessionId) players
+                    findAndRearrange ((==) maybeSessionId << Just << .sessionId) players
                         |> (\( maybeCurrentPlayer, opponents_ ) ->
                                 case maybeCurrentPlayer of
                                     Just currentPlayer ->
@@ -635,6 +643,16 @@ update msg ({ games } as model) =
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
                                             )
 
+                                        -- Test Switch, to be removed once we're sure it works everytime
+                                        -- Nothing ->
+                                        --     let
+                                        --         newGame : BGame
+                                        --         newGame =
+                                        --             { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OpponentCardChosen ownCardIndex opponentCard One))) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                        --     in
+                                        --     ( { model | games = updateGame newGame games }
+                                        --     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
+                                        --     )
                                         Nothing ->
                                             let
                                                 maybeNextPlayer : Maybe BPlayer

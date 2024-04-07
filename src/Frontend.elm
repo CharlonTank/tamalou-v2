@@ -549,6 +549,7 @@ displayGame ({ screenWidth } as model) =
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
+                                    , el [ centerX ] <| text <| "It's " ++ fPlayer.name ++ "'s turn"
                                     , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                     ]
                                 , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) Nothing
@@ -597,6 +598,7 @@ displayGame ({ screenWidth } as model) =
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
+                                    , el [ centerX ] <| text <| fPlayer.name ++ " just drew a card"
                                     , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                     ]
                                 , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) Nothing
@@ -644,6 +646,7 @@ displayGame ({ screenWidth } as model) =
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
+                                    , el [ centerX ] <| text (fPlayer.name ++ " can choose to use a power or not")
                                     , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                     ]
                                 , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) Nothing
@@ -799,7 +802,7 @@ displayGame ({ screenWidth } as model) =
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
-                                    , el [ centerX ] <| text <| fPlayer.name ++ "is now choosing an opponent card to switch with"
+                                    , el [ centerX ] <| text <| fPlayer.name ++ " is now choosing an opponent card to switch with"
                                     , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                     ]
                                 , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) (maybeIndex opponentsDisposition.rightPlayer)
@@ -808,10 +811,6 @@ displayGame ({ screenWidth } as model) =
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
                         let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                Just DoubleCardFrontend
-
                             currentCardColumn : Element FrontendMsg
                             currentCardColumn =
                                 column [ spacing 8 ]
@@ -828,6 +827,9 @@ displayGame ({ screenWidth } as model) =
                                 if (maybePlayer |> Maybe.map .sessionId) == Just fPlayer.sessionId then
                                     Just index
 
+                                else if (maybePlayer |> Maybe.map .sessionId) == Just opponentCard.sessionId then
+                                    Just opponentCard.index
+
                                 else
                                     Nothing
 
@@ -838,7 +840,7 @@ displayGame ({ screenWidth } as model) =
                             maybeOwnIndex : Maybe Int
                             maybeOwnIndex =
                                 if model.sessionId == Just opponentCard.sessionId then
-                                    Just index
+                                    Just opponentCard.index
 
                                 else
                                     Nothing
@@ -861,7 +863,7 @@ displayGame ({ screenWidth } as model) =
                                         , discardPileColumn
                                         ]
                                     , el [ centerX ] <| text <| fPlayer.name ++ " changed a card with " ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous") ++ "'s card: " ++ displayEndTimer counter
-                                    , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False maybeOwnIndex
+                                    , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand Nothing False maybeOwnIndex
                                     ]
                                 , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) (maybeIndex opponentsDisposition.rightPlayer)
                                 ]
@@ -952,6 +954,7 @@ displayGame ({ screenWidth } as model) =
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
+                                    , el [ centerX ] <| text "You just drew a card"
                                     , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand (Just CardClickReplacement) True Nothing
                                     ]
                                 , displayOpponent maybeTamalouOwner Nothing False (RightPlayer opponentsDisposition.rightPlayer) Nothing
@@ -1197,7 +1200,7 @@ displayGame ({ screenWidth } as model) =
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
                                 if (maybePlayer |> Maybe.map .sessionId) == Just opponentCard.sessionId then
-                                    Just index
+                                    Just opponentCard.index
 
                                 else
                                     Nothing
@@ -1706,10 +1709,15 @@ displayOpponentRow player isPlayerTurn isSwitchingCard isTamalouOwner maybeCardI
         [ spacing 8 ]
         [ column ([ Font.size 11, Border.width 1, Border.rounded 8, padding 4, spacing 4 ] ++ attrsOwnTurn) <| List.map (el [ centerX ] << text) (String.split " " player.name)
         , row [ spacing 4, centerX, height fill ] <|
-            List.indexedMap
+            reverseIndexedMap
                 (\i c -> el [ rotate (2 * pi / 2) ] <| displayFCardSized (px 50) switchingCardsAttrs maybeCardIndex i c)
                 (player.tableHand |> List.reverse)
         ]
+
+
+reverseIndexedMap : (Int -> a -> b) -> List a -> List b
+reverseIndexedMap f xs =
+    List.indexedMap f xs |> List.reverse
 
 
 displayRightOpponentColumn : FPlayer -> Bool -> Bool -> Bool -> Maybe Int -> Element FrontendMsg
@@ -1735,7 +1743,7 @@ displayRightOpponentColumn player isPlayerTurn isSwitchingCard isTamalouOwner ma
         [ alignTop, height (fill |> Element.maximum 600) ]
         [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4 ] ++ attrsOwnTurn) <| text player.name
         , column [ spacing -22 ] <|
-            List.indexedMap
+            reverseIndexedMap
                 (\i c -> el [ rotate (3 * pi / 2) ] <| displayFCardSized (px 50) switchingCardsMsg maybeCardIndex i c)
                 (player.tableHand |> List.reverse)
         ]
@@ -1766,7 +1774,7 @@ displayLeftOpponentColumn player isPlayerTurn isSwitchingCard isTamalouOwner may
         , column [ spacing -22 ] <|
             List.indexedMap
                 (\i c -> el [ rotate (pi / 2) ] <| displayFCardSized (px 50) switchingCardsMsg maybeCardIndex i c)
-                (player.tableHand |> List.reverse)
+                player.tableHand
         ]
 
 
