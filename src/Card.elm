@@ -13,6 +13,35 @@ type FCard
     | FaceDown
 
 
+type Power
+    = PlayAgain
+    | Switch2Cards
+    | LookACard
+
+
+type Rank
+    = Ace
+    | Two
+    | Three
+    | Four
+    | Five
+    | Six
+    | Seven
+    | Eight
+    | Nine
+    | Ten
+    | Jack
+    | Queen
+    | King
+
+
+type Suit
+    = Clubs
+    | Diamonds
+    | Hearts
+    | Spades
+
+
 handIsLessThanFive : List Card -> Bool
 handIsLessThanFive tableHand =
     tableHandScore tableHand <= 5
@@ -75,12 +104,6 @@ nonShuffledDeck =
     ]
 
 
-type Power
-    = PlayAgain
-    | Switch2Cards
-    | LookACard
-
-
 powerToString : Power -> String
 powerToString power =
     case power of
@@ -92,88 +115,6 @@ powerToString power =
 
         LookACard ->
             "Look a Card"
-
-
-type Rank
-    = Ace
-    | Two
-    | Three
-    | Four
-    | Five
-    | Six
-    | Seven
-    | Eight
-    | Nine
-    | Ten
-    | Jack
-    | Queen
-    | King
-
-
-rankToString : Rank -> String
-rankToString rank =
-    case rank of
-        Ace ->
-            "A"
-
-        Two ->
-            "2"
-
-        Three ->
-            "3"
-
-        Four ->
-            "4"
-
-        Five ->
-            "5"
-
-        Six ->
-            "6"
-
-        Seven ->
-            "7"
-
-        Eight ->
-            "8"
-
-        Nine ->
-            "9"
-
-        Ten ->
-            "10"
-
-        Jack ->
-            "J"
-
-        Queen ->
-            "Q"
-
-        King ->
-            "K"
-
-
-type Suit
-    = Clubs
-    | Diamonds
-    | Hearts
-    | Spades
-
-
-suitToString : Suit -> String
-suitToString suit =
-    case suit of
-        Clubs ->
-            "Clubs"
-
-        Diamonds ->
-            "Diamonds"
-
-        Hearts ->
-            "Hearts"
-
-        Spades ->
-            "Spades"
 
 
 tableHandScore : List Card -> Int
@@ -247,3 +188,62 @@ toPower validQueen { rank } =
 toString : Card -> String
 toString card =
     suitToString card.suit ++ "/" ++ rankToString card.rank
+
+
+rankToString : Rank -> String
+rankToString rank =
+    case rank of
+        Ace ->
+            "A"
+
+        Two ->
+            "2"
+
+        Three ->
+            "3"
+
+        Four ->
+            "4"
+
+        Five ->
+            "5"
+
+        Six ->
+            "6"
+
+        Seven ->
+            "7"
+
+        Eight ->
+            "8"
+
+        Nine ->
+            "9"
+
+        Ten ->
+            "10"
+
+        Jack ->
+            "J"
+
+        Queen ->
+            "Q"
+
+        King ->
+            "K"
+
+
+suitToString : Suit -> String
+suitToString suit =
+    case suit of
+        Clubs ->
+            "Clubs"
+
+        Diamonds ->
+            "Diamonds"
+
+        Hearts ->
+            "Hearts"
+
+        Spades ->
+            "Spades"

@@ -677,13 +677,12 @@ displayGame ({ screenWidth } as model) =
                             discardPileColumn =
                                 column [ spacing 8 ] <| displayDiscardCards screenWidth discardPile False Nothing
 
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
-
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
                                 case lookACardStatus of
+                                    ChooseCardToLook ->
+                                        Nothing
+
                                     LookingACard index _ ->
                                         if (maybePlayer |> Maybe.map .sessionId) == Just fPlayer.sessionId then
                                             Just index
@@ -691,8 +690,9 @@ displayGame ({ screenWidth } as model) =
                                         else
                                             Nothing
 
-                                    ChooseCardToLook ->
-                                        Nothing
+                            opponentsDisposition : OpponentsDisposition
+                            opponentsDisposition =
+                                toOpponentsDisposition players
                         in
                         column [ width <| px <| screenWidth - 14, height fill ]
                             [ row [ width fill ]
@@ -777,10 +777,6 @@ displayGame ({ screenWidth } as model) =
                             discardPileColumn =
                                 column [ spacing 8 ] (displayDiscardCards screenWidth discardPile False Nothing)
 
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
-
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
                                 if (maybePlayer |> Maybe.map .sessionId) == Just fPlayer.sessionId then
@@ -788,6 +784,10 @@ displayGame ({ screenWidth } as model) =
 
                                 else
                                     Nothing
+
+                            opponentsDisposition : OpponentsDisposition
+                            opponentsDisposition =
+                                toOpponentsDisposition players
                         in
                         column [ width <| px <| screenWidth - 14, height fill ]
                             [ row [ width fill ]
@@ -833,10 +833,6 @@ displayGame ({ screenWidth } as model) =
                                 else
                                     Nothing
 
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
-
                             maybeOwnIndex : Maybe Int
                             maybeOwnIndex =
                                 if model.sessionId == Just opponentCard.sessionId then
@@ -848,6 +844,10 @@ displayGame ({ screenWidth } as model) =
                             opponent : Maybe FPlayer
                             opponent =
                                 List.Extra.find (\player -> player.sessionId == opponentCard.sessionId) players
+
+                            opponentsDisposition : OpponentsDisposition
+                            opponentsDisposition =
+                                toOpponentsDisposition players
                         in
                         column [ width <| px <| screenWidth - 14, height fill ]
                             [ row [ width fill ]
@@ -1193,10 +1193,6 @@ displayGame ({ screenWidth } as model) =
                             discardPileColumn =
                                 column [ spacing 8 ] <| displayDiscardCards screenWidth discardPile False Nothing
 
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
-
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
                                 if (maybePlayer |> Maybe.map .sessionId) == Just opponentCard.sessionId then
@@ -1204,6 +1200,10 @@ displayGame ({ screenWidth } as model) =
 
                                 else
                                     Nothing
+
+                            opponentsDisposition : OpponentsDisposition
+                            opponentsDisposition =
+                                toOpponentsDisposition players
                         in
                         column [ width <| px <| screenWidth - 14, height fill ]
                             [ row [ width fill ]
@@ -1470,7 +1470,7 @@ lightGrey =
 
 
 displayPlayerView : Int -> Maybe SessionId -> Maybe String -> DeviceClass -> List FPlayer -> FTableHand -> Maybe (Int -> CardClickMsg) -> Bool -> Maybe Int -> Element FrontendMsg
-displayPlayerView screenWidth _ maybeName _ _ tableHand maybeCardClick isPlayerTurn maybeIndex =
+displayPlayerView screenWidth _ _ _ _ tableHand maybeCardClick _ maybeIndex =
     row [ alignBottom, centerX ]
         [ displayOwnCards screenWidth tableHand maybeCardClick maybeIndex
         ]
