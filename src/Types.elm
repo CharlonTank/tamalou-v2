@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
@@ -167,7 +167,14 @@ type alias FrontendModel =
     , maybeName : Maybe String
     , chatInput : String
     , chat : List ( String, String )
+    , cardAnim : CardAnimation
     }
+
+
+type CardAnimation
+    = CardFlipped Card
+    | CardNotFlipped
+    | CardFlipping FCard
 
 
 type FrontendMsg
@@ -184,6 +191,7 @@ type FrontendMsg
     | ChangeChatInputFrontend String
     | SendMessageFrontend
     | CardClickMsg CardClickMsg
+    | UpdateFlip CardAnimation (Maybe Card)
 
 
 type LookACardStatus

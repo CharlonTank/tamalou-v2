@@ -1,11 +1,16 @@
 module Frontend exposing (OpponentDisposition(..), OpponentsDisposition, app)
 
+-- import Animator exposing (Animation, keyframes, set, step, scaleX, ms)
+
+import Animator as Anim
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Events
 import Browser.Navigation as Nav
-import Card exposing (FCard(..))
-import Element exposing (Attr, Attribute, Color, Device, DeviceClass(..), Element, Length, Orientation(..), alignBottom, alignLeft, alignRight, alignTop, centerX, centerY, classifyDevice, column, el, fill, fillPortion, height, html, htmlAttribute, image, moveUp, none, padding, paddingEach, paddingXY, paragraph, px, rotate, row, scrollbars, spacing, text, width)
+import Card exposing (Card, FCard(..))
+import Color
+import Delay
+import Element exposing (Attr, Attribute, Color, Device, DeviceClass(..), Element, Length, Orientation(..), alignBottom, alignLeft, alignRight, alignTop, centerX, centerY, classifyDevice, column, el, fill, fillPortion, height, html, htmlAttribute, image, inFront, moveUp, none, padding, paddingEach, paddingXY, paragraph, px, rotate, row, scrollbars, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
@@ -14,38 +19,148 @@ import Element.Input as Input
 import Html.Attributes as HA
 import Lamdera exposing (SessionId)
 import List.Extra
-import Simple.Animation as Animation exposing (Animation)
-import Simple.Animation.Animated as Anim
-import Simple.Animation.Property as Anim
+import Palette.Anim as SAnim
+import Simple.Animation as SAnimation
+import Simple.Animation.Animated as SAnim
+import Simple.Animation.Property as SP
+import Simple.Transition as STransition
 import Svg exposing (Svg)
 import Svg.Attributes as SvgA
 import Task
-import Types exposing (ActionFromGameToBackend(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 import Url
 
 
-phoneRotateAnimation : Animation
+
+-- cardFlip : Anim.Animation
+-- cardFlip =
+--     Anim.keyframes
+--         [ Anim.set [ Anim.scaleX 1 ]
+--         , Anim.step (Anim.ms 250) [ Anim.scaleX 0 ]
+--         , Anim.step (Anim.ms 250) [ Anim.scaleX 1 ]
+--         ]
+-- type alias Css =
+--     { hash : String
+--     , keyframes : String
+--     , transition : String
+--     , props : List ( String, String )
+--     }
+-- test =
+--     Anim.div
+--         (Anim.transition (Anim.ms 200)
+--             [ Anim.opacity <|
+--                 if model.visible then
+--                     1
+--                 else
+--                     0
+--             ]
+--         )
+--         [ Html.Attributes.id "my-element" ]
+--         [ Html.text "Hello!" ]
+-- animationToUiAttributes : Anim.Animation -> List (Element.Attribute msg)
+-- animationToUiAttributes animation =
+--     -- Implement conversion logic here.
+--     -- This example assumes you have a way to extract CSS properties from your Animation type.
+--     let
+--         cssProperties : Anim.Css
+--         cssProperties =
+--             Anim.toCss animation
+--     in
+--     [ htmlAttribute <| HA.style "animation" cssProperties.keyframes
+--     , htmlAttribute <| HA.style "transition" cssProperties.transition
+--     ]
+--         ++ List.map (\( key, value ) -> htmlAttribute <| HA.style key value) cssProperties.props
+-- test =
+--     Anim.div
+--         (Anim.loop
+--             [ Anim.step (Anim.ms 200)
+--                 [ Anim.opacity 1
+--                 ]
+--             , Anim.wait (Anim.ms 200)
+--             , Anim.step (Anim.ms 200)
+--                 [ Anim.opacity 0
+--                 ]
+--             ]
+--         )
+--         []
+--         [ Element.layout [] <| text "Hello" ]
+
+
+phoneRotateAnimation : SAnimation.Animation
 phoneRotateAnimation =
-    Animation.steps
-        { options = [ Animation.loop ]
-        , startAt = [ Anim.rotate 0, customTransformOrigin "center" ]
+    SAnimation.steps
+        { options = [ SAnimation.loop ]
+        , startAt = [ SP.rotate 0, customTransformOrigin "center" ]
         }
-        [ Animation.step 500 [ Anim.rotate 90, customTransformOrigin "center" ]
-        , Animation.wait 300
-        , Animation.step 200 [ Anim.rotate 0, customTransformOrigin "center" ]
-        , Animation.wait 300
+        [ SAnimation.step 500 [ SP.rotate 90, customTransformOrigin "center" ]
+        , SAnimation.wait 300
+        , SAnimation.step 200 [ SP.rotate 0, customTransformOrigin "center" ]
+        , SAnimation.wait 300
         ]
 
 
-customTransformOrigin : String -> Anim.Property
+
+-- firstHalfFlip : Animation
+-- firstHalfFlip =
+--     Animation.fromTo
+--         { duration = 500
+--         , options = []
+--         }
+--         -- Animation for the first half of the flip (0 to 90 degrees)
+--         -- Transition.transform : Millis -> List Option -> Property !!!!!!!!!!!!!!!!
+--         -- Transition.transform =
+--         --     property "transform"
+--         -- this is no wrong:
+--         Transition.transform
+--         1000
+--         [ P.rotateY 0, Transition.rotateY 90 ]
+-- [ Transition.transform "rotateY(0deg)" ] -- THIS IS WRONG
+-- [ Transition.transform "rotateY(90deg)" ] -- THIS IS WRONG
+-- Animation for the second half of the flip (-90 to 0 degrees)
+-- secondHalfFlip : Animation
+-- secondHalfFlip =
+--     Animation.fromTo
+--         { duration = 500
+--         , options = []
+--         }
+--         [ Transition.transform "rotateY(-90deg)" ]
+--         [ Transition.transform "rotateY(0deg)" ]
+-- Combined flip animation using steps
+-- import Simple.Animation as Animation
+-- import Simple.Animation.Property as P
+
+
+cardFlip : SAnimation.Animation
+cardFlip =
+    SAnimation.steps
+        { startAt = [ SP.scaleXY 1 1, SP.x 0 ]
+        , options = []
+        }
+        [ SAnimation.step 2000 [ SP.scaleXY 0 1, SP.x 46 ]
+        , SAnimation.step 2000 [ SP.scaleXY 1 1, SP.x 92 ]
+        ]
+
+
+
+-- cardFaceUpAnimation : SAnimation.Animation
+-- cardFaceUpAnimation =
+--     SAnimation.steps
+--         { options = []
+--         , startAt = [ SP.rotate 0, customTransformOrigin "center" ]
+--         }
+--         [ SAnimation.step 500 [ SP.rotate 180, customTransformOrigin "center" ]
+--         ]
+
+
+customTransformOrigin : String -> SP.Property
 customTransformOrigin origin =
-    Anim.property "transform-origin" origin
+    SP.property "transform-origin" origin
 
 
 minimalistPhoneWithHint : Svg FrontendMsg
 minimalistPhoneWithHint =
     Svg.svg [ SvgA.viewBox "0 0 100 100" ]
-        [ Anim.svg { class = SvgA.class } Svg.g phoneRotateAnimation [] [ phoneSvg ]
+        [ SAnim.svg { class = SvgA.class } Svg.g phoneRotateAnimation [] [ phoneSvg ]
         ]
 
 
@@ -128,6 +243,7 @@ init url key =
       , maybeName = Nothing
       , chatInput = ""
       , chat = []
+      , cardAnim = CardNotFlipped
       }
     , Task.perform
         (\v ->
@@ -210,10 +326,23 @@ update msg ({ urlPath } as model) =
                 ]
             )
 
+        UpdateFlip cardAnimation card ->
+            ( { model | cardAnim = cardAnimation }
+            , case ( cardAnimation, card ) of
+                ( CardFlipping FaceDown, _ ) ->
+                    Delay.after 250 (UpdateFlip (CardFlipping FaceDown) Nothing)
+
+                ( CardFlipping (FaceUp c), _ ) ->
+                    Delay.after 250 (UpdateFlip (CardFlipped c) (Just c))
+
+                _ ->
+                    Cmd.none
+            )
+
         CardClickMsg cardClickMsg ->
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend )
+                    ( model, Cmd.batch [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend, Delay.after 0 (UpdateFlip (CardFlipping FaceDown) Nothing) ] )
 
                 DrawFromDiscardPileFrontend ->
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
@@ -545,7 +674,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -594,7 +723,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -642,7 +771,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -703,7 +832,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) (maybeIndex opponentsDisposition.leftPlayer)
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -749,7 +878,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -798,7 +927,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) (maybeIndex opponentsDisposition.leftPlayer)
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -858,7 +987,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) (maybeIndex opponentsDisposition.leftPlayer)
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -915,7 +1044,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile True
+                                        [ displayDrawColumn screenWidth drawPile True model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -950,7 +1079,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -1005,7 +1134,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -1046,7 +1175,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -1091,7 +1220,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -1132,7 +1261,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -1169,7 +1298,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing True (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -1214,7 +1343,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing True (LeftPlayer opponentsDisposition.leftPlayer) (maybeIndex opponentsDisposition.leftPlayer)
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -1263,7 +1392,7 @@ displayGame ({ screenWidth } as model) =
                                 [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
                                 , column [ width fill, spacing 12, height fill ]
                                     [ row [ spacing 16, centerX, paddingEach { edges | top = 24 } ]
-                                        [ displayDrawColumn screenWidth drawPile False
+                                        [ displayDrawColumn screenWidth drawPile False model.cardAnim
                                         , currentCardColumn
                                         , discardPileColumn
                                         ]
@@ -1669,17 +1798,19 @@ edges =
     }
 
 
-displayDrawColumn : Int -> List FCard -> Bool -> Element FrontendMsg
-displayDrawColumn screenWidth drawPile drawAllowed =
+displayDrawColumn : Int -> List FCard -> Bool -> CardAnimation -> Element FrontendMsg
+displayDrawColumn screenWidth drawPile drawAllowed cardAnim =
     elEmplacement screenWidth <|
-        if drawAllowed then
-            displayFCard (Just DrawCardFromDeckFrontend) FaceDown
+        el [ width fill, height fill ] <|
+            -- el [ width fill, height fill, inFront <| testAnimation cardAnim ] <|
+            if drawAllowed then
+                displayFCard (Just DrawCardFromDeckFrontend) FaceDown
 
-        else if List.isEmpty drawPile then
-            none
+            else if List.isEmpty drawPile then
+                none
 
-        else
-            displayFCard Nothing FaceDown
+            else
+                displayFCard Nothing FaceDown
 
 
 displayOpponentRow : FPlayer -> Bool -> Bool -> Bool -> Maybe Int -> Element FrontendMsg
@@ -1861,3 +1992,15 @@ displayOpponent maybeTamalouOwner maybeSessionId switchingCard opponentDispositi
 
         _ ->
             none
+
+
+
+-- testAnimation : CardAnimation -> Element FrontendMsg
+-- testAnimation cardAnimation =
+--     case cardAnimation of
+--         CardFlipped card ->
+--             displayFCard Nothing (FaceUp card)
+--         CardNotFlipped ->
+--             displayFCard (Just DrawCardFromDeckFrontend) FaceDown
+--         CardFlipping fCard ->
+--             SAnim.el cardFlip [ htmlAttribute <| HA.style "z-index" "10" ] <| displayFCard Nothing fCard
