@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GameDisposition(..), LookACardStatus(..), Position, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
@@ -168,6 +168,21 @@ type alias FrontendModel =
     , chatInput : String
     , chat : List ( String, String )
     , cardAnim : CardAnimation
+    , gameDisposition : GameDisposition
+    }
+
+
+type GameDisposition
+    = NotCalculated
+    | Calculated Positions
+
+
+type alias Positions =
+    { drawPilePosition : Position
+    , drewCardPosition : Position
+    , discardPilePosition : Position
+    , tamalouButtonPosition : Position
+    , playAgainOrPassPosition : Position
     }
 
 
@@ -224,3 +239,12 @@ type ToFrontend
     | UpdateGameAndChatToFrontend ( FGame, List ( String, String ) )
     | UpdateChatToFrontend (List ( String, String ))
     | GotSessionIdAndClientIdToFrontend SessionId ClientId
+
+
+type alias Position =
+    { x : Float
+    , y : Float
+    , width_ : Float
+    , height_ : Float
+    , rotation : Float
+    }
