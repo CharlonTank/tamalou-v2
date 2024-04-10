@@ -18,7 +18,7 @@ import Html.Attributes as HA
 import Lamdera exposing (SessionId)
 import List.Extra
 import Palette.Anim as Anim
-import Simple.Animation as SAnimation
+import Simple.Animation as SAnimation exposing (easeInOutQuad)
 import Simple.Animation.Animated as SAnim
 import Simple.Animation.Property as SP
 import Svg exposing (Svg)
@@ -667,7 +667,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -711,7 +711,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -753,7 +753,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drewCardPosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -816,7 +816,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -852,7 +852,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -895,7 +895,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -950,7 +950,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -997,10 +997,11 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile True model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile True model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              , elPlacedByCenter tamalouButtonPosition <| tamalouButton
+                             , inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                             )
@@ -1029,9 +1030,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                             )
@@ -1071,7 +1073,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              , elPlacedByCenter playAgainOrPassPosition <| displayUsePowerOrPass
@@ -1107,7 +1109,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -1146,7 +1148,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -1181,7 +1183,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -1212,7 +1214,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -1250,7 +1252,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -1293,7 +1295,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
@@ -1993,17 +1995,50 @@ displayOpponentName pos isPlayerTurn name =
 --         none
 
 
-testAnimation : CardAnimation -> Element FrontendMsg
-testAnimation cardAnimation =
+cardMoveAndFlip : Position -> Position -> CardAnimation -> Element FrontendMsg
+cardMoveAndFlip oldPosition newPosition cardAnimation =
     case cardAnimation of
         CardFlipped card ->
-            displayFCard Nothing (FaceUp card)
+            none
 
+        -- displayFCard Nothing (FaceUp card)
         CardNotFlipped ->
-            displayFCard (Just DrawCardFromDeckFrontend) FaceDown
+            none
 
+        -- displayFCard (Just DrawCardFromDeckFrontend) FaceDown
         CardFlipping fCard ->
-            Anim.el cardFlip [ htmlAttribute <| HA.style "z-index" "10" ] <| displayFCard Nothing fCard
+            Anim.el (cardFlip oldPosition newPosition) [ htmlAttribute <| HA.style "z-index" "10" ] <| displayFCard Nothing fCard
+
+
+
+-- type alias Position =
+--     { x : Float
+--     , y : Float
+--     , width_ : Float
+--     , height_ : Float
+--     , rotation : Float
+--     }
+
+
+cardFlip : Position -> Position -> SAnimation.Animation
+cardFlip oldPosition newPosition =
+    SAnimation.steps
+        { startAt = [ SP.scaleXY 1 1, SP.x oldPosition.x, SP.y oldPosition.y, SP.rotate oldPosition.rotation ]
+        , options = [ easeInOutQuad ]
+        }
+        [ SAnimation.step 1000 [ SP.scaleXY 0 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation ]
+        , SAnimation.step 1000 [ SP.scaleXY 1 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation ]
+        ]
+
+
+
+-- SAnimation.steps
+--     { startAt = [ SP.scaleXY 1 1, SP.x 0 ]
+--     , options = [ easeInOutQuad ]
+--     }
+--     [ SAnimation.step 2000 [ SP.scaleXY 0 1, SP.x 46 ]
+--     , SAnimation.step 2000 [ SP.scaleXY 1 1, SP.x 92 ]
+--     ]
 
 
 cardWidthInMiddle : Int -> Float
