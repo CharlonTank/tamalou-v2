@@ -10,7 +10,7 @@ You can try it out here: [Tamalou](https://tamalou-v2.lamdera.app/)
 
 ## Game Rules
 
-The game combines elements of memory, speed, and strategy. 
+The game combines elements of memory, speed, and strategy.
 
 ### Starting the Game
 
@@ -41,6 +41,7 @@ The game combines elements of memory, speed, and strategy.
 ### Ranking and Scoring
 
 - **Card Points**:
+
   - Ace to 9: Worth 1 to 9 points respectively.
   - 10: Worth 0 points.
   - Jack, Queen, King: Each worth 10 points.
@@ -54,17 +55,17 @@ The game combines elements of memory, speed, and strategy.
 
 Here are some of the features that are yet to be implemented:
 
-[x] : power of Jack
-[x] : use power instead of drawing if the last person played a card with power and used the power
-[x] : timer at the end to be able to double
-[x] : Impossible to double as the tamalouOwner
-[x] : power of King
-[x] : visibility of other cards
-[x] : power of Queen
-[ ] : Way to see what cards has been choosen when doubling or for each power
-[ ] : Add card animations
-[ ] : better way to start a game
-[ ] : better way to end a game
+- [x] Power of Jack
+- [x] Use power instead of drawing if the last person played a card with power and used the power
+- [x] Timer at the end to be able to double
+- [x] Impossible to double as the tamalouOwner
+- [x] Power of King
+- [x] Visibility of other cards
+- [x] Power of Queen
+- [ ] Way to see what cards has been choosen when doubling or for each power
+- [ ] Add card animations
+- [ ] Better way to start a game
+- [ ] Better way to end a game
 
 ## Contributing
 
@@ -75,4 +76,5 @@ Contributions are welcome! Please feel free to submit a pull request.
 To run Tamalou, you need to have `lamdera` installed. Once you have these prerequisites, you can build the project by running `lamdera live` in the terminal.
 
 ## Notes
+
 Please note that this project is still a work in progress. The game rules and features are subject to change as development progresses.

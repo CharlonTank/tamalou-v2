@@ -17,6 +17,7 @@ import Element.Input as Input
 import Html.Attributes as HA
 import Lamdera exposing (SessionId)
 import List.Extra
+import Palette.Anim as Anim
 import Simple.Animation as SAnimation
 import Simple.Animation.Animated as SAnim
 import Simple.Animation.Property as SP
@@ -28,12 +29,12 @@ import Url
 
 
 
--- cardFlip : Anim.Animation
+-- cardFlip : a
 -- cardFlip =
---     Anim.keyframes
---         [ Anim.set [ Anim.scaleX 1 ]
---         , Anim.step (Anim.ms 250) [ Anim.scaleX 0 ]
---         , Anim.step (Anim.ms 250) [ Anim.scaleX 1 ]
+--     keyframes
+--         [ SAnim.set [ SAnim.scaleX 1 ]
+--         , SAnim.step (SAnim.ms 250) [ SAnim.scaleX 0 ]
+--         , SAnim.step (SAnim.ms 250) [ SAnim.scaleX 1 ]
 --         ]
 -- type alias Css =
 --     { hash : String
@@ -1697,8 +1698,8 @@ edges =
     }
 
 
-displayDrawColumn : Int -> List FCard -> Bool -> CardAnimation -> Element FrontendMsg
-displayDrawColumn screenWidth drawPile drawAllowed cardAnim =
+displayDrawColumn : List FCard -> Bool -> CardAnimation -> Element FrontendMsg
+displayDrawColumn drawPile drawAllowed cardAnim =
     -- elEmplacement screenWidth <|
     -- el [ width fill, height fill ] <|
     -- el [ width fill, height fill, inFront <| testAnimation cardAnim ] <|
@@ -1990,15 +1991,19 @@ displayOpponentName pos isPlayerTurn name =
 --         -- displayRightOpponentColumn player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
 --     _ ->
 --         none
--- testAnimation : CardAnimation -> Element FrontendMsg
--- testAnimation cardAnimation =
---     case cardAnimation of
---         CardFlipped card ->
---             displayFCard Nothing (FaceUp card)
---         CardNotFlipped ->
---             displayFCard (Just DrawCardFromDeckFrontend) FaceDown
---         CardFlipping fCard ->
---             SAnim.el cardFlip [ htmlAttribute <| HA.style "z-index" "10" ] <| displayFCard Nothing fCard
+
+
+testAnimation : CardAnimation -> Element FrontendMsg
+testAnimation cardAnimation =
+    case cardAnimation of
+        CardFlipped card ->
+            displayFCard Nothing (FaceUp card)
+
+        CardNotFlipped ->
+            displayFCard (Just DrawCardFromDeckFrontend) FaceDown
+
+        CardFlipping fCard ->
+            Anim.el cardFlip [ htmlAttribute <| HA.style "z-index" "10" ] <| displayFCard Nothing fCard
 
 
 cardWidthInMiddle : Int -> Float
