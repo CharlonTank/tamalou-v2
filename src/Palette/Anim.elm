@@ -1,4 +1,4 @@
-module Palette.Anim exposing (..)
+module Palette.Anim exposing (animatedUi, column, customTransformOrigin, el, fadeAnim, rotateAnim, row)
 
 import Element exposing (Element)
 import Simple.Animation as Animation exposing (Animation)
@@ -9,8 +9,8 @@ import Simple.Animation.Property as Anim
 rotateAnim : Animation
 rotateAnim =
     Animation.steps
-        { startAt = []
-        , options = [ Animation.loop ]
+        { options = [ Animation.loop ]
+        , startAt = []
         }
         [ Animation.step 2000 [ Anim.rotate 720, Anim.opacity 0.8 ]
         , Animation.step 2000 [ Anim.rotate 1440, Anim.opacity 1 ]
@@ -20,8 +20,8 @@ rotateAnim =
 fadeAnim : Animation
 fadeAnim =
     Animation.steps
-        { startAt = []
-        , options = [ Animation.loop ]
+        { options = [ Animation.loop ]
+        , startAt = []
         }
         [ Animation.step 2000 [ Anim.opacity 0.2 ]
         , Animation.step 1500 [ Anim.opacity 1 ]
@@ -32,8 +32,8 @@ animatedUi : (List (Element.Attribute msg) -> children -> Element msg) -> Animat
 animatedUi =
     Anim.ui
         { behindContent = Element.behindContent
-        , htmlAttribute = Element.htmlAttribute
         , html = Element.html
+        , htmlAttribute = Element.htmlAttribute
         }
 
 

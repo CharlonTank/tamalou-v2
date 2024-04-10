@@ -1,16 +1,14 @@
-module Frontend exposing (OpponentDisposition(..), OpponentsDisposition, app)
+module Frontend exposing (app)
 
 -- import Animator exposing (Animation, keyframes, set, step, scaleX, ms)
 
-import Animator as Anim
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Events
 import Browser.Navigation as Nav
-import Card exposing (Card, FCard(..))
-import Color
+import Card exposing (FCard(..))
 import Delay
-import Element exposing (Attr, Attribute, Color, Device, DeviceClass(..), Element, Length, Orientation(..), alignBottom, alignLeft, alignRight, alignTop, below, centerX, centerY, classifyDevice, column, el, fill, fillPortion, height, html, htmlAttribute, image, inFront, moveDown, moveRight, moveUp, none, padding, paddingEach, paddingXY, paragraph, px, rotate, row, scrollbars, spacing, text, width)
+import Element exposing (Attr, Attribute, Color, Device, DeviceClass(..), Element, Length, Orientation(..), above, alignBottom, alignLeft, alignRight, alignTop, below, centerX, centerY, classifyDevice, column, el, fill, fillPortion, height, html, htmlAttribute, image, inFront, moveDown, moveRight, moveUp, none, onLeft, padding, paddingEach, paddingXY, paragraph, px, rotate, row, scrollbars, spacing, text, width, wrappedRow)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
@@ -19,15 +17,13 @@ import Element.Input as Input
 import Html.Attributes as HA
 import Lamdera exposing (SessionId)
 import List.Extra
-import Palette.Anim as SAnim
 import Simple.Animation as SAnimation
 import Simple.Animation.Animated as SAnim
 import Simple.Animation.Property as SP
-import Simple.Transition as STransition
 import Svg exposing (Svg)
 import Svg.Attributes as SvgA
 import Task
-import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GameDisposition(..), LookACardStatus(..), Position, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, Position, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 import Url
 
 
@@ -128,20 +124,6 @@ phoneRotateAnimation =
 -- Combined flip animation using steps
 -- import Simple.Animation as Animation
 -- import Simple.Animation.Property as P
-
-
-cardFlip : SAnimation.Animation
-cardFlip =
-    SAnimation.steps
-        { startAt = [ SP.scaleXY 1 1, SP.x 0 ]
-        , options = []
-        }
-        [ SAnimation.step 2000 [ SP.scaleXY 0 1, SP.x 46 ]
-        , SAnimation.step 2000 [ SP.scaleXY 1 1, SP.x 92 ]
-        ]
-
-
-
 -- cardFaceUpAnimation : SAnimation.Animation
 -- cardFaceUpAnimation =
 --     SAnimation.steps
@@ -237,8 +219,7 @@ init url key =
       , urlPath = url.path
       , errors = []
       , admin = False
-      , screenHeight = 0
-      , screenWidth = 0
+      , viewPort = { height = 0, width = 0 }
       , ready = False
       , maybeName = Nothing
       , chatInput = ""
@@ -291,9 +272,8 @@ update msg ({ urlPath } as model) =
         GotWindowSize viewPort ->
             ( { model
                 | device = classifyDevice viewPort
-                , screenHeight = viewPort.height
-                , screenWidth = viewPort.width
-                , gameDisposition = calculateGameDisposition viewPort
+                , viewPort = viewPort
+                , gameDisposition = calculateGameDisposition viewPort (fPlayersFromFGame model.fGame |> getOpponents model.sessionId)
               }
             , Cmd.none
             )
@@ -332,19 +312,6 @@ update msg ({ urlPath } as model) =
                 ]
             )
 
-        UpdateFlip cardAnimation card ->
-            ( { model | cardAnim = cardAnimation }
-            , case ( cardAnimation, card ) of
-                ( CardFlipping FaceDown, _ ) ->
-                    Delay.after 250 (UpdateFlip (CardFlipping FaceDown) Nothing)
-
-                ( CardFlipping (FaceUp c), _ ) ->
-                    Delay.after 250 (UpdateFlip (CardFlipped c) (Just c))
-
-                _ ->
-                    Cmd.none
-            )
-
         CardClickMsg cardClickMsg ->
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
@@ -371,6 +338,19 @@ update msg ({ urlPath } as model) =
                 ChooseOpponentCardToSwitchFrontend sessionId cardIndex ->
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
 
+        UpdateFlip cardAnimation card ->
+            ( { model | cardAnim = cardAnimation }
+            , case ( cardAnimation, card ) of
+                ( CardFlipping (FaceUp c), _ ) ->
+                    Delay.after 250 (UpdateFlip (CardFlipped c) (Just c))
+
+                ( CardFlipping FaceDown, _ ) ->
+                    Delay.after 250 (UpdateFlip (CardFlipping FaceDown) Nothing)
+
+                _ ->
+                    Cmd.none
+            )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 updateFromBackend msg model =
@@ -391,6 +371,7 @@ updateFromBackend msg model =
 
                         Nothing ->
                             getMyName model.sessionId fGame
+                , gameDisposition = calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId)
               }
             , Cmd.none
             )
@@ -441,6 +422,12 @@ fPlayersFromFGame game =
             []
 
 
+getOpponents : Maybe SessionId -> List FPlayer -> List FPlayer
+getOpponents maybeSessionId players =
+    players
+        |> List.filter (\player -> maybeSessionId /= Just player.sessionId)
+
+
 getMyName : Maybe SessionId -> FGame -> Maybe String
 getMyName maybeSessionId fGame =
     fPlayersFromFGame fGame
@@ -453,8 +440,8 @@ view model =
     { title = "Tamalou!"
     , body =
         [ Element.layout
-            [ width <| px model.screenWidth
-            , height <| px model.screenHeight
+            [ width <| px model.viewPort.width
+            , height <| px model.viewPort.height
             , Background.image "/background.png"
             , Font.size 12
             ]
@@ -467,6 +454,9 @@ view model =
 displayModel : FrontendModel -> Element FrontendMsg
 displayModel model =
     case model.gameDisposition of
+        NotCalculated ->
+            none
+
         Calculated positions ->
             Element.column
                 [ width fill, height fill ]
@@ -476,9 +466,6 @@ displayModel model =
                   else
                     displayGame model positions
                 ]
-
-        NotCalculated ->
-            none
 
 
 displayAdmin : FrontendModel -> Element FrontendMsg
@@ -550,7 +537,7 @@ displayGameLobby fModel players =
                               else
                                 el [ centerX ] <| actionButton { label = text "I'm ready!", onPress = Just ImReadyFrontend }
                             ]
-                        , displayChat fModel.screenWidth fModel.screenHeight fModel.chatInput fModel.chat
+                        , displayChat fModel.viewPort.width fModel.viewPort.height fModel.chatInput fModel.chat
                         ]
 
                 Nothing ->
@@ -618,7 +605,7 @@ displayChatMessage _ ( name, message ) =
 
 
 displayGame : FrontendModel -> Positions -> Element FrontendMsg
-displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCardPosition, discardPilePosition, tamalouButtonPosition, playAgainOrPassPosition } =
+displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discardPilePosition, tamalouButtonPosition, playAgainOrPassPosition, opponentsDisposition } =
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
             column [ Font.center, width fill, centerY ]
@@ -638,14 +625,14 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                         column
                             [ width fill, height fill, spacing 20 ]
                             [ el [ centerX, centerY ] <| displayStartTimer Five
-                            , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players [ FaceDown, FaceDown, FaceDown, FaceDown ] Nothing False Nothing
+                            , displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players [ FaceDown, FaceDown, FaceDown, FaceDown ] Nothing False Nothing
                             ]
 
                     FGameInProgress _ hand _ _ players (FStartTimerRunning timer) ->
                         column
                             [ width fill, height fill, spacing 20 ]
                             [ el [ centerX, centerY ] <| displayStartTimer timer
-                            , displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand Nothing False Nothing
+                            , displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand Nothing False Nothing
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FWaitingPlayerAction _)) ->
@@ -661,6 +648,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                 else
                                     Just DoubleCardFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -669,34 +660,22 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                            )
+                            [ row [ width fill, height fill ]
+                                [ column [ width fill, spacing 12, height fill ]
+                                    [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                     ]
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) Nothing
                                 ]
                             ]
 
@@ -713,6 +692,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                 else
                                     Just DoubleCardFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -721,34 +704,20 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         displayFCard Nothing FaceDown
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                 ]
                             ]
 
@@ -765,6 +734,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                 else
                                     Just DoubleCardFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -773,34 +746,20 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drewCardPosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drewCardPosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                            )
                             [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                 ]
                             ]
 
@@ -816,6 +775,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
 
                                 else
                                     Just DoubleCardFrontend
+
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
 
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
@@ -833,12 +796,8 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -852,28 +811,19 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
 
                                         else
                                             Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopLeftPlayer opponentsDisposition.topLeftPlayer) (maybeIndex opponentsDisposition.topLeftPlayer)
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopRightPlayer opponentsDisposition.topRightPlayer) (maybeIndex opponentsDisposition.topRightPlayer)
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) (maybeIndex opponentsDisposition.leftPlayer)
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) (maybeIndex opponentsDisposition.rightPlayer)
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                -- A fix
+                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                 ]
                             ]
 
@@ -883,6 +833,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                             cardClickMsg =
                                 Just DoubleCardFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -891,34 +845,20 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                 ]
                             ]
 
@@ -928,6 +868,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                             cardClickMsg =
                                 Just DoubleCardFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -936,12 +880,8 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -950,33 +890,28 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
 
                                 else
                                     Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopLeftPlayer opponentsDisposition.topLeftPlayer) (maybeIndex opponentsDisposition.topLeftPlayer)
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopRightPlayer opponentsDisposition.topRightPlayer) (maybeIndex opponentsDisposition.topRightPlayer)
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) (maybeIndex opponentsDisposition.leftPlayer)
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) (maybeIndex opponentsDisposition.rightPlayer)
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                -- a fix avec le maybeindex
+                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                 ]
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
                         let
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -985,12 +920,8 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -1014,28 +945,19 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                             opponent : Maybe FPlayer
                             opponent =
                                 List.Extra.find (\player -> player.sessionId == opponentCard.sessionId) players
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopLeftPlayer opponentsDisposition.topLeftPlayer) (maybeIndex opponentsDisposition.topLeftPlayer)
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (TopRightPlayer opponentsDisposition.topRightPlayer) (maybeIndex opponentsDisposition.topRightPlayer)
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (LeftPlayer opponentsDisposition.leftPlayer) (maybeIndex opponentsDisposition.leftPlayer)
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand Nothing False maybeOwnIndex
-                                    ]
-                                , displayOpponent maybeTamalouOwner (Just fPlayer.sessionId) False (RightPlayer opponentsDisposition.rightPlayer) (maybeIndex opponentsDisposition.rightPlayer)
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                --fix avec le maybeindex
+                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand Nothing False maybeOwnIndex
                                 ]
                             ]
 
@@ -1052,13 +974,13 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                 else
                                     Just DoubleCardFrontend
 
-                            drewCardColumn : Element FrontendMsg
-                            drewCardColumn =
-                                elEmplacement screenWidth <| none
-
                             discardPileColumn : Element FrontendMsg
                             discardPileColumn =
-                                displayDiscardCards screenWidth discardPile True maybePowerCard
+                                displayDiscardCards viewPort.width discardPile True maybePowerCard
+
+                            drewCardColumn : Element FrontendMsg
+                            drewCardColumn =
+                                elEmplacement viewPort.width <| none
 
                             tamalouButton : Element FrontendMsg
                             tamalouButton =
@@ -1070,34 +992,28 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                         el [ Font.color blue, Font.italic ] <|
                                             Input.button (actionBorder yellow)
                                                 { label = text "\"Tamalou!\"", onPress = Just TamalouFrontend }
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile True model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            , elPlacedByCenter tamalouButtonPosition <| tamalouButton
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner Nothing False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile True model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter tamalouButtonPosition <| tamalouButton
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
                                 ]
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
                         let
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -1106,34 +1022,20 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         displayFCard (Just DiscardCardFrontend) fCard
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner Nothing False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand (Just CardClickReplacement) True Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand (Just CardClickReplacement) True Nothing
                                 ]
                             ]
 
@@ -1150,13 +1052,9 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                 else
                                     Just DoubleCardFrontend
 
-                            drewCardColumn : Element FrontendMsg
-                            drewCardColumn =
-                                elEmplacement screenWidth <| none
-
                             discardPileColumn : Element FrontendMsg
                             discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False (Just power)
+                                displayDiscardCards viewPort.width discardPile False (Just power)
 
                             displayUsePowerOrPass : Element FrontendMsg
                             displayUsePowerOrPass =
@@ -1165,28 +1063,22 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , actionButton { label = text "Pass", onPress = Just PowerPassFrontend }
                                     ]
 
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
+                            drewCardColumn : Element FrontendMsg
+                            drewCardColumn =
+                                elEmplacement viewPort.width <| none
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            , elPlacedByCenter playAgainOrPassPosition <| displayUsePowerOrPass
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner Nothing False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter playAgainOrPassPosition <| displayUsePowerOrPass
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
                                 ]
                             ]
 
@@ -1196,6 +1088,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                             cardClickMsg =
                                 Just LookAtCardFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -1204,34 +1100,20 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner Nothing False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
                                 ]
                             ]
 
@@ -1245,6 +1127,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                 else
                                     Just DoubleCardFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -1253,34 +1139,20 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner Nothing False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg True (Just index)
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True (Just index)
                                 ]
                             ]
 
@@ -1290,6 +1162,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                             cardClickMsg =
                                 Just ChooseOwnCardToSwitchFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -1298,39 +1174,29 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner Nothing False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
                                 ]
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards (OwnCardChosen index))) ->
                         let
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -1339,39 +1205,29 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing True (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner Nothing True (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing True (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand Nothing True (Just index)
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing True (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner Nothing True Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand Nothing True (Just index)
                                 ]
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
                         let
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -1380,11 +1236,7 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth none
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
+                                    elEmplacement viewPort.width none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -1393,28 +1245,19 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
 
                                 else
                                     Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing True (TopLeftPlayer opponentsDisposition.topLeftPlayer) (maybeIndex opponentsDisposition.topLeftPlayer)
-                                , displayOpponent maybeTamalouOwner Nothing True (TopRightPlayer opponentsDisposition.topRightPlayer) (maybeIndex opponentsDisposition.topRightPlayer)
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing True (LeftPlayer opponentsDisposition.leftPlayer) (maybeIndex opponentsDisposition.leftPlayer)
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand Nothing True (Just index)
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing True (RightPlayer opponentsDisposition.rightPlayer) (maybeIndex opponentsDisposition.rightPlayer)
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                -- a fix avec le maybeindex
+                                ++ displayAllOpponents maybeTamalouOwner Nothing True Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand Nothing True (Just index)
                                 ]
                             ]
 
@@ -1431,6 +1274,10 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                 else
                                     Just DoubleCardFrontend
 
+                            discardPileColumn : Element FrontendMsg
+                            discardPileColumn =
+                                displayDiscardCards viewPort.width discardPile False Nothing
+
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
@@ -1439,34 +1286,20 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement screenWidth <|
+                                    elEmplacement viewPort.width <|
                                         displayFCard Nothing FaceDown
-
-                            discardPileColumn : Element FrontendMsg
-                            discardPileColumn =
-                                displayDiscardCards screenWidth discardPile False Nothing
-
-                            opponentsDisposition : OpponentsDisposition
-                            opponentsDisposition =
-                                toOpponentsDisposition players
                         in
                         column
-                            [ width <| px <| screenWidth - 14
-                            , height fill
-                            , elPlacedByCenter drawPilePosition (displayDrawColumn screenWidth drawPile False model.cardAnim)
-                            , elPlacedByCenter drewCardPosition <| drewCardColumn
-                            , elPlacedByCenter discardPilePosition <| discardPileColumn
-                            ]
-                            [ row [ width fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (TopLeftPlayer opponentsDisposition.topLeftPlayer) Nothing
-                                , displayOpponent maybeTamalouOwner Nothing False (TopRightPlayer opponentsDisposition.topRightPlayer) Nothing
-                                ]
-                            , row [ width fill, height fill ]
-                                [ displayOpponent maybeTamalouOwner Nothing False (LeftPlayer opponentsDisposition.leftPlayer) Nothing
-                                , column [ width fill, spacing 12, height fill ]
-                                    [ displayPlayerView model.screenWidth model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                    ]
-                                , displayOpponent maybeTamalouOwner Nothing False (RightPlayer opponentsDisposition.rightPlayer) Nothing
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
+                             , elPlacedByCenter drawPilePosition (displayDrawColumn viewPort.width drawPile False model.cardAnim)
+                             , elPlacedByCenter drewCardPosition <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                            )
+                            [ column [ width fill, spacing 12, height fill ]
+                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
                                 ]
                             ]
 
@@ -1498,7 +1331,7 @@ displayGame ({ screenWidth, screenHeight } as model) { drawPilePosition, drewCar
 
                                         Nothing ->
                                             "Game ended!"
-                            , column [ centerX, spacing 4, width <| px <| (screenWidth * 80 // 100) ] <|
+                            , column [ centerX, spacing 4, width <| px <| (viewPort.width * 80 // 100) ] <|
                                 List.map (\player -> displayPlayerAndCards player) orderedPlayersAndRank
                             , el [ centerX ] <| actionButton { label = text "Play again!", onPress = Just (ReStartGameFrontend (currentPlayerAndRank |> Maybe.map Tuple.first)) }
                             ]
@@ -1748,7 +1581,7 @@ sizeOfCard screenWidth =
 displayOwnCards : Int -> List FCard -> Maybe (Int -> CardClickMsg) -> Maybe Int -> Element FrontendMsg
 displayOwnCards screenWidth cards maybeCardClickEvent maybeIndex =
     row [ spacing 12, height fill ] <|
-        List.indexedMap (displayFCardSized (px <| sizeOfCard screenWidth) maybeCardClickEvent maybeIndex) cards
+        List.indexedMap (displayFCardSized (Just <| px <| sizeOfCard screenWidth) maybeCardClickEvent maybeIndex) cards
 
 
 displayFCard : Maybe CardClickMsg -> FCard -> Element FrontendMsg
@@ -1771,7 +1604,7 @@ displayFCard maybeCardClickMsg frontendCard =
                     { description = "back", src = "/cardImages/BackCovers/Pomegranate.png" }
 
 
-displayFCardSized : Length -> Maybe (Int -> CardClickMsg) -> Maybe Int -> Int -> FCard -> Element FrontendMsg
+displayFCardSized : Maybe Length -> Maybe (Int -> CardClickMsg) -> Maybe Int -> Int -> FCard -> Element FrontendMsg
 displayFCardSized length maybeCardClickMsg maybeIndex index frontendCard =
     let
         attrs : List (Attribute FrontendMsg)
@@ -1786,18 +1619,19 @@ displayFCardSized length maybeCardClickMsg maybeIndex index frontendCard =
             else
                 []
     in
-    image (width length :: attrs ++ movedUp) <|
-        case frontendCard of
-            FaceUp card ->
-                { description = Card.toString card, src = "/cardImages/" ++ Card.toString card ++ ".png" }
+    el [ width fill, height fill ] <|
+        image (width (Maybe.withDefault fill length) :: attrs ++ movedUp) <|
+            case frontendCard of
+                FaceUp card ->
+                    { description = Card.toString card, src = "/cardImages/" ++ Card.toString card ++ ".png" }
 
-            FaceDown ->
-                { description = "back", src = "/cardImages/BackCovers/Pomegranate.png" }
+                FaceDown ->
+                    { description = "back", src = "/cardImages/BackCovers/Pomegranate.png" }
 
 
 displayFCardAtTheEnd : Int -> FCard -> Element FrontendMsg
 displayFCardAtTheEnd =
-    displayFCardSized (px 41) Nothing Nothing
+    displayFCardSized (Just <| px 41) Nothing Nothing
 
 
 actionBorder : Element.Color -> List (Attribute FrontendMsg)
@@ -1878,33 +1712,31 @@ displayDrawColumn screenWidth drawPile drawAllowed cardAnim =
         displayFCard Nothing FaceDown
 
 
-displayOpponentRow : FPlayer -> Bool -> Bool -> Bool -> Maybe Int -> Element FrontendMsg
-displayOpponentRow player isPlayerTurn isSwitchingCard isTamalouOwner maybeCardIndex =
-    let
-        attrsOwnTurn : List (Attribute FrontendMsg)
-        attrsOwnTurn =
-            if isPlayerTurn then
-                [ Background.color yellow, Border.color yellow ]
 
-            else
-                [ Border.color blue ]
-
-        switchingCardsAttrs : Maybe (Int -> CardClickMsg)
-        switchingCardsAttrs =
-            if isSwitchingCard && not isTamalouOwner then
-                Just <| ChooseOpponentCardToSwitchFrontend player.sessionId
-
-            else
-                Nothing
-    in
-    row
-        [ spacing 8 ]
-        [ column ([ Font.size 11, Border.width 1, Border.rounded 8, padding 4, spacing 4 ] ++ attrsOwnTurn) <| List.map (el [ centerX ] << text) (String.split " " player.name)
-        , row [ spacing 4, centerX, height fill ] <|
-            reverseIndexedMap
-                (\i c -> el [ rotate (2 * pi / 2) ] <| displayFCardSized (px 50) switchingCardsAttrs maybeCardIndex i c)
-                (player.tableHand |> List.reverse)
-        ]
+-- displayOpponentRow : FPlayer -> Bool -> Bool -> Bool -> Maybe Int -> Element FrontendMsg
+-- displayOpponentRow player isPlayerTurn isSwitchingCard isTamalouOwner maybeCardIndex =
+--     let
+--         attrsOwnTurn : List (Attribute FrontendMsg)
+--         attrsOwnTurn =
+--             if isPlayerTurn then
+--                 [ Background.color yellow, Border.color yellow ]
+--             else
+--                 [ Border.color blue ]
+--         switchingCardsAttrs : Maybe (Int -> CardClickMsg)
+--         switchingCardsAttrs =
+--             if isSwitchingCard && not isTamalouOwner then
+--                 Just <| ChooseOpponentCardToSwitchFrontend player.sessionId
+--             else
+--                 Nothing
+--     in
+--     row
+--         [ spacing 8 ]
+--         [ column ([ Font.size 11, Border.width 1, Border.rounded 8, padding 4, spacing 4 ] ++ attrsOwnTurn) <| List.map (el [ centerX ] << text) (String.split " " player.name)
+--         , row [ spacing 4, centerX, height fill ] <|
+--             reverseIndexedMap
+--                 (\i c -> el [ rotate (2 * pi / 2) ] <| displayFCardSized (px 50) switchingCardsAttrs maybeCardIndex i c)
+--                 (player.tableHand |> List.reverse)
+--         ]
 
 
 reverseIndexedMap : (Int -> a -> b) -> List a -> List b
@@ -1912,65 +1744,55 @@ reverseIndexedMap f xs =
     List.indexedMap f xs |> List.reverse
 
 
-displayRightOpponentColumn : FPlayer -> Bool -> Bool -> Bool -> Maybe Int -> Element FrontendMsg
-displayRightOpponentColumn player isPlayerTurn isSwitchingCard isTamalouOwner maybeCardIndex =
-    let
-        attrsOwnTurn : List (Attribute FrontendMsg)
-        attrsOwnTurn =
-            if isPlayerTurn then
-                [ Background.color yellow, Border.color yellow ]
 
-            else
-                [ Border.color blue ]
-
-        switchingCardsMsg : Maybe (Int -> CardClickMsg)
-        switchingCardsMsg =
-            if isSwitchingCard && not isTamalouOwner then
-                Just <| ChooseOpponentCardToSwitchFrontend player.sessionId
-
-            else
-                Nothing
-    in
-    column
-        [ alignTop, height (fill |> Element.maximum 600) ]
-        [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4 ] ++ attrsOwnTurn) <| text player.name
-        , column [ spacing -22 ] <|
-            reverseIndexedMap
-                (\i c -> el [ rotate (3 * pi / 2) ] <| displayFCardSized (px 50) switchingCardsMsg maybeCardIndex i c)
-                (player.tableHand |> List.reverse)
-        ]
-
-
-displayLeftOpponentColumn : FPlayer -> Bool -> Bool -> Bool -> Maybe Int -> Element FrontendMsg
-displayLeftOpponentColumn player isPlayerTurn isSwitchingCard isTamalouOwner maybeCardIndex =
-    let
-        attrsOwnTurn : List (Attribute FrontendMsg)
-        attrsOwnTurn =
-            if isPlayerTurn then
-                [ Background.color yellow, Border.color yellow ]
-
-            else
-                [ Border.color blue ]
-
-        switchingCardsMsg : Maybe (Int -> CardClickMsg)
-        switchingCardsMsg =
-            if isSwitchingCard && not isTamalouOwner then
-                Just <| ChooseOpponentCardToSwitchFrontend player.sessionId
-
-            else
-                Nothing
-    in
-    column
-        [ alignTop, height fill ]
-        [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4, alignLeft ] ++ attrsOwnTurn) <| text player.name
-        , column [ spacing -22 ] <|
-            List.indexedMap
-                (\i c -> el [ rotate (pi / 2) ] <| displayFCardSized (px 50) switchingCardsMsg maybeCardIndex i c)
-                player.tableHand
-        ]
-
-
-
+-- displayRightOpponentColumn : FPlayer -> Bool -> Bool -> Bool -> Maybe Int -> Element FrontendMsg
+-- displayRightOpponentColumn player isPlayerTurn isSwitchingCard isTamalouOwner maybeCardIndex =
+--     let
+--         attrsOwnTurn : List (Attribute FrontendMsg)
+--         attrsOwnTurn =
+--             if isPlayerTurn then
+--                 [ Background.color yellow, Border.color yellow ]
+--             else
+--                 [ Border.color blue ]
+--         switchingCardsMsg : Maybe (Int -> CardClickMsg)
+--         switchingCardsMsg =
+--             if isSwitchingCard && not isTamalouOwner then
+--                 Just <| ChooseOpponentCardToSwitchFrontend player.sessionId
+--             else
+--                 Nothing
+--     in
+--     column
+--         [ alignTop, height (fill |> Element.maximum 600) ]
+--         [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4 ] ++ attrsOwnTurn) <| text player.name
+--         , column [ spacing -22 ] <|
+--             reverseIndexedMap
+--                 (\i c -> el [ rotate (3 * pi / 2) ] <| displayFCardSized (px 50) switchingCardsMsg maybeCardIndex i c)
+--                 (player.tableHand |> List.reverse)
+--         ]
+-- displayLeftOpponentColumn : FPlayer -> Bool -> Bool -> Bool -> Maybe Int -> Element FrontendMsg
+-- displayLeftOpponentColumn player isPlayerTurn isSwitchingCard isTamalouOwner maybeCardIndex =
+--     let
+--         attrsOwnTurn : List (Attribute FrontendMsg)
+--         attrsOwnTurn =
+--             if isPlayerTurn then
+--                 [ Background.color yellow, Border.color yellow ]
+--             else
+--                 [ Border.color blue ]
+--         switchingCardsMsg : Maybe (Int -> CardClickMsg)
+--         switchingCardsMsg =
+--             if isSwitchingCard && not isTamalouOwner then
+--                 Just <| ChooseOpponentCardToSwitchFrontend player.sessionId
+--             else
+--                 Nothing
+--     in
+--     column
+--         [ alignTop, height fill ]
+--         [ el ([ Font.size 11, alignTop, Border.width 1, Border.rounded 8, padding 4, alignLeft ] ++ attrsOwnTurn) <| text player.name
+--         , column [ spacing -22 ] <|
+--             List.indexedMap
+--                 (\i c -> el [ rotate (pi / 2) ] <| displayFCardSized (px 50) switchingCardsMsg maybeCardIndex i c)
+--                 player.tableHand
+--         ]
 -- displayOwnName : Maybe String -> Bool -> Element FrontendMsg
 -- displayOwnName maybeName isPlayerTurn =
 --     let
@@ -1989,77 +1811,185 @@ displayLeftOpponentColumn player isPlayerTurn isSwitchingCard isTamalouOwner may
 --                 text "Anonymous"
 
 
-type OpponentDisposition
-    = LeftPlayer (Maybe FPlayer)
-    | TopLeftPlayer (Maybe FPlayer)
-    | TopRightPlayer (Maybe FPlayer)
-    | RightPlayer (Maybe FPlayer)
-
-
-type alias OpponentsDisposition =
-    { leftPlayer : Maybe FPlayer
-    , topLeftPlayer : Maybe FPlayer
-    , topRightPlayer : Maybe FPlayer
-    , rightPlayer : Maybe FPlayer
-    }
-
-
-toOpponentsDisposition : List FPlayer -> OpponentsDisposition
-toOpponentsDisposition players =
+toOpponentsDisposition : Int -> List FPlayer -> OpponentsDisposition
+toOpponentsDisposition screenWidth players =
     case players of
         [] ->
             { leftPlayer = Nothing, topLeftPlayer = Nothing, topRightPlayer = Nothing, rightPlayer = Nothing }
 
         [ oneOpponent ] ->
-            { leftPlayer = Nothing, topLeftPlayer = Just oneOpponent, topRightPlayer = Nothing, rightPlayer = Nothing }
+            { leftPlayer = Nothing, topLeftPlayer = Just <| positionOpponent screenWidth oneOpponent TopLeftPlayer, topRightPlayer = Nothing, rightPlayer = Nothing }
 
         [ firstOpponent, secondOpponent ] ->
-            { leftPlayer = Nothing, topLeftPlayer = Just firstOpponent, topRightPlayer = Just secondOpponent, rightPlayer = Nothing }
+            { leftPlayer = Nothing, topLeftPlayer = Just <| positionOpponent screenWidth firstOpponent TopLeftPlayer, topRightPlayer = Just <| positionOpponent screenWidth secondOpponent TopRightPlayer, rightPlayer = Nothing }
 
         [ firstOpponent, secondOpponent, thirdOpponent ] ->
-            { leftPlayer = Just firstOpponent, topLeftPlayer = Just secondOpponent, topRightPlayer = Just thirdOpponent, rightPlayer = Nothing }
+            { leftPlayer = Just <| positionOpponent screenWidth firstOpponent LeftPlayer, topLeftPlayer = Just <| positionOpponent screenWidth secondOpponent TopLeftPlayer, topRightPlayer = Just <| positionOpponent screenWidth thirdOpponent TopRightPlayer, rightPlayer = Nothing }
 
         [ firstOpponent, secondOpponent, thirdOpponent, fourthOpponent ] ->
-            { leftPlayer = Just firstOpponent, topLeftPlayer = Just secondOpponent, topRightPlayer = Just thirdOpponent, rightPlayer = Just fourthOpponent }
+            { leftPlayer = Just <| positionOpponent screenWidth firstOpponent LeftPlayer, topLeftPlayer = Just <| positionOpponent screenWidth secondOpponent TopLeftPlayer, topRightPlayer = Just <| positionOpponent screenWidth thirdOpponent TopRightPlayer, rightPlayer = Just <| positionOpponent screenWidth fourthOpponent RightPlayer }
 
         _ ->
             { leftPlayer = Nothing, topLeftPlayer = Nothing, topRightPlayer = Nothing, rightPlayer = Nothing }
 
 
-displayOpponent : Maybe TamalouOwner -> Maybe SessionId -> Bool -> OpponentDisposition -> Maybe Int -> Element FrontendMsg
-displayOpponent maybeTamalouOwner maybeSessionId switchingCard opponentDisposition maybeCardIndex =
+
+-- type OpponentDisposition
+--     = LeftPlayer
+--     | TopLeftPlayer
+--     | TopRightPlayer
+--     | RightPlayer
+-- type alias PositionedPlayer =
+--     { player : FPlayer
+--     , positionedTableHand : List ( FCard, Position )
+--     }
+-- type alias Position =
+--     { x : Float
+--     , y : Float
+--     , width_ : Float
+--     , height_ : Float
+--     , rotation : Float
+--     }
+
+
+positionOpponent : Int -> FPlayer -> OpponentDisposition -> PositionedPlayer
+positionOpponent screenWidth player opponentDisposition =
     let
-        isPlayerTurn : SessionId -> Bool
-        isPlayerTurn playerId =
-            maybeSessionId == Just playerId
+        panelWidth : Float
+        panelWidth =
+            cardsPanelWidth + namePanelWidth
 
-        isTamalouOwner : SessionId -> Bool
-        isTamalouOwner sessionId =
-            case maybeTamalouOwner of
-                Just tamalouOwner ->
-                    tamalouOwner.sessionId == sessionId
+        cardsPanelWidth : Float
+        cardsPanelWidth =
+            toFloat screenWidth / 4
 
-                Nothing ->
-                    False
+        namePanelWidth : Float
+        namePanelWidth =
+            toFloat screenWidth / 11
+
+        -- we need to reduce the width of the cards based on the number of cards in the hand if the number of cards exceeds 4.
+        -- we don't want to exceed the width of panelWidth
+        cardWidth : Float
+        cardWidth =
+            if List.length player.tableHand > 4 then
+                (cardsPanelWidth - (spaceBetweenEachCard * (toFloat (List.length player.tableHand) - 1))) / toFloat (List.length player.tableHand)
+
+            else
+                cardsPanelWidth / 5
+
+        spaceBetweenEachCard : Float
+        spaceBetweenEachCard =
+            4
+
+        spaceBetweenNameAndCards : Float
+        spaceBetweenNameAndCards =
+            8
+
+        leftSpace : Float
+        leftSpace =
+            20
     in
     case opponentDisposition of
-        LeftPlayer (Just player) ->
-            el [ alignLeft, alignTop, paddingEach { edges | left = 40, top = 12 } ] <| displayLeftOpponentColumn player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
+        LeftPlayer ->
+            { player = player
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace, y = 80 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = pi / 2 } )) player.tableHand
+            , namePosition = { x = leftSpace, y = 80, width_ = namePanelWidth, height_ = 30, rotation = 0 }
+            }
 
-        TopLeftPlayer (Just player) ->
-            el [ alignLeft ] <| displayOpponentRow player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
+        TopLeftPlayer ->
+            { player = player
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace + namePanelWidth + spaceBetweenNameAndCards + toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = pi } )) player.tableHand
+            , namePosition = { x = leftSpace, y = 8, width_ = namePanelWidth, height_ = 30, rotation = 0 }
+            }
 
-        TopRightPlayer (Just player) ->
-            el [ alignRight, paddingEach { edges | right = 32 } ] <| displayOpponentRow player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
+        TopRightPlayer ->
+            { player = player
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = toFloat screenWidth - toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = pi } )) player.tableHand
+            , namePosition = { x = toFloat screenWidth - panelWidth - (namePanelWidth / 2), y = 0, width_ = namePanelWidth, height_ = 30, rotation = 0 }
+            }
 
-        RightPlayer (Just player) ->
-            el [ alignRight, alignTop, paddingEach { edges | top = 12 } ] <| displayRightOpponentColumn player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
+        RightPlayer ->
+            { player = player
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = 0, y = toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = 3 * pi / 2 } )) player.tableHand
+            , namePosition = { x = toFloat screenWidth - (namePanelWidth / 2), y = 50, width_ = namePanelWidth, height_ = 30, rotation = 0 }
+            }
 
-        _ ->
-            none
+
+displayOpponent : Maybe TamalouOwner -> Maybe SessionId -> Bool -> Maybe PositionedPlayer -> Maybe Int -> List (Attribute FrontendMsg)
+displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard maybePositionedPlayer maybeCardIndex =
+    case maybePositionedPlayer of
+        Just positionedPlayer ->
+            let
+                switchingCardsMsg : Maybe (Int -> CardClickMsg)
+                switchingCardsMsg =
+                    if isSwitchingCard && not isTamalouOwner then
+                        Just <| ChooseOpponentCardToSwitchFrontend positionedPlayer.player.sessionId
+
+                    else
+                        Nothing
+
+                isPlayerTurn : Bool
+                isPlayerTurn =
+                    maybeSessionId == Just positionedPlayer.player.sessionId
+
+                isTamalouOwner : Bool
+                isTamalouOwner =
+                    case maybeTamalouOwner of
+                        Just tamalouOwner ->
+                            tamalouOwner.sessionId == positionedPlayer.player.sessionId
+
+                        Nothing ->
+                            False
+            in
+            displayOpponentName positionedPlayer.namePosition isPlayerTurn positionedPlayer.player.name :: List.indexedMap (\i ( c, position ) -> elPlaced position <| displayFCardSized Nothing switchingCardsMsg maybeCardIndex i c) positionedPlayer.positionedTableHand
+
+        Nothing ->
+            []
+
+
+displayOpponentName : Position -> Bool -> String -> Attribute FrontendMsg
+displayOpponentName pos isPlayerTurn name =
+    elPlaced pos
+        (el
+            ([ width fill, height fill, padding 4, Border.rounded 8, Border.width 1, Font.size 11 ]
+                ++ (if isPlayerTurn then
+                        [ Background.color yellow, Border.color yellow ]
+
+                    else
+                        [ Border.color blue ]
+                   )
+            )
+         <|
+            paragraph [ spacing 4, Font.center, centerY ] <|
+                [ text name ]
+        )
 
 
 
+-- let
+--     isPlayerTurn : SessionId -> Bool
+--     isPlayerTurn playerId =
+--         maybeSessionId == Just playerId
+--     isTamalouOwner : SessionId -> Bool
+--     isTamalouOwner sessionId =
+--         case maybeTamalouOwner of
+--             Just tamalouOwner ->
+--                 tamalouOwner.sessionId == sessionId
+--             Nothing ->
+--                 False
+-- in
+-- case opponentDisposition of
+--     LeftPlayer -> none
+--         -- displayLeftOpponentColumn player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
+--     TopLeftPlayer ->
+--         el []
+--         -- displayOpponentRow player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
+--     TopRightPlayer -> none
+--         -- displayOpponentRow player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
+--     RightPlayer -> none
+--         -- displayRightOpponentColumn player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
+--     _ ->
+--         none
 -- testAnimation : CardAnimation -> Element FrontendMsg
 -- testAnimation cardAnimation =
 --     case cardAnimation of
@@ -2071,19 +2001,9 @@ displayOpponent maybeTamalouOwner maybeSessionId switchingCard opponentDispositi
 --             SAnim.el cardFlip [ htmlAttribute <| HA.style "z-index" "10" ] <| displayFCard Nothing fCard
 
 
-cardWidthOpponents : Int
-cardWidthOpponents =
-    50
-
-
 cardWidthInMiddle : Int -> Float
 cardWidthInMiddle widthOfScreen =
     toFloat widthOfScreen / 10
-
-
-cardHeightInMiddle : Int -> Float
-cardHeightInMiddle screenWidth =
-    cardWidthInMiddle screenWidth * heightCardRatio
 
 
 heightCardRatio : Float
@@ -2091,24 +2011,14 @@ heightCardRatio =
     380 / 250
 
 
-cardWidth : Int
-cardWidth =
-    75
-
-
-placeByYourCenter : { x : Float, y : Float } -> { width_ : Float, height_ : Float } -> List (Attribute msg)
-placeByYourCenter { x, y } { width_, height_ } =
-    [ moveDown <| (y - (height_ / 2)), moveRight <| (x - (width_ / 2)) ]
-
-
 elPlacedByCenter : Position -> Element FrontendMsg -> Attribute FrontendMsg
 elPlacedByCenter { x, y, width_, height_, rotation } =
     inFront << el [ moveDown <| (y - (height_ / 2)), moveRight <| (x - (width_ / 2)), rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
 
 
-textPlaceOnY : Float -> List (Attribute msg)
-textPlaceOnY y =
-    [ moveDown y, Font.center ]
+elPlaced : Position -> Element FrontendMsg -> Attribute FrontendMsg
+elPlaced { x, y, width_, height_, rotation } =
+    inFront << el [ moveDown <| y, moveRight <| x, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
 
 
 calculateDrawPilePosition : Int -> Int -> Position
@@ -2161,12 +2071,23 @@ calculatePlayAgainOrPassPosition screenWidth screenHeight =
     }
 
 
-calculateGameDisposition : { height : Int, width : Int } -> GameDisposition
-calculateGameDisposition viewPort =
+calculateGameDisposition : { height : Int, width : Int } -> List FPlayer -> GameDisposition
+calculateGameDisposition viewPort opponents =
     Calculated
         { drawPilePosition = calculateDrawPilePosition viewPort.width viewPort.height
         , drewCardPosition = calculateDrewCardPosition viewPort.width viewPort.height
         , discardPilePosition = calculateDiscardPilePosition viewPort.width viewPort.height
         , tamalouButtonPosition = calculateTamalouButtonPosition viewPort.width viewPort.height
         , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
+        , opponentsDisposition = toOpponentsDisposition viewPort.width opponents
         }
+
+
+displayAllOpponents : Maybe TamalouOwner -> Maybe SessionId -> Bool -> Maybe Int -> OpponentsDisposition -> List (Attribute FrontendMsg)
+displayAllOpponents maybeTamalouOwner maybeSessionId isSwitchingCard maybeCardIndex opponentsDisposition =
+    [ displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard opponentsDisposition.topLeftPlayer maybeCardIndex
+    , displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard opponentsDisposition.topRightPlayer maybeCardIndex
+    , displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard opponentsDisposition.leftPlayer maybeCardIndex
+    , displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard opponentsDisposition.rightPlayer maybeCardIndex
+    ]
+        |> List.concat

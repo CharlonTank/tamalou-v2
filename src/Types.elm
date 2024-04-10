@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GameDisposition(..), LookACardStatus(..), Position, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, Position, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
@@ -161,14 +161,35 @@ type alias FrontendModel =
     , urlPath : String
     , errors : List String
     , admin : Bool
-    , screenHeight : Int
-    , screenWidth : Int
+    , viewPort : { height : Int, width : Int }
     , ready : Bool
     , maybeName : Maybe String
     , chatInput : String
     , chat : List ( String, String )
     , cardAnim : CardAnimation
     , gameDisposition : GameDisposition
+    }
+
+
+type OpponentDisposition
+    = LeftPlayer
+    | TopLeftPlayer
+    | TopRightPlayer
+    | RightPlayer
+
+
+type alias OpponentsDisposition =
+    { leftPlayer : Maybe PositionedPlayer
+    , topLeftPlayer : Maybe PositionedPlayer
+    , topRightPlayer : Maybe PositionedPlayer
+    , rightPlayer : Maybe PositionedPlayer
+    }
+
+
+type alias PositionedPlayer =
+    { player : FPlayer
+    , positionedTableHand : List ( FCard, Position )
+    , namePosition : Position
     }
 
 
@@ -183,6 +204,7 @@ type alias Positions =
     , discardPilePosition : Position
     , tamalouButtonPosition : Position
     , playAgainOrPassPosition : Position
+    , opponentsDisposition : OpponentsDisposition
     }
 
 
