@@ -2,11 +2,14 @@ module Evergreen.V18.Types exposing (..)
 
 import Browser
 import Browser.Navigation
-import Element
 import Evergreen.V18.Card
 import Lamdera
 import Random
 import Time
+import Ui
+import Ui.Anim
+import Ui.Layout
+import Ui.Prose
 import Url
 
 
@@ -69,7 +72,7 @@ type FGame
 
 type alias FrontendModel =
     { key : Browser.Navigation.Key
-    , device : Element.Device
+    , device : Ui.Device
     , gameFrontend : FGame
     , clientId : Maybe Lamdera.ClientId
     , sessionId : Maybe Lamdera.SessionId

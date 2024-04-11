@@ -1,9 +1,12 @@
 module Palette.Anim exposing (animatedUi, column, customTransformOrigin, el, fadeAnim, rotateAnim, row)
 
-import Element exposing (Element)
 import Simple.Animation as Animation exposing (Animation)
 import Simple.Animation.Animated as Anim
 import Simple.Animation.Property as Anim
+import Ui
+import Ui.Anim
+import Ui.Layout
+import Ui.Prose
 
 
 rotateAnim : Animation
@@ -28,28 +31,28 @@ fadeAnim =
         ]
 
 
-animatedUi : (List (Element.Attribute msg) -> children -> Element msg) -> Animation -> List (Element.Attribute msg) -> children -> Element msg
+animatedUi : (List (Ui.Attribute msg) -> children -> Ui.Element msg) -> Animation -> List (Ui.Attribute msg) -> children -> Ui.Element msg
 animatedUi =
     Anim.ui
-        { behindContent = Element.behindContent
-        , html = Element.html
-        , htmlAttribute = Element.htmlAttribute
+        { behindContent = Ui.behindContent
+        , html = Ui.html
+        , htmlAttribute = Ui.htmlAttribute
         }
 
 
-el : Animation -> List (Element.Attribute msg) -> Element msg -> Element msg
+el : Animation -> List (Ui.Attribute msg) -> Ui.Element msg -> Ui.Element msg
 el =
-    animatedUi Element.el
+    animatedUi Ui.el
 
 
-row : Animation -> List (Element.Attribute msg) -> List (Element msg) -> Element msg
+row : Animation -> List (Ui.Attribute msg) -> List (Ui.Element msg) -> Ui.Element msg
 row =
-    animatedUi Element.row
+    animatedUi Ui.row
 
 
-column : Animation -> List (Element.Attribute msg) -> List (Element msg) -> Element msg
+column : Animation -> List (Ui.Attribute msg) -> List (Ui.Element msg) -> Ui.Element msg
 column =
-    animatedUi Element.column
+    animatedUi Ui.column
 
 
 customTransformOrigin : String -> Anim.Property

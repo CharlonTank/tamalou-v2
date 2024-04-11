@@ -3,10 +3,13 @@ module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInPro
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard, Power)
-import Element exposing (Device)
 import Lamdera exposing (ClientId, SessionId)
 import Random
 import Time exposing (Posix)
+import Ui
+import Ui.Anim
+import Ui.Layout
+import Ui.Prose
 import Url exposing (Url)
 
 
@@ -154,7 +157,7 @@ type alias FTableHand =
 
 type alias FrontendModel =
     { key : Key
-    , device : Device
+    , device : Ui.Device
     , fGame : FGame
     , clientId : Maybe ClientId
     , sessionId : Maybe SessionId
