@@ -18,15 +18,17 @@ import Simple.Animation.Property as SP
 import Svg exposing (Svg)
 import Svg.Attributes as SvgA
 import Task
-import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, Position, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
-import Ui
-import Ui.Anim
+import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+import Ui exposing (..)
+import Ui.Anim as Anim
 import Ui.Events as Events
 import Ui.Font as Font
 import Ui.Input as Input
-import Ui.Layout
-import Ui.Prose
+import Ui.Layout as Layout
+import Ui.Prose as Prose
+import Ui.Shadow as Shadow
 import Url
+import Utils.Ui exposing (..)
 
 
 
@@ -273,9 +275,9 @@ update msg ({ urlPath } as model) =
 
         GotWindowSize viewPort ->
             ( { model
-                | device = Ui.classifyDevice viewPort
+                | device = classifyDevice viewPort
                 , viewPort = viewPort
-                , gameDisposition = calculateGameDisposition viewPort (fPlayersFromFGame model.fGame |> getOpponents model.sessionId)
+                , gameDisposition = calculateGameDisposition viewPort (fPlayersFromFGame model.fGame |> getOpponents model.sessionId) (getOwnedCards model.fGame)
               }
             , Cmd.none
             )
@@ -384,7 +386,7 @@ updateFromBackend msg model =
 
                         Nothing ->
                             getMyName model.sessionId fGame
-                , gameDisposition = calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId)
+                , gameDisposition = calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
               }
             , Cmd.none
             )
@@ -441,6 +443,16 @@ getOpponents maybeSessionId players =
         |> List.filter (\player -> maybeSessionId /= Just player.sessionId)
 
 
+getOwnedCards : FGame -> List FCard
+getOwnedCards fGame =
+    case fGame of
+        FGameInProgress _ hand _ _ _ _ ->
+            hand
+
+        _ ->
+            []
+
+
 getMyName : Maybe SessionId -> FGame -> Maybe String
 getMyName maybeSessionId fGame =
     fPlayersFromFGame fGame
@@ -452,11 +464,9 @@ view : FrontendModel -> Browser.Document FrontendMsg
 view model =
     { title = "Tamalou!"
     , body =
-        [ Ui.layout
-            [ Ui.width <| Ui.px model.viewPort.width
-            , Ui.height <| Ui.px model.viewPort.height
-            , Background.image "/background.png"
-            , Ui.Font.size 12
+        [ layout
+            [ behindContent <| image [ width fill, height fill ] { source = "/background.png", description = "background" }
+            , Font.size 12
             ]
           <|
             displayModel model
@@ -464,15 +474,15 @@ view model =
     }
 
 
-displayModel : FrontendModel -> Ui.Element FrontendMsg
+displayModel : FrontendModel -> Element FrontendMsg
 displayModel model =
     case model.gameDisposition of
         NotCalculated ->
-            Ui.none
+            none
 
         Calculated positions ->
-            Ui.column
-                [ Ui.height Ui.fill ]
+            column
+                [ height fill, behindContent none ]
                 [ if model.admin then
                     displayAdmin model
 
@@ -481,15 +491,15 @@ displayModel model =
                 ]
 
 
-displayAdmin : FrontendModel -> Ui.Element FrontendMsg
+displayAdmin : FrontendModel -> Element FrontendMsg
 displayAdmin model =
     List.map displayError model.errors
-        |> Ui.column [ Ui.height Ui.fill, Ui.spacing 16 ]
+        |> column [ height fill, spacing 16 ]
 
 
-displayError : String -> Ui.Element FrontendMsg
+displayError : String -> Element FrontendMsg
 displayError error =
-    Ui.Prose.paragraph [ Ui.width Ui.shrink ] [ Ui.text error ]
+    Prose.paragraph [ width shrink ] [ text error ]
 
 
 listfindAndRemove : (a -> Bool) -> List a -> ( Maybe a, List a )
@@ -506,7 +516,7 @@ listfindAndRemove predicate list =
             ( Nothing, list )
 
 
-displayGameLobby : FrontendModel -> List FPlayer -> Ui.Element FrontendMsg
+displayGameLobby : FrontendModel -> List FPlayer -> Element FrontendMsg
 displayGameLobby fModel players =
     case fModel.sessionId of
         Just sessionId ->
@@ -516,137 +526,140 @@ displayGameLobby fModel players =
             in
             case maybeCurrentPlayer of
                 Just currentPlayer ->
-                    Ui.row
-                        [ Ui.height Ui.fill ]
-                        [ Ui.column [ Ui.width Ui.shrink, Ui.width <| Ui.portion 3, Ui.height Ui.fill, Ui.spacing 20 ]
-                            [ Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <| Ui.text "Tamalou!"
-                            , Ui.Input.text [ Ui.width Ui.shrink, Ui.centerX, Ui.width <| Ui.px 200 ]
-                                { label = Ui.Input.labelAbove [ Ui.width Ui.shrink, Ui.centerX ] <| Ui.text "Your name"
+                    row
+                        [ height fill ]
+                        [ column [ width shrink, width <| portion 3, height fill, spacing 20 ]
+                            [ el [ width shrink, centerX ] <| text "Tamalou!"
+                            , let
+                                label =
+                                    Input.label "your-name-input" [ width shrink, centerX ] <| text "Your name"
+                              in
+                              Input.text [ width shrink, centerX, width <| px 200 ]
+                                { label = label.id
                                 , onChange = ChangeCurrentPlayerNameFrontend
                                 , placeholder = Nothing
                                 , text = fModel.maybeName |> Maybe.withDefault ""
                                 }
-                            , Ui.column [ Ui.width Ui.shrink, Ui.centerX, Ui.spacing 4 ] <|
+                            , column [ width shrink, centerX, spacing 4 ] <|
                                 let
                                     ( playersNotReady, playersReady ) =
                                         List.partition (\player -> not player.ready) players
                                 in
                                 [ if not <| List.isEmpty playersNotReady then
-                                    Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <| Ui.text <| "Players not ready:"
+                                    el [ width shrink, centerX ] <| text <| "Players not ready:"
 
                                   else
-                                    Ui.none
-                                , Ui.column [ Ui.width Ui.shrink, Ui.spacing 8, Ui.centerX ] <| List.map displayPlayerName playersNotReady
+                                    none
+                                , column [ width shrink, spacing 8, centerX ] <| List.map displayPlayerName playersNotReady
                                 , if not <| List.isEmpty playersReady then
-                                    Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <| Ui.text <| "Players ready:"
+                                    el [ width shrink, centerX ] <| text <| "Players ready:"
 
                                   else
-                                    Ui.none
-                                , Ui.column [ Ui.width Ui.shrink, Ui.spacing 8, Ui.centerX ] <| List.map displayPlayerName playersReady
+                                    none
+                                , column [ width shrink, spacing 8, centerX ] <| List.map displayPlayerName playersReady
                                 ]
                             , if currentPlayer.ready then
-                                Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <| Ui.text "Waiting for other players to be ready"
+                                el [ width shrink, centerX ] <| text "Waiting for other players to be ready"
 
                               else
-                                Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <| actionButton { label = Ui.text "I'm ready!", onPress = Just ImReadyFrontend }
+                                el [ width shrink, centerX ] <| actionButton { label = text "I'm ready!", onPress = Just ImReadyFrontend }
                             ]
                         , displayChat fModel.viewPort.width fModel.viewPort.height fModel.chatInput fModel.chat
                         ]
 
                 Nothing ->
-                    Ui.column [ Ui.height Ui.fill ]
-                        [ Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.centerY ] <| Ui.text "Sorry, the game already started, you can't join"
-                        , Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.centerY ] <| Ui.text "Wait for the next game"
-                        , Ui.column [ Ui.width Ui.shrink, Ui.centerX, Ui.spacing 4 ]
-                            [ Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <| Ui.text <| "Players playing"
-                            , Ui.column [ Ui.width Ui.shrink, Ui.spacing 8, Ui.centerX ] <| List.map displayPlayerName players
+                    column [ height fill ]
+                        [ el [ width shrink, centerX, centerY ] <| text "Sorry, the game already started, you can't join"
+                        , el [ width shrink, centerX, centerY ] <| text "Wait for the next game"
+                        , column [ width shrink, centerX, spacing 4 ]
+                            [ el [ width shrink, centerX ] <| text <| "Players playing"
+                            , column [ width shrink, spacing 8, centerX ] <| List.map displayPlayerName players
                             ]
                         ]
 
         Nothing ->
-            Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.centerY ] <| Ui.text "-"
+            el [ width shrink, centerX, centerY ] <| text "-"
 
 
-displayChat : Int -> Int -> String -> List ( String, String ) -> Ui.Element FrontendMsg
+displayChat : Int -> Int -> String -> List ( String, String ) -> Element FrontendMsg
 displayChat screenWidth screenHeight chatInput chat =
-    Ui.column
-        [ Ui.width Ui.shrink, Ui.width <| Ui.portion 4, Ui.height Ui.fill, Ui.spacing 8, Ui.paddingXY 12 12, Ui.background veryLightGrey, Ui.rounded 8 ]
-        [ Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <| Ui.text "Chat between players"
-        , Ui.column [ Ui.spacing 6, Ui.height <| Ui.px <| screenHeight * 70 // 100, Ui.scrollbars, Ui.htmlAttribute <| HA.id "chatty" ] <| List.map (displayChatMessage screenWidth) chat
-        , Ui.row [ Ui.alignBottom, Ui.spacing 4 ]
-            [ Ui.Input.text [ Ui.width Ui.shrink, Ui.centerX, Ui.width <| Ui.px <| screenWidth * 40 // 100, Ui.alignLeft ]
-                { label = Ui.Input.labelHidden "mess"
+    column
+        [ width shrink, width <| Ui.portion 4, height Ui.fill, Ui.spacing 8, Ui.paddingXY 12 12, Ui.background veryLightGrey, rounded 8 ]
+        [ el [ width shrink, Ui.centerX ] <| Ui.text "Chat between players"
+        , Ui.scrollable [] <| column [ Ui.spacing 6, height <| px <| screenHeight * 70 // 100, Ui.htmlAttribute <| HA.id "chatty" ] <| List.map (displayChatMessage screenWidth) chat
+        , row [ Ui.alignBottom, Ui.spacing 4 ]
+            [ Input.text [ width shrink, Ui.centerX, width <| px <| screenWidth * 40 // 100, Ui.alignLeft ]
+                { label = Input.labelHidden "mess"
                 , onChange = ChangeChatInputFrontend
                 , placeholder = Nothing
                 , text = chatInput
                 }
-            , Ui.el
-                [ Ui.Events.onClick
-                    (if chatInput == "" then
-                        Maybe.Nothing
+            , el
+                (centerX
+                    :: (if chatInput == "" then
+                            []
 
-                     else
-                        Maybe.Just Types.SendMessageFrontend
-                    )
-                , centerX
-                ]
-                (Ui.el [ Ui.width Ui.shrink, Ui.borderColor lightGrey, Ui.border 1, Ui.paddingXY 12 12, Ui.rounded 8 ] <| Ui.text "Send")
+                        else
+                            [ Events.onClick SendMessageFrontend
+                            ]
+                       )
+                )
+                (el [ width shrink, Ui.borderColor lightGrey, Ui.border 1, Ui.paddingXY 12 12, rounded 8 ] <| Ui.text "Send")
             ]
         ]
 
 
-displayChatMessage : Int -> ( String, String ) -> Ui.Element FrontendMsg
+displayChatMessage : Int -> ( String, String ) -> Element FrontendMsg
 displayChatMessage _ ( name, message ) =
-    Ui.column
-        [ Ui.spacing 2 ]
-        [ Ui.row [ Ui.width Ui.shrink, Ui.width <| Ui.fill ] [ Ui.el [ Ui.Font.size 12 ] <| Ui.text name ]
-        , Ui.row [ Ui.width Ui.shrink, Ui.width <| Ui.fill, Ui.paddingXY 12 0 ]
-            [ Ui.el
-                [ Ui.Font.size 16
-                , Ui.background <|
+    column
+        [ spacing 2 ]
+        [ row [ width shrink, width <| fill ] [ el [ Font.size 12 ] <| text name ]
+        , row [ width shrink, width <| fill, paddingXY 12 0 ]
+            [ el
+                [ Font.size 16
+                , background <|
                     if message == "Let's go I'm ready!" then
                         green
 
                     else
                         lightGrey
-                , Ui.rounded 8
-                , Ui.paddingXY 4 4
+                , rounded 8
+                , paddingXY 4 4
                 ]
               <|
-                Ui.Prose.paragraph [] [ Ui.text message ]
+                Prose.paragraph [] [ text message ]
             ]
         ]
 
 
-displayGame : FrontendModel -> Positions -> Ui.Element FrontendMsg
-displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discardPilePosition, tamalouButtonPosition, playAgainOrPassPosition, opponentsDisposition } =
+displayGame : FrontendModel -> Positions -> Element FrontendMsg
+displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discardPilePosition, tamalouButtonPosition, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition } =
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
-            Ui.column [ Ui.Font.center, Ui.centerY ]
-                [ Ui.el [ Ui.centerX ] <| Ui.text "Rotate your phone 🚀"
-                , Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.height <| Ui.px 150, Ui.width <| Ui.px 150, Ui.up 24 ] <| Ui.html minimalistPhoneWithHint
+            column [ Font.center, contentCenterY, height fill ]
+                [ el [ Ui.centerX ] <| Ui.text "Rotate your phone 🚀"
+                , el [ width shrink, Ui.centerX, height <| px 150, width <| px 150, move <| up 24 ] <| Ui.html minimalistPhoneWithHint
                 ]
 
         _ ->
-            Ui.el [ Ui.height Ui.fill, Ui.scrollbars, Ui.inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim) ] <|
+            -- el [ height fill, scrollbars, inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim) ] <|
+            el [ height Ui.fill, Ui.padding 12 ] <|
                 case model.fGame of
                     FWaitingForPlayers players ->
-                        Ui.column
-                            [ Ui.height Ui.fill, Ui.scrollbars, Ui.paddingXY 0 0 ]
+                        column
+                            [ height Ui.fill, Ui.spacing 20 ]
                             [ displayGameLobby model players ]
 
                     FGameInProgress _ _ _ _ players (FStartTimerRunning Five) ->
-                        Ui.column
-                            [ Ui.height Ui.fill, Ui.spacing 20 ]
-                            [ Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.centerY ] <| displayStartTimer Five
-                            , displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players [ FaceDown, FaceDown, FaceDown, FaceDown ] Nothing False Nothing
+                        column
+                            [ height Ui.fill, Ui.spacing 20 ]
+                            [ el [ width shrink, centerX, centerY ] <| displayStartTimer Five
                             ]
 
                     FGameInProgress _ hand _ _ players (FStartTimerRunning timer) ->
-                        Ui.column
-                            [ Ui.height Ui.fill, Ui.spacing 20 ]
-                            [ Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.centerY ] <| displayStartTimer timer
-                            , displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand Nothing False Nothing
+                        column
+                            [ height Ui.fill, Ui.spacing 20 ]
+                            [ el [ width shrink, centerX, centerY ] <| displayStartTimer timer
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FWaitingPlayerAction _)) ->
@@ -662,36 +675,32 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| "It's " ++ fPlayer.name ++ "'s turn"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| "It's " ++ fPlayer.name ++ "'s turn"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.row [ Ui.height Ui.fill ]
-                                [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                    [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                    ]
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerHasDraw _)) ->
                         let
@@ -706,34 +715,32 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| fPlayer.name ++ " just drew a card"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " just drew a card"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
                                         displayFCard Nothing FaceDown
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerHasDiscard _)) ->
                         let
@@ -748,34 +755,32 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| fPlayer.name ++ " can choose to use a power or not"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " can choose to use a power or not"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drewCardPosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.row []
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerLookACard lookACardStatus)) ->
                         let
@@ -790,27 +795,27 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <|
-                                        Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <|
-                                            Ui.text <|
+                                el
+                                    [ below <|
+                                        el [ width shrink, centerX, padding 12 ] <|
+                                            text <|
                                                 case lookACardStatus of
                                                     ChooseCardToLook ->
                                                         fPlayer.name ++ " is choosing a card to look at"
 
                                                     LookingACard _ counter ->
                                                         fPlayer.name ++ " is looking at a card: " ++ displayEndTimer counter
-                                    , Ui.height Ui.fill
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -825,21 +830,19 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                         else
                                             Nothing
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 -- A fix
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
                         let
@@ -847,34 +850,32 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             cardClickMsg =
                                 Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| fPlayer.name ++ " is choosing a card to switch"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " is choosing a card to switch"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OwnCardChosen index))) ->
                         let
@@ -882,19 +883,19 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             cardClickMsg =
                                 Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| fPlayer.name ++ " is now choosing an opponent card to switch with"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " is now choosing an opponent card to switch with"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -904,37 +905,35 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Nothing
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 -- a fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
                         let
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| fPlayer.name ++ " changed a card with " ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous") ++ "'s card: " ++ displayEndTimer counter
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " changed a card with " ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous") ++ "'s card: " ++ displayEndTimer counter
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -959,21 +958,19 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             opponent =
                                 List.Extra.find (\player -> player.sessionId == opponentCard.sessionId) players
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 --fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition Nothing maybeOwnIndex
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand Nothing False maybeOwnIndex
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
                         let
@@ -988,73 +985,67 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile True maybePowerCard
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                elEmplacement viewPort.width <| Ui.none
+                                elEmplacement viewPort.width <| none
 
-                            tamalouButton : Ui.Element FrontendMsg
+                            tamalouButton : Element FrontendMsg
                             tamalouButton =
                                 case maybeTamalouOwner of
                                     Just _ ->
-                                        Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.paddingWith { edges | bottom = 16, top = 12 } ] Ui.none
+                                        none
 
                                     Nothing ->
-                                        Ui.el [ Ui.width Ui.shrink, Ui.Font.color blue, Ui.Font.italic ] <|
-                                            Ui.Input.button
-                                                -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                                                (actionBorder yellow)
-                                                { label = Ui.text "\"Tamalou!\"", onPress = Just TamalouFrontend }
+                                        el [ width shrink, Ui.centerX, Ui.paddingWith { edges | bottom = 24, top = 12 }, Font.color blue, Font.italic ] <|
+                                            el (actionBorder yellow ++ [ Events.onClick TamalouFrontend ]) <|
+                                                text "Tamalou!"
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile True model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              , elPlacedByCenter tamalouButtonPosition <| tamalouButton
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
                         let
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| "You just drew a card"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| "You just drew a card"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
                                         displayFCard (Just DiscardCardFrontend) fCard
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition Nothing Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand (Just CardClickReplacement) True Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerHasDiscard power)) ->
                         let
@@ -1069,36 +1060,34 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False (Just power)
 
-                            displayUsePowerOrPass : Ui.Element FrontendMsg
+                            displayUsePowerOrPass : Element FrontendMsg
                             displayUsePowerOrPass =
-                                Ui.row [ Ui.width Ui.shrink, Ui.centerX, Ui.spacing 8 ]
-                                    [ actionButton { label = Ui.text <| Card.powerToString power, onPress = Just PowerIsUsedFrontend }
-                                    , actionButton { label = Ui.text "Pass", onPress = Just PowerPassFrontend }
+                                row [ width shrink, centerX, spacing 8 ]
+                                    [ actionButton { label = text <| Card.powerToString power, onPress = Just PowerIsUsedFrontend }
+                                    , actionButton { label = text "Pass", onPress = Just PowerPassFrontend }
                                     ]
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                elEmplacement viewPort.width <| Ui.none
+                                elEmplacement viewPort.width <| none
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              , elPlacedByCenter playAgainOrPassPosition <| displayUsePowerOrPass
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard ChooseCardToLook)) ->
                         let
@@ -1106,34 +1095,32 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             cardClickMsg =
                                 Just LookAtCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text "Click on a card to look at it"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text "Click on a card to look at it"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard (LookingACard index counter))) ->
                         let
@@ -1145,34 +1132,32 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| displayEndTimer counter
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| displayEndTimer counter
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg (Just index)
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True (Just index)
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
                         let
@@ -1180,80 +1165,76 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             cardClickMsg =
                                 Just ChooseOwnCardToSwitchFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text "Click on a card to switch"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text "Click on a card to switch"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg True Nothing
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards (OwnCardChosen index))) ->
                         let
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text "You chose your card, now choose a card to switch with"
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text "You chose your card, now choose a card to switch with"
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
-                                        Ui.none
+                                        none
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing True Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition Nothing (Just index)
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand Nothing True (Just index)
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
                         let
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| "Remember! " ++ displayEndTimer counter
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| "Remember! " ++ displayEndTimer counter
+                                    , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width Ui.none
+                                    elEmplacement viewPort.width none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -1263,21 +1244,19 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Nothing
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 -- a fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner Nothing True Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition Nothing (Just index)
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand Nothing True (Just index)
-                                ]
-                            ]
+                            []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FEndTimerRunning timer) ->
                         let
@@ -1292,34 +1271,32 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                 else
                                     Just DoubleCardFrontend
 
-                            discardPileColumn : Ui.Element FrontendMsg
+                            discardPileColumn : Element FrontendMsg
                             discardPileColumn =
                                 displayDiscardCards viewPort.width discardPile False Nothing
 
-                            drewCardColumn : Ui.Element FrontendMsg
+                            drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                Ui.el
-                                    [ Ui.below <| Ui.el [ Ui.width Ui.shrink, Ui.centerX, Ui.padding 12 ] <| Ui.text <| displayEndTimer timer
-                                    , Ui.height Ui.fill
+                                el
+                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| displayEndTimer timer
+                                    , height fill
                                     ]
                                 <|
                                     elEmplacement viewPort.width <|
                                         displayFCard Nothing FaceDown
                         in
-                        Ui.column
+                        column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-                            ([ Ui.width <| Ui.px <| viewPort.width - 14
-                             , Ui.height Ui.fill
+                            ([ width <| px <| viewPort.width - 14
+                             , height fill
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
+                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
                             )
-                            [ Ui.column [ Ui.spacing 12, Ui.height Ui.fill ]
-                                [ displayPlayerView viewPort.width model.sessionId model.maybeName model.device.class players hand cardClickMsg False Nothing
-                                ]
-                            ]
+                            []
 
                     FGameEnded orderedPlayersAndRank ->
                         let
@@ -1327,10 +1304,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             currentPlayerAndRank =
                                 List.Extra.find (\( player, _ ) -> Just player.sessionId == model.sessionId) orderedPlayersAndRank
                         in
-                        Ui.column
-                            [ Ui.spacing 12, Ui.padding 12 ]
-                            [ Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <|
-                                Ui.text <|
+                        column
+                            [ spacing 12, padding 12 ]
+                            [ el [ width shrink, centerX ] <|
+                                text <|
                                     case currentPlayerAndRank of
                                         Just ( _, 1 ) ->
                                             "You win!🥇"
@@ -1349,15 +1326,15 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
 
                                         Nothing ->
                                             "Game ended!"
-                            , Ui.column [ Ui.width Ui.shrink, Ui.centerX, Ui.spacing 4, Ui.width <| Ui.px <| (viewPort.width * 80 // 100) ] <|
+                            , column [ width shrink, centerX, spacing 4, width <| px <| (viewPort.width * 80 // 100) ] <|
                                 List.map (\player -> displayPlayerAndCards player) orderedPlayersAndRank
-                            , Ui.el [ Ui.width Ui.shrink, Ui.centerX ] <| actionButton { label = Ui.text "Play again!", onPress = Just (ReStartGameFrontend (currentPlayerAndRank |> Maybe.map Tuple.first)) }
+                            , el [ width shrink, centerX ] <| actionButton { label = text "Play again!", onPress = Just (ReStartGameFrontend (currentPlayerAndRank |> Maybe.map Tuple.first)) }
                             ]
 
                     FGameAlreadyStartedWithoutYou ->
-                        Ui.column
-                            [ Ui.height Ui.fill, Ui.spacing 20 ]
-                            [ Ui.el [ Ui.width Ui.shrink, Ui.centerY, Ui.centerX ] <| Ui.text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
+                        column
+                            [ height fill, spacing 20 ]
+                            [ el [ width shrink, centerY, centerX ] <| text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
                             ]
 
 
@@ -1380,25 +1357,27 @@ medal rank =
             "🤷\u{200D}♂️"
 
 
-elEmplacement : Int -> Ui.Element FrontendMsg -> Ui.Element FrontendMsg
+elEmplacement : Int -> Element FrontendMsg -> Element FrontendMsg
 elEmplacement widthOfScreen cardToDisplay =
-    Ui.el
-        [ Ui.height Ui.fill
-        , Ui.rounded 8
-        , Background.image "/emplacement.png"
-        ]
-    <|
-        cardToDisplay
+    el [ behindContent cardToDisplay ] <|
+        image
+            [ width <| px <| widthOfScreen // 7
+            , rounded 8
+
+            -- , height <| px <| widthOfScreen * 15 // 70
+            -- , width shrink
+            ]
+            { source = "/emplacement.png", description = "Emplacement" }
 
 
-displayDiscardCards : Int -> DiscardPile -> Bool -> Maybe Card.Power -> Ui.Element FrontendMsg
+displayDiscardCards : Int -> DiscardPile -> Bool -> Maybe Card.Power -> Element FrontendMsg
 displayDiscardCards widthOfScreen discardPile canDrawCard maybePowerCard =
     case ( discardPile, canDrawCard, maybePowerCard ) of
         ( [], _, _ ) ->
-            elEmplacement widthOfScreen Ui.none
+            elEmplacement widthOfScreen none
 
         ( head :: _, True, Just power ) ->
-            Ui.el [ Ui.width Ui.shrink, Ui.below <| Ui.el [ Ui.Events.onClick Types.PowerIsUsedFrontend ] (Ui.text <| Card.powerToString power) ] <| elEmplacement widthOfScreen <| displayFCard Nothing (FaceUp head)
+            el [ width shrink, below <| el [ Events.onClick Types.PowerIsUsedFrontend ] (text <| Card.powerToString power) ] <| elEmplacement widthOfScreen <| displayFCard Nothing (FaceUp head)
 
         ( head :: _, True, Nothing ) ->
             -- Warning, here, we put True because it's not possible that the queen power has been used the turn before with someone with a valid tamalou && 2 players.
@@ -1414,9 +1393,9 @@ displayDiscardCards widthOfScreen discardPile canDrawCard maybePowerCard =
             elEmplacement widthOfScreen <| displayFCard Nothing (FaceUp head)
 
 
-displayStartTimer : Counter -> Ui.Element FrontendMsg
+displayStartTimer : Counter -> Element FrontendMsg
 displayStartTimer timer =
-    Ui.text <|
+    text <|
         case timer of
             Five ->
                 "5"
@@ -1453,10 +1432,10 @@ displayEndTimer timer =
             "Time's up!"
 
 
-displayPlayerName : FPlayer -> Ui.Element FrontendMsg
+displayPlayerName : FPlayer -> Element FrontendMsg
 displayPlayerName player =
     let
-        isReadyColor : Ui.Color
+        isReadyColor : Color
         isReadyColor =
             if player.ready then
                 green
@@ -1464,9 +1443,9 @@ displayPlayerName player =
             else
                 red
     in
-    Ui.column
-        [ Ui.width Ui.shrink, Ui.spacing 12, Ui.centerX, Ui.background isReadyColor, Ui.rounded 8, Ui.paddingXY 4 4 ]
-        [ Ui.text <|
+    column
+        [ width shrink, spacing 12, centerX, background isReadyColor, rounded 8, paddingXY 4 4 ]
+        [ text <|
             case player.name of
                 "" ->
                     "Anonymous"
@@ -1476,47 +1455,45 @@ displayPlayerName player =
         ]
 
 
-displayPlayerAndCards : ( FPlayer, Int ) -> Ui.Element FrontendMsg
+displayPlayerAndCards : ( FPlayer, Int ) -> Element FrontendMsg
 displayPlayerAndCards ( player, rank ) =
-    Ui.row
-        [ Ui.spacing 12, Ui.centerX, Ui.rounded 8, Ui.paddingXY 12 12, Ui.background veryLightGrey, Ui.height <| Ui.px 64 ]
-        [ Ui.text <| medal rank
-        , Ui.el [ Ui.width Ui.shrink, Ui.width <| Ui.px 250 ] <|
-            Ui.text <|
+    row
+        [ spacing 12, centerX, rounded 8, paddingXY 12 12, background veryLightGrey, height <| px 64 ]
+        [ text <| medal rank
+        , el [ width shrink, width <| px 250 ] <|
+            text <|
                 case player.name of
                     "" ->
                         "Anonymous"
 
                     playerName ->
                         playerName
-        , Ui.el [ Ui.width Ui.shrink ] <| displayFCardsAtTheEnd player.tableHand
+        , el [ width shrink ] <| displayFCardsAtTheEnd player.tableHand
         , case player.score of
             Just score ->
-                Ui.el [ Ui.width Ui.shrink, Ui.alignRight ] <| Ui.text <| String.fromInt score
+                el [ width shrink, alignRight ] <| text <| String.fromInt score
 
             Nothing ->
-                Ui.none
+                none
         ]
 
 
-veryLightGrey : Ui.Color
+veryLightGrey : Color
 veryLightGrey =
-    Ui.rgb 240 240 240
+    rgb 240 240 240
 
 
-lightGrey : Ui.Color
+lightGrey : Color
 lightGrey =
-    Ui.rgb 220 220 220
-
-
-displayPlayerView : Int -> Maybe SessionId -> Maybe String -> Ui.DeviceClass -> List FPlayer -> FTableHand -> Maybe (Int -> CardClickMsg) -> Bool -> Maybe Int -> Ui.Element FrontendMsg
-displayPlayerView screenWidth _ _ _ _ tableHand maybeCardClick _ maybeIndex =
-    Ui.row [ Ui.width Ui.shrink, Ui.alignBottom, Ui.centerX ]
-        [ displayOwnCards screenWidth tableHand maybeCardClick maybeIndex
-        ]
+    rgb 220 220 220
 
 
 
+-- displayPlayerView : Int -> Maybe SessionId -> Maybe String -> DeviceClass -> List FPlayer -> FTableHand -> Maybe (Int -> CardClickMsg) -> Bool -> Maybe Int -> Element FrontendMsg
+-- displayPlayerView screenWidth _ _ _ _ tableHand maybeCardClick _ maybeIndex =
+--     row [ width shrink, alignBottom, centerX ]
+--         [ displayOwnCards screenWidth tableHand maybeCardClick maybeIndex
+--         ]
 -- displayIndexedFCard : Maybe (Int -> CardClickMsg) -> Int -> FCard -> Element FrontendMsg
 -- displayIndexedFCard maybeCardClickMsg index frontendCard =
 --     image
@@ -1531,26 +1508,27 @@ displayPlayerView screenWidth _ _ _ _ tableHand maybeCardClick _ maybeIndex =
 --     <|
 --         case frontendCard of
 --             FaceUp card ->
---                 { description = Card.toString card, src = "/cardImages/" ++ Card.toString card ++ ".png" }
+--                 { description = Card.toString card, source = "/cardImages/" ++ Card.toString card ++ ".png" }
 --             FaceDown ->
---                 { description = "back", src = "/cardImages/BackCovers/Pomegranate.png" }
+--                 { description = "back", source = "/cardImages/BackCovers/Pomegranate.png" }
 
 
-cardActionBorder : CardClickMsg -> List (Ui.Attribute FrontendMsg)
+cardActionBorder : CardClickMsg -> List (Attribute FrontendMsg)
 cardActionBorder cardClickMsg =
     let
-        color : Ui.Color
+        color : Color
         color =
             cardClickMsgToColor cardClickMsg
     in
-    [ Ui.rounded 8
-    , Ui.background color
+    [ rounded 8
     , bigShadow color
-    , Ui.Events.onClick <| CardClickMsg cardClickMsg
+    , Events.onClick <| CardClickMsg cardClickMsg
+    , height fill
+    , width fill
     ]
 
 
-cardClickMsgToColor : CardClickMsg -> Ui.Color
+cardClickMsgToColor : CardClickMsg -> Color
 cardClickMsgToColor cardClickMsg =
     case cardClickMsg of
         DrawCardFromDeckFrontend ->
@@ -1578,9 +1556,9 @@ cardClickMsgToColor cardClickMsg =
             green
 
 
-displayFCardsAtTheEnd : List FCard -> Ui.Element FrontendMsg
+displayFCardsAtTheEnd : List FCard -> Element FrontendMsg
 displayFCardsAtTheEnd cards =
-    Ui.row [ Ui.width Ui.shrink, Ui.spacing 4, Ui.centerX, Ui.height Ui.fill ] (List.indexedMap displayFCardAtTheEnd cards)
+    row [ width shrink, spacing 4, centerX, height fill ] (List.indexedMap displayFCardAtTheEnd cards)
 
 
 sizeOfCard : Int -> Int
@@ -1595,120 +1573,121 @@ sizeOfCard screenWidth =
         3 * screenWidth // 36
 
 
-displayOwnCards : Int -> List FCard -> Maybe (Int -> CardClickMsg) -> Maybe Int -> Ui.Element FrontendMsg
-displayOwnCards screenWidth cards maybeCardClickEvent maybeIndex =
-    Ui.row [ Ui.width Ui.shrink, Ui.spacing 12, Ui.height Ui.fill ] <|
-        List.indexedMap (displayFCardSized (Just <| Ui.px <| sizeOfCard screenWidth) maybeCardClickEvent maybeIndex) cards
+displayOwnCards : List ( FCard, GBPosition ) -> Maybe (Int -> CardClickMsg) -> Maybe Int -> List (Attribute FrontendMsg)
+displayOwnCards positionedCards maybeCardClickEvent maybeIndex =
+    List.indexedMap (\i ( card, position ) -> elPlacedByCenter position <| displayFCardSized Nothing maybeCardClickEvent maybeIndex i card) positionedCards
 
 
-displayFCard : Maybe CardClickMsg -> FCard -> Ui.Element FrontendMsg
+displayFCard : Maybe CardClickMsg -> FCard -> Element FrontendMsg
 displayFCard maybeCardClickMsg frontendCard =
-    Ui.el
+    el
         -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
         (case maybeCardClickMsg of
             Just cardClickMsg ->
-                cardActionBorder cardClickMsg
+                [ width fill, height fill ] ++ cardActionBorder cardClickMsg
 
             Nothing ->
-                [ Ui.width Ui.fill ]
+                [ width fill, height fill ]
         )
     <|
-        Ui.image [ Ui.height Ui.fill ] <|
+        image [ height fill, width shrink, centerX ] <|
             case frontendCard of
                 FaceUp card ->
-                    { description = Card.toString card, src = "/cardImages/" ++ Card.toString card ++ ".png" }
+                    { description = Card.toString card, source = "/cardImages/" ++ Card.toString card ++ ".png" }
 
                 FaceDown ->
-                    { description = "back", src = "/cardImages/BackCovers/Pomegranate.png" }
+                    { description = "back", source = "/cardImages/BackCovers/Pomegranate.png" }
 
 
-displayFCardSized : Maybe Ui.Length -> Maybe (Int -> CardClickMsg) -> Maybe Int -> Int -> FCard -> Ui.Element FrontendMsg
+displayFCardSized : Maybe Length -> Maybe (Int -> CardClickMsg) -> Maybe Int -> Int -> FCard -> Element FrontendMsg
 displayFCardSized length maybeCardClickMsg maybeIndex index frontendCard =
     let
-        attrs : List (Ui.Attribute FrontendMsg)
+        attrs : List (Attribute FrontendMsg)
         attrs =
             Maybe.map (\cardClickMsg -> cardClickMsg index) maybeCardClickMsg |> Maybe.map cardActionBorder |> Maybe.withDefault []
 
-        movedUp : List (Ui.Attribute FrontendMsg)
+        movedUp : List (Attribute FrontendMsg)
         movedUp =
             if maybeIndex == Just index then
-                [ Ui.up 12, bigShadow green ]
+                [ move <| up 12, bigShadow green ]
 
             else
                 []
     in
-    Ui.el [ Ui.height Ui.fill ] <|
-        Ui.image
+    el [ height fill ] <|
+        image
             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-            (Ui.width (Maybe.withDefault Ui.fill length) :: attrs ++ movedUp)
+            (width (Maybe.withDefault fill length) :: attrs ++ movedUp)
         <|
             case frontendCard of
                 FaceUp card ->
-                    { description = Card.toString card, src = "/cardImages/" ++ Card.toString card ++ ".png" }
+                    { description = Card.toString card, source = "/cardImages/" ++ Card.toString card ++ ".png" }
 
                 FaceDown ->
-                    { description = "back", src = "/cardImages/BackCovers/Pomegranate.png" }
+                    { description = "back", source = "/cardImages/BackCovers/Pomegranate.png" }
 
 
-displayFCardAtTheEnd : Int -> FCard -> Ui.Element FrontendMsg
+displayFCardAtTheEnd : Int -> FCard -> Element FrontendMsg
 displayFCardAtTheEnd =
-    displayFCardSized (Just <| Ui.px 41) Nothing Nothing
+    displayFCardSized (Just <| px 41) Nothing Nothing
 
 
-actionBorder : Ui.Color -> List (Ui.Attribute FrontendMsg)
+actionBorder : Color -> List (Attribute FrontendMsg)
 actionBorder color =
-    [ Ui.rounded 8
-    , Ui.background color
-    , Ui.paddingXY 4 4
+    [ rounded 8
+    , background color
+    , paddingXY 4 4
     , minimalistShadow
     ]
 
 
 minimalistShadow : Ui.Attribute FrontendMsg
 minimalistShadow =
-    Ui.shadow
-        { blur = 4
-        , color = Ui.rgba 0 0 0 0.2
-        , offset = ( 2, 2 )
-        , size = 1
-        }
+    Shadow.shadows
+        [ { x = 0
+          , y = 0
+          , size = 1
+          , blur = 2
+          , color = rgba 0 0 0 0.2
+          }
+        ]
 
 
 bigShadow : Ui.Color -> Ui.Attribute FrontendMsg
 bigShadow color =
-    Ui.shadow
-        { blur = 8
-        , color = color
-        , offset = ( 0, 0 )
-        , size = 6
-        }
+    Shadow.shadows
+        [ { blur = 8
+          , color = color
+          , x = 0
+          , y = 0
+          , size = 6
+          }
+        ]
 
 
-yellow : Ui.Color
+yellow : Color
 yellow =
-    Ui.rgb 238 221 136
+    rgb 238 221 136
 
 
-blue : Ui.Color
+blue : Color
 blue =
-    Ui.rgb 0 68 221
+    rgb 0 68 221
 
 
-green : Ui.Color
+green : Color
 green =
-    Ui.rgb 35 187 34
+    rgb 35 187 34
 
 
-red : Ui.Color
+red : Color
 red =
-    Ui.rgb 224 38 15
+    rgb 224 38 15
 
 
-actionButton : { label : Ui.Element FrontendMsg, onPress : Maybe FrontendMsg } -> Ui.Element FrontendMsg
-actionButton =
-    Ui.Input.button
-        -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-        (actionBorder yellow)
+actionButton : { label : Element FrontendMsg, onPress : Maybe FrontendMsg } -> Element FrontendMsg
+actionButton { label, onPress } =
+    el (actionBorder yellow ++ [ Events.onClick <| Maybe.withDefault NoOpFrontendMsg onPress ]) <| label
 
 
 edges : { bottom : Int, left : Int, right : Int, top : Int }
@@ -1720,7 +1699,7 @@ edges =
     }
 
 
-displayDrawColumn : List FCard -> Bool -> CardAnimation -> Ui.Element FrontendMsg
+displayDrawColumn : List FCard -> Bool -> CardAnimation -> Element FrontendMsg
 displayDrawColumn drawPile drawAllowed cardAnim =
     -- elEmplacement screenWidth <|
     -- el [ width fill, height fill ] <|
@@ -1729,7 +1708,7 @@ displayDrawColumn drawPile drawAllowed cardAnim =
         displayFCard (Just DrawCardFromDeckFrontend) FaceDown
 
     else if List.isEmpty drawPile then
-        Ui.none
+        none
 
     else
         displayFCard Nothing FaceDown
@@ -1915,30 +1894,30 @@ positionOpponent screenWidth player opponentDisposition =
     case opponentDisposition of
         LeftPlayer ->
             { player = player
-            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace, y = 80 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = pi / 2 } )) player.tableHand
-            , namePosition = { x = leftSpace, y = 80, width_ = namePanelWidth, height_ = 30, rotation = 0 }
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace, y = 80 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi / 2 } )) player.tableHand
+            , namePosition = { x = leftSpace, y = 80, width_ = namePanelWidth, height_ = 30, rotation = Ui.radians 0 }
             }
 
         TopLeftPlayer ->
             { player = player
-            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace + namePanelWidth + spaceBetweenNameAndCards + toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = pi } )) player.tableHand
-            , namePosition = { x = leftSpace, y = 8, width_ = namePanelWidth, height_ = 30, rotation = 0 }
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace + namePanelWidth + spaceBetweenNameAndCards + toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi } )) player.tableHand
+            , namePosition = { x = leftSpace, y = 8, width_ = namePanelWidth, height_ = 30, rotation = Ui.radians 0 }
             }
 
         TopRightPlayer ->
             { player = player
-            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = toFloat screenWidth - toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = pi } )) player.tableHand
-            , namePosition = { x = toFloat screenWidth - panelWidth - (namePanelWidth / 2), y = 0, width_ = namePanelWidth, height_ = 30, rotation = 0 }
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = toFloat screenWidth - toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi } )) player.tableHand
+            , namePosition = { x = toFloat screenWidth - panelWidth - (namePanelWidth / 2), y = 0, width_ = namePanelWidth, height_ = 30, rotation = Ui.radians 0 }
             }
 
         RightPlayer ->
             { player = player
-            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = 0, y = toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = 3 * pi / 2 } )) player.tableHand
-            , namePosition = { x = toFloat screenWidth - (namePanelWidth / 2), y = 50, width_ = namePanelWidth, height_ = 30, rotation = 0 }
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = 0, y = toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| 3 * pi / 2 } )) player.tableHand
+            , namePosition = { x = toFloat screenWidth - (namePanelWidth / 2), y = 50, width_ = namePanelWidth, height_ = 30, rotation = Ui.radians 0 }
             }
 
 
-displayOpponent : Maybe TamalouOwner -> Maybe SessionId -> Bool -> Maybe PositionedPlayer -> Maybe Int -> List (Ui.Attribute FrontendMsg)
+displayOpponent : Maybe TamalouOwner -> Maybe SessionId -> Bool -> Maybe PositionedPlayer -> Maybe Int -> List (Attribute FrontendMsg)
 displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard maybePositionedPlayer maybeCardIndex =
     case maybePositionedPlayer of
         Just positionedPlayer ->
@@ -1970,22 +1949,22 @@ displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard maybePositioned
             []
 
 
-displayOpponentName : Position -> Bool -> String -> Ui.Attribute FrontendMsg
+displayOpponentName : GBPosition -> Bool -> String -> Attribute FrontendMsg
 displayOpponentName pos isPlayerTurn name =
     elPlaced pos
-        (Ui.el
+        (el
             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-            ([ Ui.width Ui.fill, Ui.height Ui.fill, Ui.padding 4, Ui.rounded 8, Ui.border 1, Ui.Font.size 11 ]
+            ([ width fill, height fill, padding 4, rounded 8, border 1, Font.size 11 ]
                 ++ (if isPlayerTurn then
-                        [ Ui.background yellow, Ui.borderColor yellow ]
+                        [ background yellow, borderColor yellow ]
 
                     else
-                        [ Ui.borderColor blue ]
+                        [ borderColor blue ]
                    )
             )
          <|
-            Ui.Prose.paragraph [ Ui.width Ui.shrink, Ui.spacing 4, Ui.Font.center, Ui.centerY ] <|
-                [ Ui.text name ]
+            Prose.paragraph [ width shrink, spacing 4, Font.center, centerY ] <|
+                [ text name ]
         )
 
 
@@ -2014,24 +1993,17 @@ displayOpponentName pos isPlayerTurn name =
 --         -- displayRightOpponentColumn player (isPlayerTurn player.sessionId) switchingCard (isTamalouOwner player.sessionId) maybeCardIndex
 --     _ ->
 --         none
-
-
-cardMoveAndFlip : Position -> Position -> CardAnimation -> Ui.Element FrontendMsg
-cardMoveAndFlip oldPosition newPosition cardAnimation =
-    case cardAnimation of
-        CardFlipped card ->
-            Ui.none
-
-        -- displayFCard Nothing (FaceUp card)
-        CardNotFlipped ->
-            Ui.none
-
-        -- displayFCard (Just DrawCardFromDeckFrontend) FaceDown
-        CardFlipping fCard ->
-            Anim.el (cardFlip oldPosition newPosition) [ Ui.htmlAttribute <| HA.style "z-index" "10" ] <| displayFCard Nothing fCard
-
-
-
+-- cardMoveAndFlip : GBPosition -> GBPosition -> CardAnimation -> Element FrontendMsg
+-- cardMoveAndFlip oldPosition newPosition cardAnimation =
+--     case cardAnimation of
+--         CardFlipped card ->
+--             none
+--         -- displayFCard Nothing (FaceUp card)
+--         CardNotFlipped ->
+--             none
+--         -- displayFCard (Just DrawCardFromDeckFrontend) FaceDown
+--         CardFlipping fCard ->
+--             Anim.el (cardFlip oldPosition newPosition) [ htmlAttribute <| HA.style "z-index" "10" ] <| displayFCard Nothing fCard
 -- type alias Position =
 --     { x : Float
 --     , y : Float
@@ -2039,27 +2011,22 @@ cardMoveAndFlip oldPosition newPosition cardAnimation =
 --     , height_ : Float
 --     , rotation : Float
 --     }
-
-
-cardFlip : Position -> Position -> SAnimation.Animation
-cardFlip oldPosition newPosition =
-    -- fromTo : { duration : SAnimation.Millis, options : List SAnimation.Option } -> List SP.Property -> List SP.Property -> SAnimation.Animation
-    -- SAnimation.fromTo
-    --     { duration = 1000
-    --     , options = [ easeInOutQuad ]
-    --     }
-    --     [ SP.scaleXY 1 1, SP.x oldPosition.x, SP.y oldPosition.y, SP.rotate oldPosition.rotation ]
-    --     [ SP.scaleXY 0 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation ]
-    SAnimation.steps
-        { startAt = [ SP.scaleXY 1 1, SP.x oldPosition.x, SP.y oldPosition.y, SP.rotate oldPosition.rotation, SP.property "width" (String.fromFloat oldPosition.width_), SP.property "height" (String.fromFloat oldPosition.height_) ]
-        , options = [ easeInOutQuad ]
-        }
-        [ SAnimation.step 500 [ SP.scaleXY 0 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation, SP.property "width" (String.fromFloat newPosition.width_), SP.property "height" (String.fromFloat newPosition.height_) ]
-        , SAnimation.step 500 [ SP.scaleXY 1 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation, SP.property "width" (String.fromFloat newPosition.width_), SP.property "height" (String.fromFloat newPosition.height_) ]
-        ]
-
-
-
+-- cardFlip : GBPosition -> GBPosition -> SAnimation.Animation
+-- cardFlip oldPosition newPosition =
+--     -- fromTo : { duration : SAnimation.Millis, options : List SAnimation.Option } -> List SP.Property -> List SP.Property -> SAnimation.Animation
+--     -- SAnimation.fromTo
+--     --     { duration = 1000
+--     --     , options = [ easeInOutQuad ]
+--     --     }
+--     --     [ SP.scaleXY 1 1, SP.x oldPosition.x, SP.y oldPosition.y, SP.rotate oldPosition.rotation ]
+--     --     [ SP.scaleXY 0 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation ]
+--     SAnimation.steps
+--         { startAt = [ SP.scaleXY 1 1, SP.x oldPosition.x, SP.y oldPosition.y, SP.rotate oldPosition.rotation, SP.property "width" (String.fromFloat oldPosition.width_), SP.property "height" (String.fromFloat oldPosition.height_) ]
+--         , options = [ easeInOutQuad ]
+--         }
+--         [ SAnimation.step 500 [ SP.scaleXY 0 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation, SP.property "width" (String.fromFloat newPosition.width_), SP.property "height" (String.fromFloat newPosition.height_) ]
+--         , SAnimation.step 500 [ SP.scaleXY 1 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation, SP.property "width" (String.fromFloat newPosition.width_), SP.property "height" (String.fromFloat newPosition.height_) ]
+--         ]
 -- SAnimation.steps
 --     { startAt = [ SP.scaleXY 1 1, SP.x 0 ]
 --     , options = [ easeInOutQuad ]
@@ -2079,68 +2046,120 @@ heightCardRatio =
     380 / 250
 
 
-elPlacedByCenter : Position -> Ui.Element FrontendMsg -> Ui.Attribute FrontendMsg
+elPlacedByCenter : GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
 elPlacedByCenter { x, y, width_, height_, rotation } =
-    Ui.inFront << Ui.el [ Ui.width Ui.shrink, Ui.down <| (y - (height_ / 2)), Ui.right <| (x - (width_ / 2)), Ui.rotate rotation, Ui.width <| Ui.px <| round width_, Ui.height <| Ui.px <| round height_ ]
+    inFront << el [ move { offSet | y = round <| (y - (height_ / 2)), x = round <| (x - (width_ / 2)) }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
 
 
-elPlaced : Position -> Ui.Element FrontendMsg -> Ui.Attribute FrontendMsg
+elPlaced : GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
 elPlaced { x, y, width_, height_, rotation } =
-    Ui.inFront << Ui.el [ Ui.width Ui.shrink, Ui.down <| y, Ui.right <| x, Ui.rotate rotation, Ui.width <| Ui.px <| round width_, Ui.height <| Ui.px <| round height_ ]
+    inFront << el [ move { offSet | y = round y, x = round x }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
 
 
-calculateDrawPilePosition : Int -> Int -> Position
+
+-- type alias Position =
+--     { x : Int
+--     , y : Int
+--     , z : Int
+--     }
+-- {-| -}
+-- up : Int -> Position
+-- up y =
+--     { x = 0
+--     , y = negate y
+--     , z = 0
+--     }
+-- {-| -}
+-- down : Int -> Position
+-- down y =
+--     { x = 0
+--     , y = y
+--     , z = 0
+--     }
+-- {-| -}
+-- right : Int -> Position
+-- right x =
+--     { x = x
+--     , y = 0
+--     , z = 0
+--     }
+-- {-| -}
+-- left : Int -> Position
+-- left x =
+--     { x = negate x
+--     , y = 0
+--     , z = 0
+--     }
+-- {-| -}
+-- move : Position -> Attribute msg
+-- move pos =
+--     Two.style "translate"
+--         ((String.fromInt pos.x ++ "px ")
+--             ++ (String.fromInt pos.y ++ "px ")
+--             ++ (String.fromInt pos.z ++ "px")
+--         )
+
+
+offSet : Position
+offSet =
+    { x = 0
+    , y = 0
+    , z = 0
+    }
+
+
+calculateDrawPilePosition : Int -> Int -> GBPosition
 calculateDrawPilePosition screenWidth screenHeight =
     { x = toFloat screenWidth * 0.35
     , y = toFloat screenHeight * 0.4
     , width_ = cardWidthInMiddle screenWidth
     , height_ = cardWidthInMiddle screenWidth * heightCardRatio
-    , rotation = 0
+    , rotation = Ui.radians 0
     }
 
 
-calculateDrewCardPosition : Int -> Int -> Position
+calculateDrewCardPosition : Int -> Int -> GBPosition
 calculateDrewCardPosition screenWidth screenHeight =
     { x = toFloat screenWidth * 0.5
     , y = toFloat screenHeight * 0.4
     , width_ = cardWidthInMiddle screenWidth
     , height_ = cardWidthInMiddle screenWidth * heightCardRatio
-    , rotation = 0
+    , rotation = Ui.radians 0
     }
 
 
-calculateDiscardPilePosition : Int -> Int -> Position
+calculateDiscardPilePosition : Int -> Int -> GBPosition
 calculateDiscardPilePosition screenWidth screenHeight =
     { x = toFloat screenWidth * 0.65
     , y = toFloat screenHeight * 0.4
     , width_ = cardWidthInMiddle screenWidth
     , height_ = cardWidthInMiddle screenWidth * heightCardRatio
-    , rotation = 0
+    , rotation = Ui.radians 0
     }
 
 
-calculateTamalouButtonPosition : Int -> Int -> Position
+calculateTamalouButtonPosition : Int -> Int -> GBPosition
 calculateTamalouButtonPosition screenWidth screenHeight =
     { x = toFloat screenWidth * 0.5
     , y = toFloat screenHeight * 0.65
     , width_ = 65
     , height_ = 20
-    , rotation = 0
+    , rotation = Ui.radians 0
     }
 
 
-calculatePlayAgainOrPassPosition : Int -> Int -> Position
+calculatePlayAgainOrPassPosition : Int -> Int -> GBPosition
 calculatePlayAgainOrPassPosition screenWidth screenHeight =
     { x = toFloat screenWidth * 0.5
     , y = toFloat screenHeight * 0.65
     , width_ = 108
     , height_ = 20
-    , rotation = 0
+    , rotation = Ui.radians 0
     }
 
 
-calculateGameDisposition : { height : Int, width : Int } -> List FPlayer -> GameDisposition
-calculateGameDisposition viewPort opponents =
+calculateGameDisposition : { height : Int, width : Int } -> List FPlayer -> List FCard -> GameDisposition
+calculateGameDisposition viewPort opponents ownCards =
     Calculated
         { drawPilePosition = calculateDrawPilePosition viewPort.width viewPort.height
         , drewCardPosition = calculateDrewCardPosition viewPort.width viewPort.height
@@ -2148,10 +2167,11 @@ calculateGameDisposition viewPort opponents =
         , tamalouButtonPosition = calculateTamalouButtonPosition viewPort.width viewPort.height
         , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
         , opponentsDisposition = toOpponentsDisposition viewPort.width opponents
+        , ownCardsDisposition = toOwnCardsDisposition viewPort ownCards
         }
 
 
-displayAllOpponents : Maybe TamalouOwner -> Maybe SessionId -> Bool -> Maybe Int -> OpponentsDisposition -> List (Ui.Attribute FrontendMsg)
+displayAllOpponents : Maybe TamalouOwner -> Maybe SessionId -> Bool -> Maybe Int -> OpponentsDisposition -> List (Attribute FrontendMsg)
 displayAllOpponents maybeTamalouOwner maybeSessionId isSwitchingCard maybeCardIndex opponentsDisposition =
     [ displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard opponentsDisposition.topLeftPlayer maybeCardIndex
     , displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard opponentsDisposition.topRightPlayer maybeCardIndex
@@ -2159,3 +2179,23 @@ displayAllOpponents maybeTamalouOwner maybeSessionId isSwitchingCard maybeCardIn
     , displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard opponentsDisposition.rightPlayer maybeCardIndex
     ]
         |> List.concat
+
+
+
+-- we want to display them on the bottom of the screen, centered.
+
+
+toOwnCardsDisposition : { width : Int, height : Int } -> List FCard -> List ( FCard, GBPosition )
+toOwnCardsDisposition viewPort ownCards =
+    let
+        cardPanel =
+            0.7 * toFloat viewPort.width
+
+        cardWidth =
+            if List.length ownCards > 4 then
+                cardPanel / toFloat (List.length ownCards)
+
+            else
+                cardPanel / 5
+    in
+    List.indexedMap (\i c -> ( c, { x = toFloat viewPort.width / 2 - cardPanel / 2 + toFloat i * cardWidth, y = toFloat viewPort.height - cardWidth * heightCardRatio - 20, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians 0 } )) ownCards

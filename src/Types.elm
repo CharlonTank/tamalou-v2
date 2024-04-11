@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, Position, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
@@ -11,6 +11,7 @@ import Ui.Anim
 import Ui.Layout
 import Ui.Prose
 import Url exposing (Url)
+import Utils.Ui exposing (Device)
 
 
 type ActionFromGameToBackend
@@ -157,7 +158,7 @@ type alias FTableHand =
 
 type alias FrontendModel =
     { key : Key
-    , device : Ui.Device
+    , device : Device
     , fGame : FGame
     , clientId : Maybe ClientId
     , sessionId : Maybe SessionId
@@ -191,8 +192,8 @@ type alias OpponentsDisposition =
 
 type alias PositionedPlayer =
     { player : FPlayer
-    , positionedTableHand : List ( FCard, Position )
-    , namePosition : Position
+    , positionedTableHand : List ( FCard, GBPosition )
+    , namePosition : GBPosition
     }
 
 
@@ -202,12 +203,13 @@ type GameDisposition
 
 
 type alias Positions =
-    { drawPilePosition : Position
-    , drewCardPosition : Position
-    , discardPilePosition : Position
-    , tamalouButtonPosition : Position
-    , playAgainOrPassPosition : Position
+    { drawPilePosition : GBPosition
+    , drewCardPosition : GBPosition
+    , discardPilePosition : GBPosition
+    , tamalouButtonPosition : GBPosition
+    , playAgainOrPassPosition : GBPosition
     , opponentsDisposition : OpponentsDisposition
+    , ownCardsDisposition : List ( FCard, GBPosition )
     }
 
 
@@ -266,10 +268,10 @@ type ToFrontend
     | GotSessionIdAndClientIdToFrontend SessionId ClientId
 
 
-type alias Position =
+type alias GBPosition =
     { x : Float
     , y : Float
     , width_ : Float
     , height_ : Float
-    , rotation : Float
+    , rotation : Ui.Angle
     }
