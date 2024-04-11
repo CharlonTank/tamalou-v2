@@ -228,7 +228,7 @@ type FrontendMsg
     | ChangeChatInputFrontend String
     | SendMessageFrontend
     | CardClickMsg CardClickMsg
-    | UpdateFlip CardAnimation (Maybe Card)
+    | UpdateFlip CardAnimation
 
 
 type LookACardStatus

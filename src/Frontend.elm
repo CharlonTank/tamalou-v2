@@ -316,7 +316,7 @@ update msg ({ urlPath } as model) =
         CardClickMsg cardClickMsg ->
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
-                    ( model, Cmd.batch [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend, Delay.after 0 (UpdateFlip (CardFlipping FaceDown) Nothing) ] )
+                    ( model, Cmd.batch [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend, Delay.after 0 (UpdateFlip (CardFlipping FaceDown)) ] )
 
                 DrawFromDiscardPileFrontend ->
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
@@ -339,14 +339,25 @@ update msg ({ urlPath } as model) =
                 ChooseOpponentCardToSwitchFrontend sessionId cardIndex ->
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
 
-        UpdateFlip cardAnimation card ->
-            ( { model | cardAnim = cardAnimation }
-            , case ( cardAnimation, card ) of
-                ( CardFlipping (FaceUp c), _ ) ->
-                    Delay.after 250 (UpdateFlip (CardFlipped c) (Just c))
+        UpdateFlip cardAnimation ->
+            let
+                cardInAnim =
+                    (case model.fGame of
+                        FGameInProgress _ _ _ _ _ (FYourTurn (FPlayerHasDraw fCard)) ->
+                            Just fCard
 
-                ( CardFlipping FaceDown, _ ) ->
-                    Delay.after 250 (UpdateFlip (CardFlipping FaceDown) Nothing)
+                        _ ->
+                            Nothing
+                    )
+                        |> Maybe.withDefault FaceDown
+            in
+            ( { model | cardAnim = cardAnimation }
+            , case cardAnimation of
+                CardFlipping (FaceUp c) ->
+                    Delay.after 500 (UpdateFlip (CardFlipped c))
+
+                CardFlipping FaceDown ->
+                    Delay.after 250 (UpdateFlip (CardFlipping cardInAnim))
 
                 _ ->
                     Cmd.none
@@ -615,7 +626,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                 ]
 
         _ ->
-            el [ width fill, height fill, scrollbars ] <|
+            el [ width fill, height fill, scrollbars, inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim) ] <|
                 case model.fGame of
                     FWaitingForPlayers players ->
                         column
@@ -1001,7 +1012,6 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
                              , elPlacedByCenter tamalouButtonPosition <| tamalouButton
-                             , inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                             )
@@ -1033,7 +1043,6 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                              , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
                              , elPlacedByCenter drewCardPosition <| drewCardColumn
                              , elPlacedByCenter discardPilePosition <| discardPileColumn
-                             , inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                             )
@@ -2022,12 +2031,19 @@ cardMoveAndFlip oldPosition newPosition cardAnimation =
 
 cardFlip : Position -> Position -> SAnimation.Animation
 cardFlip oldPosition newPosition =
+    -- fromTo : { duration : SAnimation.Millis, options : List SAnimation.Option } -> List SP.Property -> List SP.Property -> SAnimation.Animation
+    -- SAnimation.fromTo
+    --     { duration = 1000
+    --     , options = [ easeInOutQuad ]
+    --     }
+    --     [ SP.scaleXY 1 1, SP.x oldPosition.x, SP.y oldPosition.y, SP.rotate oldPosition.rotation ]
+    --     [ SP.scaleXY 0 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation ]
     SAnimation.steps
-        { startAt = [ SP.scaleXY 1 1, SP.x oldPosition.x, SP.y oldPosition.y, SP.rotate oldPosition.rotation ]
+        { startAt = [ SP.scaleXY 1 1, SP.x oldPosition.x, SP.y oldPosition.y, SP.rotate oldPosition.rotation, SP.property "width" (String.fromFloat oldPosition.width_), SP.property "height" (String.fromFloat oldPosition.height_) ]
         , options = [ easeInOutQuad ]
         }
-        [ SAnimation.step 1000 [ SP.scaleXY 0 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation ]
-        , SAnimation.step 1000 [ SP.scaleXY 1 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation ]
+        [ SAnimation.step 500 [ SP.scaleXY 0 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation, SP.property "width" (String.fromFloat newPosition.width_), SP.property "height" (String.fromFloat newPosition.height_) ]
+        , SAnimation.step 500 [ SP.scaleXY 1 1, SP.x newPosition.x, SP.y newPosition.y, SP.rotate newPosition.rotation, SP.property "width" (String.fromFloat newPosition.width_), SP.property "height" (String.fromFloat newPosition.height_) ]
         ]
 
 
