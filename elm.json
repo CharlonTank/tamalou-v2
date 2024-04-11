@@ -1,7 +1,9 @@
 {
     "type": "application",
     "source-directories": [
-        "src"
+        "src",
+        "src-elm-animator",
+        "src-elm-ui"
     ],
     "elm-version": "0.19.1",
     "dependencies": {
@@ -19,8 +21,7 @@
             "elm/url": "1.0.0",
             "elm-community/list-extra": "8.7.0",
             "lamdera/codecs": "1.0.0",
-            "lamdera/core": "1.0.0",
-            "mdgriffith/elm-ui": "2.0.0"
+            "lamdera/core": "1.0.0"
         },
         "indirect": {
             "avh4/elm-color": "1.0.0",
