@@ -25,7 +25,7 @@ import Ui.Events as Events
 import Ui.Font as Font
 import Ui.Input as Input
 import Ui.Layout as Layout
-import Ui.Prose as Prose
+import Ui.Prose as Prose exposing (paragraph)
 import Ui.Shadow as Shadow
 import Url
 import Utils.Ui exposing (..)
@@ -637,29 +637,26 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
             column [ Font.center, contentCenterY, height fill ]
-                [ el [ Ui.centerX ] <| Ui.text "Rotate your phone 🚀"
-                , el [ width shrink, Ui.centerX, height <| px 150, width <| px 150, move <| up 24 ] <| Ui.html minimalistPhoneWithHint
+                [ el [ centerX ] <| text "Rotate your phone 🚀"
+                , el [ width shrink, centerX, height <| px 150, width <| px 150, move <| up 24 ] <| html minimalistPhoneWithHint
                 ]
 
         _ ->
             -- el [ height fill, scrollbars, inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim) ] <|
-            el [ height Ui.fill, Ui.padding 12 ] <|
+            el [ height fill, padding 12 ] <|
                 case model.fGame of
                     FWaitingForPlayers players ->
                         column
-                            [ height Ui.fill, Ui.spacing 20 ]
+                            [ height fill ]
                             [ displayGameLobby model players ]
-
-                    FGameInProgress _ _ _ _ players (FStartTimerRunning Five) ->
-                        column
-                            [ height Ui.fill, Ui.spacing 20 ]
-                            [ el [ width shrink, centerX, centerY ] <| displayStartTimer Five
-                            ]
 
                     FGameInProgress _ hand _ _ players (FStartTimerRunning timer) ->
                         column
-                            [ height Ui.fill, Ui.spacing 20 ]
-                            [ el [ width shrink, centerX, centerY ] <| displayStartTimer timer
+                            ([ height fill, Font.size 28 ] ++ displayOwnCards ownCardsDisposition Nothing Nothing)
+                            [ column [ centerX, centerY, spacing 16 ]
+                                [ el [ centerX, centerY ] <| text <| "Let's go! Remember your cards!"
+                                , el [ centerX, centerY, Font.italic ] <| displayStartTimer timer
+                                ]
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FWaitingPlayerAction _)) ->
@@ -682,7 +679,11 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| "It's " ++ fPlayer.name ++ "'s turn"
+                                    [ middleText <|
+                                        text <|
+                                            "It's "
+                                                ++ fPlayer.name
+                                                ++ "'s turn"
                                     , height fill
                                     ]
                                 <|
@@ -722,7 +723,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " just drew a card"
+                                    [ middleText <|
+                                        text <|
+                                            fPlayer.name
+                                                ++ " just drew a card"
                                     , height fill
                                     ]
                                 <|
@@ -762,7 +766,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " can choose to use a power or not"
+                                    [ middleText <|
+                                        text <|
+                                            fPlayer.name
+                                                ++ " can choose to use a power or not"
                                     , height fill
                                     ]
                                 <|
@@ -802,15 +809,14 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <|
-                                        el [ width <| px 400, Font.center, padding 24, centerX ] <|
-                                            text <|
-                                                case lookACardStatus of
-                                                    ChooseCardToLook ->
-                                                        fPlayer.name ++ " is choosing a card to look at"
+                                    [ middleText <|
+                                        text <|
+                                            case lookACardStatus of
+                                                ChooseCardToLook ->
+                                                    fPlayer.name ++ " is choosing a card to look at"
 
-                                                    LookingACard _ counter ->
-                                                        fPlayer.name ++ " is looking at a card: " ++ displayEndTimer counter
+                                                LookingACard _ counter ->
+                                                    fPlayer.name ++ " is looking at a card: " ++ displayEndTimer counter
                                     , height fill
                                     ]
                                 <|
@@ -857,7 +863,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " is choosing a card to switch"
+                                    [ middleText <|
+                                        text <|
+                                            fPlayer.name
+                                                ++ " is choosing a card to switch"
                                     , height fill
                                     ]
                                 <|
@@ -890,7 +899,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " is now choosing an opponent card to switch with"
+                                    [ middleText <|
+                                        text <|
+                                            fPlayer.name
+                                                ++ " is now choosing an opponent card to switch with"
                                     , height fill
                                     ]
                                 <|
@@ -928,7 +940,13 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " changed a card with " ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous") ++ "'s card: " ++ displayEndTimer counter
+                                    [ middleText <|
+                                        text <|
+                                            fPlayer.name
+                                                ++ " changed a card with "
+                                                ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous")
+                                                ++ "'s card: "
+                                                ++ displayEndTimer counter
                                     , height fill
                                     ]
                                 <|
@@ -1001,7 +1019,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                         none
 
                                     Nothing ->
-                                        el [ width shrink, Ui.centerX, Ui.paddingWith { edges | bottom = 24, top = 12 }, Font.color blue, Font.italic ] <|
+                                        el [ Ui.centerX, Font.color blue, Font.italic ] <|
                                             el (actionBorder yellow ++ [ Events.onClick TamalouFrontend ]) <|
                                                 text "Tamalou!"
                         in
@@ -1028,7 +1046,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| "You just drew a card"
+                                    [ middleText <|
+                                        text <|
+                                            "You just drew a card"
                                     , height fill
                                     ]
                                 <|
@@ -1104,7 +1124,8 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text "Click on a card to look at it"
+                                    [ middleText <|
+                                        text "Click on a card to look at it"
                                     , height fill
                                     ]
                                 <|
@@ -1141,7 +1162,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| displayEndTimer counter
+                                    [ middleText <|
+                                        text <|
+                                            displayEndTimer counter
                                     , height fill
                                     ]
                                 <|
@@ -1174,7 +1197,8 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text "Click on a card to switch"
+                                    [ middleText <|
+                                        text "Click on a card to switch"
                                     , height fill
                                     ]
                                 <|
@@ -1203,7 +1227,8 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text "You chose your card, now choose a card to switch with"
+                                    [ middleText <|
+                                        text "You chose your card, now choose a card to switch with"
                                     , height fill
                                     ]
                                 <|
@@ -1232,7 +1257,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| "Remember! " ++ displayEndTimer counter
+                                    [ middleText <|
+                                        text <|
+                                            "Remember! "
+                                                ++ displayEndTimer counter
                                     , height fill
                                     ]
                                 <|
@@ -1281,7 +1309,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| displayEndTimer timer
+                                    [ middleText <|
+                                        text <|
+                                            displayEndTimer timer
                                     , height fill
                                     ]
                                 <|
@@ -1381,7 +1411,14 @@ displayDiscardCards widthOfScreen discardPile canDrawCard maybePowerCard =
             none
 
         ( head :: _, True, Just power ) ->
-            el [ width shrink, below <| el [ Events.onClick Types.PowerIsUsedFrontend ] (text <| Card.powerToString power) ] <| elEmplacement widthOfScreen <| displayFCard Nothing (FaceUp head)
+            el
+                [ width shrink
+                , below <|
+                    el [ Events.onClick Types.PowerIsUsedFrontend ] (text <| Card.powerToString power)
+                ]
+            <|
+                elEmplacement widthOfScreen <|
+                    displayFCard Nothing (FaceUp head)
 
         ( head :: _, True, Nothing ) ->
             -- Warning, here, we put True because it's not possible that the queen power has been used the turn before with someone with a valid tamalou && 2 players.
@@ -2257,3 +2294,8 @@ toOwnCardsDisposition viewPort ownCards =
             )
         )
         ownCards
+
+
+middleText : Element FrontendMsg -> Attribute FrontendMsg
+middleText =
+    below << el [ width <| px 400, Font.center, padding 6, centerX ]
