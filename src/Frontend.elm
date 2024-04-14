@@ -682,12 +682,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| "It's " ++ fPlayer.name ++ "'s turn"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| "It's " ++ fPlayer.name ++ "'s turn"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -722,12 +722,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " just drew a card"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " just drew a card"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        displayFCard Nothing FaceDown
+                                    -- elEmplacement viewPort.width <|
+                                    displayFCard Nothing FaceDown
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -762,12 +762,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " can choose to use a power or not"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " can choose to use a power or not"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -803,7 +803,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn =
                                 el
                                     [ below <|
-                                        el [ width shrink, centerX, padding 12 ] <|
+                                        el [ width <| px 400, Font.center, padding 24, centerX ] <|
                                             text <|
                                                 case lookACardStatus of
                                                     ChooseCardToLook ->
@@ -814,8 +814,8 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -857,12 +857,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " is choosing a card to switch"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " is choosing a card to switch"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -890,12 +890,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " is now choosing an opponent card to switch with"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " is now choosing an opponent card to switch with"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -928,12 +928,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| fPlayer.name ++ " changed a card with " ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous") ++ "'s card: " ++ displayEndTimer counter
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| fPlayer.name ++ " changed a card with " ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous") ++ "'s card: " ++ displayEndTimer counter
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -991,7 +991,8 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
 
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                elEmplacement viewPort.width <| none
+                                -- elEmplacement viewPort.width <|
+                                none
 
                             tamalouButton : Element FrontendMsg
                             tamalouButton =
@@ -1027,12 +1028,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| "You just drew a card"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| "You just drew a card"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        displayFCard (Just DiscardCardFrontend) fCard
+                                    -- elEmplacement viewPort.width <|
+                                    displayFCard (Just DiscardCardFrontend) fCard
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -1073,7 +1074,8 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
 
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
-                                elEmplacement viewPort.width <| none
+                                -- elEmplacement viewPort.width <|
+                                none
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -1102,12 +1104,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text "Click on a card to look at it"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text "Click on a card to look at it"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -1139,12 +1141,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| displayEndTimer counter
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| displayEndTimer counter
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -1172,12 +1174,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text "Click on a card to switch"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text "Click on a card to switch"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -1201,12 +1203,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text "You chose your card, now choose a card to switch with"
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text "You chose your card, now choose a card to switch with"
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        none
+                                    -- elEmplacement viewPort.width <|
+                                    none
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -1230,11 +1232,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| "Remember! " ++ displayEndTimer counter
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| "Remember! " ++ displayEndTimer counter
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width none
+                                    -- elEmplacement viewPort.width <|
+                                    none
 
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
@@ -1278,12 +1281,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ below <| el [ width shrink, centerX, padding 12 ] <| text <| displayEndTimer timer
+                                    [ below <| el [ width <| px 400, Font.center, padding 24, centerX ] <| text <| displayEndTimer timer
                                     , height fill
                                     ]
                                 <|
-                                    elEmplacement viewPort.width <|
-                                        displayFCard Nothing FaceDown
+                                    -- elEmplacement viewPort.width <|
+                                    displayFCard Nothing FaceDown
                         in
                         column
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
@@ -1374,7 +1377,8 @@ displayDiscardCards : Int -> DiscardPile -> Bool -> Maybe Card.Power -> Element 
 displayDiscardCards widthOfScreen discardPile canDrawCard maybePowerCard =
     case ( discardPile, canDrawCard, maybePowerCard ) of
         ( [], _, _ ) ->
-            elEmplacement widthOfScreen none
+            -- elEmplacement widthOfScreen <|
+            none
 
         ( head :: _, True, Just power ) ->
             el [ width shrink, below <| el [ Events.onClick Types.PowerIsUsedFrontend ] (text <| Card.powerToString power) ] <| elEmplacement widthOfScreen <| displayFCard Nothing (FaceUp head)
@@ -1384,13 +1388,16 @@ displayDiscardCards widthOfScreen discardPile canDrawCard maybePowerCard =
             -- We could pass the nb players and maybeTamalouOwner but it's not necessary for now, we come up with a better solution later.
             case Card.toPower True head of
                 Just _ ->
-                    elEmplacement widthOfScreen <| displayFCard Nothing (FaceUp head)
+                    -- elEmplacement widthOfScreen <|
+                    displayFCard Nothing (FaceUp head)
 
                 Nothing ->
-                    elEmplacement widthOfScreen <| displayFCard (Just DrawFromDiscardPileFrontend) (FaceUp head)
+                    -- elEmplacement widthOfScreen <|
+                    displayFCard (Just DrawFromDiscardPileFrontend) (FaceUp head)
 
         ( head :: _, False, _ ) ->
-            elEmplacement widthOfScreen <| displayFCard Nothing (FaceUp head)
+            -- elEmplacement widthOfScreen <|
+            displayFCard Nothing (FaceUp head)
 
 
 displayStartTimer : Counter -> Element FrontendMsg
@@ -1460,7 +1467,7 @@ displayPlayerAndCards ( player, rank ) =
     row
         [ spacing 12, centerX, rounded 8, paddingXY 12 12, background veryLightGrey, height <| px 64 ]
         [ text <| medal rank
-        , el [ width shrink, width <| px 250 ] <|
+        , el [ width <| px 250 ] <|
             text <|
                 case player.name of
                     "" ->
@@ -1575,7 +1582,7 @@ sizeOfCard screenWidth =
 
 displayOwnCards : List ( FCard, GBPosition ) -> Maybe (Int -> CardClickMsg) -> Maybe Int -> List (Attribute FrontendMsg)
 displayOwnCards positionedCards maybeCardClickEvent maybeIndex =
-    List.indexedMap (\i ( card, position ) -> elPlacedByCenter position <| displayFCardSized Nothing maybeCardClickEvent maybeIndex i card) positionedCards
+    List.indexedMap (\i ( card, position ) -> elPlaced position <| displayFCardSized Nothing maybeCardClickEvent maybeIndex i card) positionedCards
 
 
 displayFCard : Maybe CardClickMsg -> FCard -> Element FrontendMsg
@@ -1867,7 +1874,11 @@ positionOpponent screenWidth player opponentDisposition =
 
         namePanelWidth : Float
         namePanelWidth =
-            toFloat screenWidth / 11
+            toFloat screenWidth / 10
+
+        namePanelheight : Float
+        namePanelheight =
+            50
 
         -- we need to reduce the width of the cards based on the number of cards in the hand if the number of cards exceeds 4.
         -- we don't want to exceed the width of panelWidth
@@ -1895,25 +1906,25 @@ positionOpponent screenWidth player opponentDisposition =
         LeftPlayer ->
             { player = player
             , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace, y = 80 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi / 2 } )) player.tableHand
-            , namePosition = { x = leftSpace, y = 80, width_ = namePanelWidth, height_ = 30, rotation = Ui.radians 0 }
+            , namePosition = { x = leftSpace, y = 80, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
         TopLeftPlayer ->
             { player = player
             , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace + namePanelWidth + spaceBetweenNameAndCards + toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi } )) player.tableHand
-            , namePosition = { x = leftSpace, y = 8, width_ = namePanelWidth, height_ = 30, rotation = Ui.radians 0 }
+            , namePosition = { x = leftSpace, y = 0, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
         TopRightPlayer ->
             { player = player
             , positionedTableHand = List.indexedMap (\i c -> ( c, { x = toFloat screenWidth - toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi } )) player.tableHand
-            , namePosition = { x = toFloat screenWidth - panelWidth - (namePanelWidth / 2), y = 0, width_ = namePanelWidth, height_ = 30, rotation = Ui.radians 0 }
+            , namePosition = { x = toFloat screenWidth - panelWidth - (namePanelWidth / 2), y = 0, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
         RightPlayer ->
             { player = player
             , positionedTableHand = List.indexedMap (\i c -> ( c, { x = 0, y = toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| 3 * pi / 2 } )) player.tableHand
-            , namePosition = { x = toFloat screenWidth - (namePanelWidth / 2), y = 50, width_ = namePanelWidth, height_ = 30, rotation = Ui.radians 0 }
+            , namePosition = { x = toFloat screenWidth - (namePanelWidth / 2), y = 50, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
 
@@ -2183,19 +2194,66 @@ displayAllOpponents maybeTamalouOwner maybeSessionId isSwitchingCard maybeCardIn
 
 
 -- we want to display them on the bottom of the screen, centered.
+--  example for placing the cards on the left:
+-- , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace, y = 80 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi / 2 } )) player.tableHand
 
 
 toOwnCardsDisposition : { width : Int, height : Int } -> List FCard -> List ( FCard, GBPosition )
 toOwnCardsDisposition viewPort ownCards =
     let
+        cardPanel : Float
         cardPanel =
-            0.7 * toFloat viewPort.width
+            (if totalCards <= 4 then
+                0.5
 
-        cardWidth =
-            if List.length ownCards > 4 then
-                cardPanel / toFloat (List.length ownCards)
+             else if totalCards == 5 then
+                0.6
+
+             else
+                0.7
+            )
+                * toFloat viewPort.width
+
+        totalCards : Int
+        totalCards =
+            List.length ownCards
+
+        spaceBetweenEachCard : Float
+        spaceBetweenEachCard =
+            if totalCards <= 4 then
+                16
+
+            else if totalCards == 5 then
+                8
 
             else
-                cardPanel / 5
+                4
+
+        totalSpaceBetweenCards : Float
+        totalSpaceBetweenCards =
+            toFloat (totalCards - 1) * spaceBetweenEachCard
+
+        cardWidth : Float
+        cardWidth =
+            (cardPanel - totalSpaceBetweenCards) / toFloat totalCards
+
+        cardHeight : Float
+        cardHeight =
+            cardWidth * heightCardRatio
+
+        startX : Float
+        startX =
+            (toFloat viewPort.width - (toFloat totalCards * cardWidth + totalSpaceBetweenCards)) / 2
     in
-    List.indexedMap (\i c -> ( c, { x = toFloat viewPort.width / 2 - cardPanel / 2 + toFloat i * cardWidth, y = toFloat viewPort.height - cardWidth * heightCardRatio - 20, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians 0 } )) ownCards
+    List.indexedMap
+        (\i c ->
+            ( c
+            , { x = startX + toFloat i * (cardWidth + spaceBetweenEachCard)
+              , y = toFloat viewPort.height - cardHeight - 20
+              , width_ = cardWidth
+              , height_ = cardHeight
+              , rotation = Ui.radians 0
+              }
+            )
+        )
+        ownCards

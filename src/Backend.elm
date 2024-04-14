@@ -994,7 +994,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, newSeed ) players
 
                                                 ( Nothing, _ ) ->
-                                                    ( model, Cmd.none )
+                                                    -- TODO: Terminate game because this should not happen, we need to log this...
+                                                    let
+                                                        newGameStatus : BGameStatus
+                                                        newGameStatus =
+                                                            BGameEnded (assignRanks maybeTamalouOwner (stopDisplayCards maybeTamalouOwner players))
+                                                    in
+                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
                                         else
                                             ( model, Cmd.none )
@@ -1259,7 +1265,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                     )
 
                                                                 ( Nothing, _ ) ->
-                                                                    ( model, Cmd.none )
+                                                                    -- TODO: Terminate game because this should not happen, we need to log this...
+                                                                    let
+                                                                        newGameStatus : BGameStatus
+                                                                        newGameStatus =
+                                                                            BGameEnded (assignRanks maybeTamalouOwner (stopDisplayCards maybeTamalouOwner players))
+                                                                    in
+                                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
                                                 _ ->
                                                     ( model, Cmd.none )
@@ -1563,7 +1575,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         )
 
                                                     ( Nothing, _ ) ->
-                                                        ( model, Cmd.none )
+                                                        -- TODO: Terminate game because this should not happen, we need to log this...
+                                                        let
+                                                            newGameStatus : BGameStatus
+                                                            newGameStatus =
+                                                                BGameEnded (assignRanks (Just sessionId) (stopDisplayCards (Just sessionId) players))
+                                                        in
+                                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
 
                                             else
                                                 let
