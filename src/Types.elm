@@ -1,8 +1,9 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), positionDiff)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard, Power)
+import Internal.Style2 exposing (toRadians)
 import Lamdera exposing (ClientId, SessionId)
 import Random
 import Time exposing (Posix)
@@ -170,8 +171,9 @@ type alias FrontendModel =
     , maybeName : Maybe String
     , chatInput : String
     , chat : List ( String, String )
-    , cardAnim : CardAnimation
     , gameDisposition : GameDisposition
+    , animationState : Ui.Anim.State
+    , anim : Bool
     }
 
 
@@ -234,6 +236,7 @@ type FrontendMsg
     | SendMessageFrontend
     | CardClickMsg CardClickMsg
     | UpdateFlip CardAnimation
+    | AnimMsg Ui.Anim.Msg
 
 
 type LookACardStatus
@@ -274,4 +277,14 @@ type alias GBPosition =
     , width_ : Float
     , height_ : Float
     , rotation : Ui.Angle
+    }
+
+
+positionDiff : GBPosition -> GBPosition -> GBPosition
+positionDiff oldPosition newPosition =
+    { x = newPosition.x - oldPosition.x
+    , y = newPosition.y - oldPosition.y
+    , width_ = newPosition.width_ - oldPosition.width_
+    , height_ = newPosition.height_ - oldPosition.height_
+    , rotation = Ui.turns <| toRadians newPosition.rotation - toRadians oldPosition.rotation
     }

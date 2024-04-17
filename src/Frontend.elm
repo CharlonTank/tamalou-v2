@@ -9,18 +9,19 @@ import Browser.Navigation as Nav
 import Card exposing (FCard(..))
 import Delay
 import Html.Attributes as HA
+import Json.Decode exposing (maybe)
 import Lamdera exposing (SessionId)
 import List.Extra
-import Palette.Anim as Anim
+import Palette.Anim as PAnim
 import Simple.Animation as SAnimation exposing (easeInOutQuad)
 import Simple.Animation.Animated as SAnim
 import Simple.Animation.Property as SP
 import Svg exposing (Svg)
 import Svg.Attributes as SvgA
 import Task
-import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), positionDiff)
 import Ui exposing (..)
-import Ui.Anim as Anim
+import Ui.Anim as Anim exposing (Animated)
 import Ui.Events as Events
 import Ui.Font as Font
 import Ui.Input as Input
@@ -228,8 +229,11 @@ init url key =
       , maybeName = Nothing
       , chatInput = ""
       , chat = []
-      , cardAnim = CardNotFlipped
+
+      --   , cardAnim = CardNotFlipped
       , gameDisposition = NotCalculated
+      , animationState = Anim.init
+      , anim = False
       }
     , Task.perform
         (\v ->
@@ -319,7 +323,12 @@ update msg ({ urlPath } as model) =
         CardClickMsg cardClickMsg ->
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
-                    ( model, Cmd.batch [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend, Delay.after 0 (UpdateFlip (CardFlipping FaceDown)) ] )
+                    ( { model | anim = True }
+                    , Cmd.batch
+                        [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawCardFromDrawPileToBackend
+                        , Delay.after 0 (UpdateFlip (CardFlipping FaceDown))
+                        ]
+                    )
 
                 DrawFromDiscardPileFrontend ->
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
@@ -354,7 +363,8 @@ update msg ({ urlPath } as model) =
                     )
                         |> Maybe.withDefault FaceDown
             in
-            ( { model | cardAnim = cardAnimation }
+            -- ( { model | cardAnim = cardAnimation }
+            ( model
             , case cardAnimation of
                 CardFlipping (FaceUp c) ->
                     Delay.after 500 (UpdateFlip (CardFlipped c))
@@ -364,6 +374,15 @@ update msg ({ urlPath } as model) =
 
                 _ ->
                     Cmd.none
+            )
+
+        AnimMsg animMsg ->
+            let
+                ( newAnimationState, cmds ) =
+                    Anim.update AnimMsg animMsg model.animationState
+            in
+            ( { model | animationState = newAnimationState }
+            , cmds
             )
 
 
@@ -460,16 +479,56 @@ getMyName maybeSessionId fGame =
         |> Maybe.map .name
 
 
+
+-- {-| -}
+-- layout :
+--     { options : List Ui.Option
+--     , toMsg : Msg -> msg
+--     , breakpoints : Maybe (Ui.Responsive.Breakpoints label)
+--     }
+--     -> State
+--     -> List (Attribute msg)
+--     -> Element msg
+--     -> Html.Html msg
+-- layout opts state attrs els =
+--     Two.renderLayout
+--         { options =
+--             case opts.breakpoints of
+--                 Just (Two.Responsive breakpoints) ->
+--                     breakpoints.breakpoints :: opts.options
+--                 Nothing ->
+--                     opts.options
+--         , includeStaticStylesheet = True
+--         }
+--         state
+--         (onAnimationStart opts.toMsg
+--             :: onAnimationUnmount opts.toMsg
+--             :: attrs
+--         )
+--         els
+
+
 view : FrontendModel -> Browser.Document FrontendMsg
 view model =
     { title = "Tamalou!"
     , body =
-        [ layout
+        -- [ layout
+        --     [ behindContent <| image [ width fill, height fill ] { source = "/background.png", description = "background" }
+        --     , Font.size 12
+        --     ]
+        --   <|
+        --     displayModel model
+        -- ]
+        [ Anim.layout
+            { options = []
+            , toMsg = AnimMsg
+            , breakpoints = Nothing
+            }
+            model.animationState
             [ behindContent <| image [ width fill, height fill ] { source = "/background.png", description = "background" }
             , Font.size 12
             ]
-          <|
-            displayModel model
+            (displayModel model)
         ]
     }
 
@@ -694,9 +753,11 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+
+                             --  , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -737,9 +798,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -780,9 +841,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drewCardPosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drewCardPosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -840,9 +901,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 -- A fix
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
@@ -877,9 +938,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -921,9 +982,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 -- a fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
@@ -980,9 +1041,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 --fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
@@ -1027,10 +1088,13 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile True model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
-                             , elPlacedByCenter tamalouButtonPosition <| tamalouButton
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile True)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlacedByCenter tamalouButtonPosition Nothing <| tamalouButton
+
+                             --  , model.animationState |> Anim.transition (Anim.ms 1000) []
+                             , Anim.transition (Anim.ms 10000) [ Anim.scaleX 100 ]
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1059,9 +1123,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition (Just drewCardPosition) (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition Nothing Nothing
@@ -1101,10 +1165,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
-                             , elPlacedByCenter playAgainOrPassPosition <| displayUsePowerOrPass
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlacedByCenter playAgainOrPassPosition Nothing <| displayUsePowerOrPass
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1136,9 +1200,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1175,9 +1239,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg (Just index)
@@ -1209,9 +1273,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1239,9 +1303,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing True Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition Nothing (Just index)
@@ -1279,9 +1343,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 -- a fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner Nothing True Nothing opponentsDisposition
@@ -1322,9 +1386,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (displayDrawColumn drawPile False model.cardAnim)
-                             , elPlacedByCenter drewCardPosition <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition <| discardPileColumn
+                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
+                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
+                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1743,8 +1807,8 @@ edges =
     }
 
 
-displayDrawColumn : List FCard -> Bool -> CardAnimation -> Element FrontendMsg
-displayDrawColumn drawPile drawAllowed cardAnim =
+displayDrawColumn : List FCard -> Bool -> Element FrontendMsg
+displayDrawColumn drawPile drawAllowed =
     -- elEmplacement screenWidth <|
     -- el [ width fill, height fill ] <|
     -- el [ width fill, height fill, inFront <| testAnimation cardAnim ] <|
@@ -2094,14 +2158,28 @@ heightCardRatio =
     380 / 250
 
 
-elPlacedByCenter : GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
-elPlacedByCenter { x, y, width_, height_, rotation } =
-    inFront << el [ move { offSet | y = round <| (y - (height_ / 2)), x = round <| (x - (width_ / 2)) }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
+moveCard : GBPosition -> GBPosition -> Attribute msg
+moveCard position newPosition =
+    let
+        diff =
+            positionDiff position newPosition
+    in
+    Ui.htmlAttribute <| HA.style "transform" ("translate(" ++ String.fromFloat diff.x ++ "px, " ++ String.fromFloat diff.y ++ "px)")
+
+
+elPlacedByCenter : GBPosition -> Maybe GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
+elPlacedByCenter ({ x, y, width_, height_, rotation } as position) maybeNewPosition =
+    case maybeNewPosition of
+        Just newPosition ->
+            inFront << el [ Ui.htmlAttribute (HA.style "transition" "transform 400ms"), move { offSet | y = round <| (y - (height_ / 2)), x = round <| (x - (width_ / 2)) }, rotate rotation, width <| px <| round width_, height <| px <| round height_, moveCard position newPosition ]
+
+        Nothing ->
+            inFront << el [ Ui.htmlAttribute (HA.style "transition" "transform 400ms"), move { offSet | y = round <| (y - (height_ / 2)), x = round <| (x - (width_ / 2)) }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
 
 
 elPlaced : GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
 elPlaced { x, y, width_, height_, rotation } =
-    inFront << el [ move { offSet | y = round y, x = round x }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
+    inFront << el [ Anim.pressed (Anim.ms 1000) [ Anim.scale 1.3 ], move { offSet | y = round y, x = round x }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
 
 
 
@@ -2299,3 +2377,13 @@ toOwnCardsDisposition viewPort ownCards =
 middleText : Element FrontendMsg -> Attribute FrontendMsg
 middleText =
     below << el [ width <| px 400, Font.center, padding 6, centerX ]
+
+
+
+-- animateCardMove : FCard -> GBPosition -> GBPosition -> List Animated
+-- animateCardMove card startPosition endPosition =
+--     [ Anim.x endPosition.x
+--     , Anim.y endPosition.y
+--     , Anim.rotation (degrees 5) -- Adding a slight rotation for effect
+--     , Anim.scale 0.95 -- Optionally scale down during movement
+--     ]
