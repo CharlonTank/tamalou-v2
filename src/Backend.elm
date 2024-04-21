@@ -872,7 +872,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     toFGame Nothing newGameStatus
 
                                                 ( newDrawPile, newSeed ) =
-                                                    shuffleWithSeed game.seed Card.nonShuffledDeck
+                                                    shuffleWithSeed game.seed (Debug.log "WARNING" Card.debugDeck)
 
                                                 ( newDrawPile_, newPlayers_ ) =
                                                     List.foldl

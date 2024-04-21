@@ -2,6 +2,10 @@ module Frontend exposing (app)
 
 -- import Animator exposing (Animation, keyframes, set, step, scaleX, ms)
 
+import Animator exposing (scaleY)
+import Animator.Timeline as Timeline exposing (Timeline)
+import Animator.Transition
+import Animator.Value
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Events
@@ -9,6 +13,7 @@ import Browser.Navigation as Nav
 import Card exposing (FCard(..))
 import Delay
 import Html.Attributes as HA
+import Internal.Style2 exposing (toRadians)
 import Json.Decode exposing (maybe)
 import Lamdera exposing (SessionId)
 import List.Extra
@@ -19,9 +24,10 @@ import Simple.Animation.Property as SP
 import Svg exposing (Svg)
 import Svg.Attributes as SvgA
 import Task
+import Time exposing (Posix)
 import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), positionDiff)
 import Ui exposing (..)
-import Ui.Anim as Anim exposing (Animated)
+import Ui.Anim as Anim exposing (Animated, onTimeline, scaleX)
 import Ui.Events as Events
 import Ui.Font as Font
 import Ui.Input as Input
@@ -210,8 +216,21 @@ app =
 
 
 subscriptions : FrontendModel -> Sub FrontendMsg
-subscriptions _ =
-    Browser.Events.onResize (\w h -> GotWindowSize { height = h, width = w })
+subscriptions model =
+    Sub.batch
+        [ Browser.Events.onResize (\w h -> GotWindowSize { height = h, width = w })
+        , Browser.Events.onAnimationFrame Frame
+        ]
+
+
+
+-- updateMyAnimation : Posix ->
+-- cardAnimator : Animator.Animator Model
+-- cardAnimator =
+--     Animator.animator
+--         -- we tell the animator how to get the checked timeline using .checked
+--         -- and we tell the animator how to update that timeline with updateChecked
+--         |> Animator.watching .mario (\mario m -> { m | mario = mario })
 
 
 init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
@@ -234,6 +253,8 @@ init url key =
       , gameDisposition = NotCalculated
       , animationState = Anim.init
       , anim = False
+      , posix = Time.millisToPosix 0
+      , animDur = Nothing
       }
     , Task.perform
         (\v ->
@@ -340,8 +361,11 @@ update msg ({ urlPath } as model) =
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
 
                 DoubleCardFrontend cardIndex ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
+                    ( animateOwnCard model cardIndex, Cmd.none )
 
+                -- , Cmd.none
+                -- Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex)
+                -- )
                 LookAtCardFrontend cardIndex ->
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (LookAtCardInTableHandToBackend cardIndex) )
 
@@ -384,6 +408,132 @@ update msg ({ urlPath } as model) =
             ( { model | animationState = newAnimationState }
             , cmds
             )
+
+        Frame posix ->
+            ( updateMyAnimation model posix, Cmd.none )
+
+
+
+-- dt is the number of milliseconds that happened since the last time Frame happened
+-- let's say we want to animate a card from one position to another
+-- we need to know the start position and the end position
+-- we need to know the total duration of the animation
+-- calculateNewAnimationState : Posix -> Posix -> Int -> Timeline GBPosition -> Timeline GBPosition
+-- calculateNewAnimationState lastTime newTime duration currentTimeline =
+--     let
+--         transition =
+--             Animator.Transition.linear
+--         movement : Timeline GBPosition -> GBPosition
+--         movement state =
+--             -- { x = Animator.Value.float currentTimeline calcMov |> Animator.Value.to |> Animator.Value.withTransition Animator.Transition.linear |> aaa
+--             { x = Animator.Value.float currentTimeline calcMov |> Animator.Value.to |> Animator.Value.withTransition Animator.Transition.linear |> aaa
+--             , y = Animator.Value.float (Animator.withTransition transition (Animator.Value.to newPosition.y)) state.y
+--             , width_ = Animator.Value.float (Animator.withTransition transition (Animator.Value.to newPosition.width_)) state.width_
+--             , height_ = Animator.Value.float (Animator.withTransition transition (Animator.Value.to newPosition.height_)) state.height_
+--             , rotation = Animator.Value.float (Animator.withTransition transition (Animator.Value.to newPosition.rotation)) state.rotation
+--             }
+--         newTimeline =
+--             Animator.Timeline.to (Animator.Duration.millis 3000) (movement model.positionTimeline) model.positionTimeline
+--     in
+--     { model | positionTimeline = newTimeline }
+-- let
+--     currentState : GBPosition
+--     currentState =
+--         Timeline.previous currentTimeline
+--     endState : GBPosition
+--     endState =
+--         Timeline.current currentTimeline
+--     newState : GBPosition
+--     newState =
+--         interpolatePositionLinearly currentState endState lastTime newTime duration
+--     newCurrentTimeline : Timeline GBPosition
+--     newCurrentTimeline =
+--         Timeline.to (Anim.ms 0) (Debug.log "NEWSTATE" newState) currentTimeline
+-- in
+-- Debug.log "new2" <| Timeline.to (Anim.ms <| toFloat <| duration - (Time.posixToMillis newTime - Time.posixToMillis lastTime)) endState newCurrentTimeline
+
+
+interpolatePositionLinearly : Timeline GBPosition -> GBPosition
+interpolatePositionLinearly timeline =
+    { x = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << .x)
+    , y = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << .y)
+    , width_ = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << .width_)
+    , height_ = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << .height_)
+    , rotation = Ui.radians <| Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << toRadians << .rotation)
+    }
+
+
+yo : GBPosition -> Float
+yo arg1 =
+    Debug.todo "TODO"
+
+
+animateOwnCard : FrontendModel -> Int -> FrontendModel
+animateOwnCard model cardIndex =
+    case model.gameDisposition of
+        NotCalculated ->
+            model
+
+        Calculated positions ->
+            { model
+                | animDur = Just 3000
+                , gameDisposition =
+                    Calculated <|
+                        { positions
+                            | ownCardsDisposition =
+                                positions.ownCardsDisposition
+                                    |> List.indexedMap
+                                        (\i ( card, timeline ) ->
+                                            if i == cardIndex then
+                                                ( card, Timeline.to (Anim.ms 200) positions.discardPilePosition timeline )
+
+                                            else
+                                                ( card, timeline )
+                                        )
+                        }
+            }
+
+
+
+-- for now we only have a few animations, they reside in model.gameDisposition.ownCardsDisposition
+-- to do that we need to apply to them : Timeline.update newPosix self
+
+
+updateMyAnimation : FrontendModel -> Posix -> FrontendModel
+updateMyAnimation model posix =
+    case model.animDur of
+        Just animDur ->
+            let
+                diff =
+                    Time.posixToMillis posix - Time.posixToMillis model.posix
+
+                newModel =
+                    { model | posix = posix, animDur = Just newAnimDur }
+
+                newAnimDur =
+                    animDur - diff
+            in
+            if newAnimDur <= 0 then
+                { newModel | animDur = Nothing }
+
+            else
+                case model.gameDisposition of
+                    NotCalculated ->
+                        newModel
+
+                    Calculated positions ->
+                        { newModel
+                            | gameDisposition =
+                                Calculated <|
+                                    { positions
+                                        | ownCardsDisposition =
+                                            positions.ownCardsDisposition
+                                                |> List.map (\( card, cardTimeline ) -> ( card, Timeline.update posix cardTimeline ))
+                                    }
+                        }
+
+        Nothing ->
+            { model | posix = posix }
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -754,10 +904,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             ([ width <| px <| viewPort.width - 14
                              , height fill
 
-                             --  , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             --  , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -798,9 +948,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -841,9 +991,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drewCardPosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drewCardPosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -901,9 +1051,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 -- A fix
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
@@ -938,9 +1088,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -960,10 +1110,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ middleText <|
-                                        text <|
-                                            fPlayer.name
-                                                ++ " is now choosing an opponent card to switch with"
+                                    [ (fPlayer.name ++ " is now choosing an opponent card to switch with")
+                                        |> text
+                                        |> middleText
                                     , height fill
                                     ]
                                 <|
@@ -982,9 +1131,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 -- a fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
@@ -1041,9 +1190,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 --fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
@@ -1088,10 +1237,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile True)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
-                             , elPlacedByCenter tamalouButtonPosition Nothing <| tamalouButton
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile True)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
+                             , elPlaced tamalouButtonPosition <| tamalouButton
 
                              --  , model.animationState |> Anim.transition (Anim.ms 1000) []
                              , Anim.transition (Anim.ms 10000) [ Anim.scaleX 100 ]
@@ -1123,9 +1272,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition (Just drewCardPosition) (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition Nothing Nothing
@@ -1165,10 +1314,10 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
-                             , elPlacedByCenter playAgainOrPassPosition Nothing <| displayUsePowerOrPass
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
+                             , elPlaced playAgainOrPassPosition <| displayUsePowerOrPass
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1200,9 +1349,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1239,9 +1388,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg (Just index)
@@ -1273,9 +1422,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1303,9 +1452,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing True Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition Nothing (Just index)
@@ -1343,9 +1492,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 -- a fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner Nothing True Nothing opponentsDisposition
@@ -1386,9 +1535,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
                             ([ width <| px <| viewPort.width - 14
                              , height fill
-                             , elPlacedByCenter drawPilePosition Nothing (displayDrawColumn drawPile False)
-                             , elPlacedByCenter drewCardPosition Nothing <| drewCardColumn
-                             , elPlacedByCenter discardPilePosition Nothing <| discardPileColumn
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , elPlaced drewCardPosition <| drewCardColumn
+                             , elPlaced discardPilePosition <| discardPileColumn
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
                                 ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
@@ -1681,9 +1830,9 @@ sizeOfCard screenWidth =
         3 * screenWidth // 36
 
 
-displayOwnCards : List ( FCard, GBPosition ) -> Maybe (Int -> CardClickMsg) -> Maybe Int -> List (Attribute FrontendMsg)
+displayOwnCards : List ( FCard, Timeline GBPosition ) -> Maybe (Int -> CardClickMsg) -> Maybe Int -> List (Attribute FrontendMsg)
 displayOwnCards positionedCards maybeCardClickEvent maybeIndex =
-    List.indexedMap (\i ( card, position ) -> elPlaced position <| displayFCardSized Nothing maybeCardClickEvent maybeIndex i card) positionedCards
+    List.indexedMap (\i ( card, position ) -> elPlacedTimelined position <| displayFCardSized Nothing maybeCardClickEvent maybeIndex i card) positionedCards
 
 
 displayFCard : Maybe CardClickMsg -> FCard -> Element FrontendMsg
@@ -2158,31 +2307,31 @@ heightCardRatio =
     380 / 250
 
 
-moveCard : GBPosition -> GBPosition -> Attribute msg
-moveCard position newPosition =
-    let
-        diff =
-            positionDiff position newPosition
-    in
-    Ui.htmlAttribute <| HA.style "transform" ("translate(" ++ String.fromFloat diff.x ++ "px, " ++ String.fromFloat diff.y ++ "px)")
-
-
-elPlacedByCenter : GBPosition -> Maybe GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
-elPlacedByCenter ({ x, y, width_, height_, rotation } as position) maybeNewPosition =
-    case maybeNewPosition of
-        Just newPosition ->
-            inFront << el [ Ui.htmlAttribute (HA.style "transition" "transform 400ms"), move { offSet | y = round <| (y - (height_ / 2)), x = round <| (x - (width_ / 2)) }, rotate rotation, width <| px <| round width_, height <| px <| round height_, moveCard position newPosition ]
-
-        Nothing ->
-            inFront << el [ Ui.htmlAttribute (HA.style "transition" "transform 400ms"), move { offSet | y = round <| (y - (height_ / 2)), x = round <| (x - (width_ / 2)) }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
-
-
 elPlaced : GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
 elPlaced { x, y, width_, height_, rotation } =
-    inFront << el [ Anim.pressed (Anim.ms 1000) [ Anim.scale 1.3 ], move { offSet | y = round y, x = round x }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
+    inFront << el [ move { offSet | y = round y, x = round x }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
+
+
+elPlacedTimelined : Timeline GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
+elPlacedTimelined timeline =
+    let
+        { x, y, width_, height_, rotation } =
+            interpolatePositionLinearly timeline
+    in
+    inFront
+        << el
+            [ move { offSet | y = round y, x = round x }
+            , rotate rotation
+            , width <| px <| round width_
+            , height <| px <| round height_
+            , Ui.htmlAttribute <| HA.style "z-index" "10"
+            ]
 
 
 
+-- animGBPosition : GBPosition -> List Animated
+-- animGBPosition { x, y, width_, height_, rotation } =
+--     [ scaleX 10000, scaleY 1000, Anim.rotation 12 ]
 -- type alias Position =
 --     { x : Int
 --     , y : Int
@@ -2236,38 +2385,59 @@ offSet =
 
 calculateDrawPilePosition : Int -> Int -> GBPosition
 calculateDrawPilePosition screenWidth screenHeight =
-    { x = toFloat screenWidth * 0.35
-    , y = toFloat screenHeight * 0.4
-    , width_ = cardWidthInMiddle screenWidth
-    , height_ = cardWidthInMiddle screenWidth * heightCardRatio
+    let
+        width =
+            cardWidthInMiddle screenWidth
+
+        height =
+            width * heightCardRatio
+    in
+    { x = toFloat screenWidth * 0.35 - width / 2
+    , y = toFloat screenHeight * 0.35 - height / 2
+    , width_ = width
+    , height_ = height
     , rotation = Ui.radians 0
     }
 
 
 calculateDrewCardPosition : Int -> Int -> GBPosition
 calculateDrewCardPosition screenWidth screenHeight =
-    { x = toFloat screenWidth * 0.5
-    , y = toFloat screenHeight * 0.4
-    , width_ = cardWidthInMiddle screenWidth
-    , height_ = cardWidthInMiddle screenWidth * heightCardRatio
+    let
+        width =
+            cardWidthInMiddle screenWidth
+
+        height =
+            width * heightCardRatio
+    in
+    { x = toFloat screenWidth * 0.5 - width / 2
+    , y = toFloat screenHeight * 0.35 - height / 2
+    , width_ = width
+    , height_ = height
     , rotation = Ui.radians 0
     }
 
 
 calculateDiscardPilePosition : Int -> Int -> GBPosition
 calculateDiscardPilePosition screenWidth screenHeight =
-    { x = toFloat screenWidth * 0.65
-    , y = toFloat screenHeight * 0.4
-    , width_ = cardWidthInMiddle screenWidth
-    , height_ = cardWidthInMiddle screenWidth * heightCardRatio
+    let
+        width =
+            cardWidthInMiddle screenWidth
+
+        height =
+            width * heightCardRatio
+    in
+    { x = toFloat screenWidth * 0.65 - width / 2
+    , y = toFloat screenHeight * 0.35 - height / 2
+    , width_ = width
+    , height_ = height
     , rotation = Ui.radians 0
     }
 
 
 calculateTamalouButtonPosition : Int -> Int -> GBPosition
 calculateTamalouButtonPosition screenWidth screenHeight =
-    { x = toFloat screenWidth * 0.5
-    , y = toFloat screenHeight * 0.65
+    { x = toFloat screenWidth * 0.5 - 65 / 2
+    , y = toFloat screenHeight * 0.54 - 20 / 2
     , width_ = 65
     , height_ = 20
     , rotation = Ui.radians 0
@@ -2276,8 +2446,8 @@ calculateTamalouButtonPosition screenWidth screenHeight =
 
 calculatePlayAgainOrPassPosition : Int -> Int -> GBPosition
 calculatePlayAgainOrPassPosition screenWidth screenHeight =
-    { x = toFloat screenWidth * 0.5
-    , y = toFloat screenHeight * 0.65
+    { x = toFloat screenWidth * 0.5 - 108 / 2
+    , y = toFloat screenHeight * 0.65 - 20 / 2
     , width_ = 108
     , height_ = 20
     , rotation = Ui.radians 0
@@ -2307,18 +2477,21 @@ displayAllOpponents maybeTamalouOwner maybeSessionId isSwitchingCard maybeCardIn
         |> List.concat
 
 
-
--- we want to display them on the bottom of the screen, centered.
---  example for placing the cards on the left:
--- , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace, y = 80 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi / 2 } )) player.tableHand
-
-
-toOwnCardsDisposition : { width : Int, height : Int } -> List FCard -> List ( FCard, GBPosition )
+toOwnCardsDisposition : { width : Int, height : Int } -> List FCard -> List ( FCard, Timeline GBPosition )
 toOwnCardsDisposition viewPort ownCards =
     let
         cardPanel : Float
         cardPanel =
-            (if totalCards <= 4 then
+            (if totalCards == 1 then
+                0.2
+
+             else if totalCards == 2 then
+                0.3
+
+             else if totalCards == 3 then
+                0.4
+
+             else if totalCards == 4 then
                 0.5
 
              else if totalCards == 5 then
@@ -2335,14 +2508,7 @@ toOwnCardsDisposition viewPort ownCards =
 
         spaceBetweenEachCard : Float
         spaceBetweenEachCard =
-            if totalCards <= 4 then
-                16
-
-            else if totalCards == 5 then
-                8
-
-            else
-                4
+            64 / (toFloat <| List.length ownCards)
 
         totalSpaceBetweenCards : Float
         totalSpaceBetweenCards =
@@ -2363,12 +2529,13 @@ toOwnCardsDisposition viewPort ownCards =
     List.indexedMap
         (\i c ->
             ( c
-            , { x = startX + toFloat i * (cardWidth + spaceBetweenEachCard)
-              , y = toFloat viewPort.height - cardHeight - 20
-              , width_ = cardWidth
-              , height_ = cardHeight
-              , rotation = Ui.radians 0
-              }
+            , Timeline.init
+                { x = startX + toFloat i * (cardWidth + spaceBetweenEachCard)
+                , y = toFloat viewPort.height - cardHeight - 20
+                , width_ = cardWidth
+                , height_ = cardHeight
+                , rotation = Ui.radians 0
+                }
             )
         )
         ownCards

@@ -1,5 +1,6 @@
 module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), positionDiff)
 
+import Animator.Timeline exposing (Timeline)
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard, Power)
@@ -56,6 +57,11 @@ type BGameStatus
     = BWaitingForPlayers (List BPlayer)
     | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool Bool
     | BGameEnded (List ( BPlayer, Int ))
+
+
+
+-- type AnimationRunning
+--     |
 
 
 type alias BPlayer =
@@ -174,6 +180,8 @@ type alias FrontendModel =
     , gameDisposition : GameDisposition
     , animationState : Ui.Anim.State
     , anim : Bool
+    , posix : Posix
+    , animDur : Maybe Int
     }
 
 
@@ -211,7 +219,7 @@ type alias Positions =
     , tamalouButtonPosition : GBPosition
     , playAgainOrPassPosition : GBPosition
     , opponentsDisposition : OpponentsDisposition
-    , ownCardsDisposition : List ( FCard, GBPosition )
+    , ownCardsDisposition : List ( FCard, Timeline GBPosition )
     }
 
 
@@ -237,6 +245,7 @@ type FrontendMsg
     | CardClickMsg CardClickMsg
     | UpdateFlip CardAnimation
     | AnimMsg Ui.Anim.Msg
+    | Frame Posix
 
 
 type LookACardStatus
