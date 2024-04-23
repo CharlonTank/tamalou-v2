@@ -993,7 +993,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         newGameStatus =
                                                             BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile players (BPlayerToPlay bPlayer (BPlayerHasDrawn cardDrew)) lastMoveIsDouble canUsePowerFromLastPlayer
                                                     in
-                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, newSeed ) players
+                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, newSeed ) players (Just AnimationDrawCardFromDeck)
 
                                                 ( Nothing, _ ) ->
                                                     -- TODO: Terminate game because this should not happen, we need to log this...
@@ -1002,7 +1002,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         newGameStatus =
                                                             BGameEnded (assignRanks maybeTamalouOwner (stopDisplayCards maybeTamalouOwner players))
                                                     in
-                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( model, Cmd.none )
@@ -1273,7 +1273,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                         newGameStatus =
                                                                             BGameEnded (assignRanks maybeTamalouOwner (stopDisplayCards maybeTamalouOwner players))
                                                                     in
-                                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                                 _ ->
                                                     ( model, Cmd.none )
@@ -1345,7 +1345,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 newGameStatus =
                                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble canUsePowerFromLastPlayer
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players (Just AnimationSwitchCard)
 
                                         else
                                             ( model, Cmd.none )
@@ -1435,7 +1435,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             ownCard =
                                                 bPlayer.tableHand |> List.Extra.getAt cardIndex
                                         in
-                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players (Just AnimationSwitchCard)
 
                                     _ ->
                                         ( model, Cmd.none )
@@ -1463,7 +1463,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         Card.LookACard ->
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerLookACard ChooseCardToLook)) lastMoveIsDouble True
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( model, Cmd.none )
@@ -1483,7 +1483,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         Card.LookACard ->
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerLookACard ChooseCardToLook)) lastMoveIsDouble False
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( { model | errors = "1: PowerIsUsedToBackend: Wrong player playing" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
@@ -1510,7 +1510,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         Nothing ->
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BEndTimerRunning Five) lastMoveIsDouble False
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( { model | errors = "1: PowerIsNotUsedToBackend: Wrong player playing" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
@@ -1583,7 +1583,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             newGameStatus =
                                                                 BGameEnded (assignRanks (Just sessionId) (stopDisplayCards (Just sessionId) players))
                                                         in
-                                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                             else
                                                 let
@@ -1651,10 +1651,10 @@ updateGame newGame games =
         games
 
 
-updateGameStateAndNotifyPlayers : BackendModel -> String -> ( BGameStatus, Random.Seed ) -> List BPlayer -> ( BackendModel, Cmd BackendMsg )
-updateGameStateAndNotifyPlayers ({ games } as model) urlPath ( newGameStatus, newSeed ) players =
+updateGameStateAndNotifyPlayers : BackendModel -> String -> ( BGameStatus, Random.Seed ) -> List BPlayer -> Maybe PlayerAction -> ( BackendModel, Cmd BackendMsg )
+updateGameStateAndNotifyPlayers ({ games } as model) urlPath ( newGameStatus, newSeed ) players maybePlayerAction =
     ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) players
+    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) maybePlayerAction) players
     )
 
 

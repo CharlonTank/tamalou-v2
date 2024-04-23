@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), AnimatedAction(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PlayerAction(..), PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Animator.Timeline exposing (Timeline)
 import Browser exposing (UrlRequest)
@@ -182,7 +182,9 @@ type alias FrontendModel =
     , anim : Bool
     , posix : Posix
     , animDur : Maybe Int
-    , animations : List (Timeline GBPosition)
+
+    -- , nextStates : List ( FGame, PlayerAction )
+    -- , animations : List (Timeline GBPosition)
     }
 
 
@@ -203,7 +205,7 @@ type alias OpponentsDisposition =
 
 type alias PositionedPlayer =
     { player : FPlayer
-    , positionedTableHand : List ( FCard, GBPosition )
+    , positionedTableHand : List ( FCard, Timeline GBPosition )
     , namePosition : GBPosition
     }
 
@@ -215,6 +217,7 @@ type GameDisposition
 
 type alias Positions =
     { drawPilePosition : GBPosition
+    , cardFromDrawPileMovingPositions : List (Timeline GBPosition)
     , drewCardPosition : GBPosition
     , discardPilePosition : GBPosition
     , tamalouButtonPosition : GBPosition
@@ -247,6 +250,7 @@ type FrontendMsg
     | UpdateFlip CardAnimation
     | AnimMsg Ui.Anim.Msg
     | Frame Posix
+    | UpdateFGamePostAnimationFrontend FGame PlayerAction
 
 
 type LookACardStatus
@@ -275,16 +279,17 @@ type ToBackend
 type ToFrontend
     = NoOpToFrontend
     | UpdateAdminToFrontend (List String)
-    | UpdateGameStatusToFrontend FGame (Maybe AnimatedAction)
+    | UpdateGameStatusToFrontend FGame (Maybe PlayerAction)
     | UpdateGameAndChatToFrontend ( FGame, List ( String, String ) )
     | UpdateChatToFrontend (List ( String, String ))
     | GotSessionIdAndClientIdToFrontend SessionId ClientId
 
 
-type AnimatedAction
-    = AnimationDrawCardFromDeck SessionId
+type PlayerAction
+    = AnimationDrawCardFromDeck
     | AnimationDoubleCardSuccess SessionId Int
     | AnimationDoubleCardFailed SessionId Int
+    | AnimationSwitchCard
 
 
 type alias GBPosition =
