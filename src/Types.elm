@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), positionDiff)
+module Types exposing (ActionFromGameToBackend(..), AnimatedAction(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Animator.Timeline exposing (Timeline)
 import Browser exposing (UrlRequest)
@@ -182,6 +182,7 @@ type alias FrontendModel =
     , anim : Bool
     , posix : Posix
     , animDur : Maybe Int
+    , animations : List (Timeline GBPosition)
     }
 
 
@@ -274,10 +275,16 @@ type ToBackend
 type ToFrontend
     = NoOpToFrontend
     | UpdateAdminToFrontend (List String)
-    | UpdateGameStatusToFrontend FGame
+    | UpdateGameStatusToFrontend FGame (Maybe AnimatedAction)
     | UpdateGameAndChatToFrontend ( FGame, List ( String, String ) )
     | UpdateChatToFrontend (List ( String, String ))
     | GotSessionIdAndClientIdToFrontend SessionId ClientId
+
+
+type AnimatedAction
+    = AnimationDrawCardFromDeck SessionId
+    | AnimationDoubleCardSuccess SessionId Int
+    | AnimationDoubleCardFailed SessionId Int
 
 
 type alias GBPosition =
@@ -286,14 +293,4 @@ type alias GBPosition =
     , width_ : Float
     , height_ : Float
     , rotation : Ui.Angle
-    }
-
-
-positionDiff : GBPosition -> GBPosition -> GBPosition
-positionDiff oldPosition newPosition =
-    { x = newPosition.x - oldPosition.x
-    , y = newPosition.y - oldPosition.y
-    , width_ = newPosition.width_ - oldPosition.width_
-    , height_ = newPosition.height_ - oldPosition.height_
-    , rotation = Ui.turns <| toRadians newPosition.rotation - toRadians oldPosition.rotation
     }

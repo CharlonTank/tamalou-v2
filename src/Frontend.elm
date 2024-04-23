@@ -25,7 +25,7 @@ import Svg exposing (Svg)
 import Svg.Attributes as SvgA
 import Task
 import Time exposing (Posix)
-import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), positionDiff)
+import Types exposing (ActionFromGameToBackend(..), AnimatedAction(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 import Ui exposing (..)
 import Ui.Anim as Anim exposing (Animated, onTimeline, scaleX)
 import Ui.Events as Events
@@ -255,6 +255,7 @@ init url key =
       , anim = False
       , posix = Time.millisToPosix 0
       , animDur = Nothing
+      , animations = []
       }
     , Task.perform
         (\v ->
@@ -361,11 +362,8 @@ update msg ({ urlPath } as model) =
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
 
                 DoubleCardFrontend cardIndex ->
-                    ( animateOwnCard model cardIndex, Cmd.none )
+                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
 
-                -- , Cmd.none
-                -- Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex)
-                -- )
                 LookAtCardFrontend cardIndex ->
                     ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (LookAtCardInTableHandToBackend cardIndex) )
 
@@ -410,7 +408,7 @@ update msg ({ urlPath } as model) =
             )
 
         Frame posix ->
-            ( updateMyAnimation model posix, Cmd.none )
+            ( updateAnimations model posix, Cmd.none )
 
 
 
@@ -445,7 +443,7 @@ update msg ({ urlPath } as model) =
 --         Timeline.current currentTimeline
 --     newState : GBPosition
 --     newState =
---         interpolatePositionLinearly currentState endState lastTime newTime duration
+--         getGBPosition currentState endState lastTime newTime duration
 --     newCurrentTimeline : Timeline GBPosition
 --     newCurrentTimeline =
 --         Timeline.to (Anim.ms 0) (Debug.log "NEWSTATE" newState) currentTimeline
@@ -453,87 +451,77 @@ update msg ({ urlPath } as model) =
 -- Debug.log "new2" <| Timeline.to (Anim.ms <| toFloat <| duration - (Time.posixToMillis newTime - Time.posixToMillis lastTime)) endState newCurrentTimeline
 
 
-interpolatePositionLinearly : Timeline GBPosition -> GBPosition
-interpolatePositionLinearly timeline =
-    { x = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << .x)
-    , y = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << .y)
-    , width_ = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << .width_)
-    , height_ = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << .height_)
-    , rotation = Ui.radians <| Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.standard << Animator.Value.to << toRadians << .rotation)
+getGBPosition : Timeline GBPosition -> GBPosition
+getGBPosition timeline =
+    { x = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.linear << Animator.Value.to << .x)
+    , y = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.linear << Animator.Value.to << .y)
+    , width_ = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.linear << Animator.Value.to << .width_)
+    , height_ = Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.linear << Animator.Value.to << .height_)
+    , rotation = Ui.radians <| Animator.Value.float timeline (Animator.Value.withTransition Animator.Transition.linear << Animator.Value.to << toRadians << .rotation)
     }
 
 
-yo : GBPosition -> Float
-yo arg1 =
-    Debug.todo "TODO"
+
+-- animateOwnCard : FrontendModel -> Int -> FrontendModel
+-- animateOwnCard model cardIndex =
+--     case model.gameDisposition of
+--         NotCalculated ->
+--             model
+--         Calculated positions ->
+--             { model
+--                 | animDur = Just 3000
+--                 , gameDisposition =
+--                     Calculated <|
+--                         { positions
+--                             | ownCardsDisposition =
+--                                 positions.ownCardsDisposition
+--                                     |> List.indexedMap
+--                                         (\i ( card, timeline ) ->
+--                                             if i == cardIndex then
+--                                                 ( card, Timeline.to (Anim.ms 200) positions.discardPilePosition timeline )
+--                                             else
+--                                                 ( card, timeline )
+--                                         )
+--                         }
+--             }
+-- for now we only have a few animations, they reside in model.gameDisposition.ownCardsDisposition
+-- to do that we need to apply to them : Timeline.update newPosix self
 
 
-animateOwnCard : FrontendModel -> Int -> FrontendModel
-animateOwnCard model cardIndex =
+updateAnimations : FrontendModel -> Posix -> FrontendModel
+updateAnimations model posix =
     case model.gameDisposition of
         NotCalculated ->
             model
 
         Calculated positions ->
-            { model
-                | animDur = Just 3000
-                , gameDisposition =
-                    Calculated <|
-                        { positions
-                            | ownCardsDisposition =
-                                positions.ownCardsDisposition
-                                    |> List.indexedMap
-                                        (\i ( card, timeline ) ->
-                                            if i == cardIndex then
-                                                ( card, Timeline.to (Anim.ms 200) positions.discardPilePosition timeline )
+            let
+                -- Update card positions and filter out finished animations
+                updateCardPosition ( card, cardTimeline ) =
+                    ( card, Timeline.update posix cardTimeline )
 
-                                            else
-                                                ( card, timeline )
-                                        )
-                        }
+                updatedPositions =
+                    { positions
+                        | ownCardsDisposition =
+                            positions.ownCardsDisposition
+                                |> List.map updateCardPosition
+                    }
+
+                -- Update other animations and filter out finished animations
+                updatedAnimations =
+                    model.animations
+                        |> List.map (\timeline -> Timeline.update posix timeline)
+                        |> List.filter Timeline.isRunning
+            in
+            { model
+                | gameDisposition = Calculated updatedPositions
+                , animations = updatedAnimations
             }
 
 
 
--- for now we only have a few animations, they reside in model.gameDisposition.ownCardsDisposition
--- to do that we need to apply to them : Timeline.update newPosix self
-
-
-updateMyAnimation : FrontendModel -> Posix -> FrontendModel
-updateMyAnimation model posix =
-    case model.animDur of
-        Just animDur ->
-            let
-                diff =
-                    Time.posixToMillis posix - Time.posixToMillis model.posix
-
-                newModel =
-                    { model | posix = posix, animDur = Just newAnimDur }
-
-                newAnimDur =
-                    animDur - diff
-            in
-            if newAnimDur <= 0 then
-                { newModel | animDur = Nothing }
-
-            else
-                case model.gameDisposition of
-                    NotCalculated ->
-                        newModel
-
-                    Calculated positions ->
-                        { newModel
-                            | gameDisposition =
-                                Calculated <|
-                                    { positions
-                                        | ownCardsDisposition =
-                                            positions.ownCardsDisposition
-                                                |> List.map (\( card, cardTimeline ) -> ( card, Timeline.update posix cardTimeline ))
-                                    }
-                        }
-
-        Nothing ->
-            { model | posix = posix }
+-- Nothing ->
+--     { model | posix = posix }
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -545,7 +533,7 @@ updateFromBackend msg model =
         UpdateAdminToFrontend errors ->
             ( { model | errors = errors }, Cmd.none )
 
-        UpdateGameStatusToFrontend fGame ->
+        UpdateGameStatusToFrontend fGame maybeAnimation ->
             ( { model
                 | fGame = fGame
                 , maybeName =
@@ -556,6 +544,7 @@ updateFromBackend msg model =
                         Nothing ->
                             getMyName model.sessionId fGame
                 , gameDisposition = calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
+                , animations = maybeAnimation |> Maybe.map (computeAnimation model) |> Maybe.withDefault [] |> List.append model.animations
               }
             , Cmd.none
             )
@@ -588,6 +577,165 @@ updateFromBackend msg model =
                 ( { model | clientId = Just clientId, sessionId = Just sessionId }
                 , Lamdera.sendToBackend (ActionFromGameToBackend model.urlPath ConnectToBackend)
                 )
+
+
+
+-- type alias Positions =
+--     { drawPilePosition : GBPosition
+--     , drewCardPosition : GBPosition
+--     , discardPilePosition : GBPosition
+--     , tamalouButtonPosition : GBPosition
+--     , playAgainOrPassPosition : GBPosition
+--     , opponentsDisposition : OpponentsDisposition
+--     , ownCardsDisposition : List ( FCard, Timeline GBPosition )
+--     }
+
+
+computeAnimation : FrontendModel -> AnimatedAction -> List (Timeline GBPosition)
+computeAnimation fModel animatedAction =
+    case fModel.gameDisposition of
+        NotCalculated ->
+            []
+
+        Calculated positions ->
+            case animatedAction of
+                AnimationDoubleCardSuccess sessionId cardIndex ->
+                    let
+                        maybeCardToAnimate : Maybe GBPosition
+                        maybeCardToAnimate =
+                            positions.opponentsDisposition
+                                |> findCardPosition sessionId cardIndex
+                    in
+                    case maybeCardToAnimate of
+                        Just cardToAnimate ->
+                            [ Timeline.to (Anim.ms 200) positions.discardPilePosition (Timeline.init cardToAnimate) ]
+
+                        Nothing ->
+                            let
+                                maybeOwnCardToAnimate : Maybe (Timeline GBPosition)
+                                maybeOwnCardToAnimate =
+                                    positions.ownCardsDisposition
+                                        |> List.Extra.getAt cardIndex
+                                        |> Maybe.map Tuple.second
+                            in
+                            case ( fModel.sessionId == Just sessionId, maybeOwnCardToAnimate ) of
+                                ( True, Just cardToAnimate ) ->
+                                    [ Timeline.to (Anim.ms 200) positions.discardPilePosition cardToAnimate ]
+
+                                _ ->
+                                    []
+
+                -- for this we want to go the discard pile and comeback to the hand
+                AnimationDoubleCardFailed sessionId cardIndex ->
+                    let
+                        maybeCardToAnimate : Maybe GBPosition
+                        maybeCardToAnimate =
+                            positions.opponentsDisposition
+                                |> findCardPosition sessionId cardIndex
+                    in
+                    case maybeCardToAnimate of
+                        Just cardToAnimate ->
+                            let
+                                -- Initialize the timeline with the original card position
+                                initialTimeline =
+                                    Timeline.init cardToAnimate
+
+                                -- Define the steps to go to the discard pile and come back
+                                steps =
+                                    [ Timeline.transitionTo (Anim.ms 200) positions.discardPilePosition
+                                    , Timeline.wait (Anim.ms 200) -- Optional wait if needed
+                                    , Timeline.transitionTo (Anim.ms 200) cardToAnimate
+                                    ]
+                            in
+                            [ Timeline.queue steps initialTimeline ]
+
+                        Nothing ->
+                            let
+                                maybeOwnCardToAnimate : Maybe (Timeline GBPosition)
+                                maybeOwnCardToAnimate =
+                                    positions.ownCardsDisposition
+                                        |> List.Extra.getAt cardIndex
+                                        |> Maybe.map Tuple.second
+                            in
+                            case ( fModel.sessionId == Just sessionId, maybeOwnCardToAnimate ) of
+                                ( True, Just ownCardTimeline ) ->
+                                    let
+                                        -- Define the steps to go to the discard pile and come back
+                                        steps =
+                                            [ Timeline.transitionTo (Anim.ms 200) positions.discardPilePosition
+                                            , Timeline.wait (Anim.ms 200) -- Optional wait if needed
+                                            , Timeline.transitionTo (Anim.ms 200) (Timeline.current ownCardTimeline)
+                                            ]
+                                    in
+                                    [ Timeline.queue steps ownCardTimeline ]
+
+                                _ ->
+                                    []
+
+                _ ->
+                    []
+
+
+findCardPosition : SessionId -> Int -> OpponentsDisposition -> Maybe GBPosition
+findCardPosition sessionId index { leftPlayer, topLeftPlayer, topRightPlayer, rightPlayer } =
+    -- check if the sessionId correspond to one of the players
+    case ( ( leftPlayer, topLeftPlayer ), ( topRightPlayer, rightPlayer ) ) of
+        ( ( Just { player, positionedTableHand }, _ ), ( _, _ ) ) ->
+            if sessionId == player.sessionId then
+                positionedTableHand
+                    |> List.Extra.getAt index
+                    |> Maybe.map Tuple.second
+
+            else
+                Nothing
+
+        ( ( _, Just { player, positionedTableHand } ), ( _, _ ) ) ->
+            if sessionId == player.sessionId then
+                positionedTableHand
+                    |> List.Extra.getAt index
+                    |> Maybe.map Tuple.second
+
+            else
+                Nothing
+
+        ( ( _, _ ), ( Just { player, positionedTableHand }, _ ) ) ->
+            if sessionId == player.sessionId then
+                positionedTableHand
+                    |> List.Extra.getAt index
+                    |> Maybe.map Tuple.second
+
+            else
+                Nothing
+
+        ( ( _, _ ), ( _, Just { player, positionedTableHand } ) ) ->
+            if sessionId == player.sessionId then
+                positionedTableHand
+                    |> List.Extra.getAt index
+                    |> Maybe.map Tuple.second
+
+            else
+                Nothing
+
+        _ ->
+            Nothing
+
+
+
+-- computeOpponentAnimation : FrontendModel -> AnimatedAction -> a -> b
+-- computeOpponentAnimation fModel animatedAction opponentDisposition =
+-- case ( fModel.fGame, animatedAction ) of
+--     ( FGameInProgress _ _ _ _ players _, AnimationDoubleCardSuccess sessionId cardIndex ) ->
+--         let
+--             maybeCardToAnimate : Maybe FCard
+--             maybeCardToAnimate =
+--                 List.Extra.find (\player -> player.sessionId == sessionId) players
+--                     |> Maybe.map .tableHand
+--                     |> Maybe.andThen (List.Extra.getAt cardIndex)
+--             -- if we don't find the player, let's see if the player is us
+--         in
+--         [ Timeline.to (Anim.ms 200) (positionDiff player.position) player.position ]
+--     _ ->
+--         []
 
 
 fPlayersFromFGame : FGame -> List FPlayer
@@ -852,7 +1000,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
 
         _ ->
             -- el [ height fill, scrollbars, inFront (cardMoveAndFlip drawPilePosition drewCardPosition model.cardAnim) ] <|
-            el [ height fill, padding 12 ] <|
+            el ([ height fill ] ++ List.map (elPlacedTimelined (displayFCard Nothing FaceDown)) model.animations) <|
                 case model.fGame of
                     FWaitingForPlayers players ->
                         column
@@ -1410,8 +1558,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ middleText <|
-                                        text "Click on a card to switch"
+                                    [ "Click on a card to switch" |> text |> middleText
                                     , height fill
                                     ]
                                 <|
@@ -1440,8 +1587,8 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ middleText <|
-                                        text "You chose your card, now choose a card to switch with"
+                                    [ text "You chose your card, now choose a card to switch with"
+                                        |> middleText
                                     , height fill
                                     ]
                                 <|
@@ -1470,10 +1617,8 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ middleText <|
-                                        text <|
-                                            "Remember! "
-                                                ++ displayEndTimer counter
+                                    [ text ("Remember! " ++ displayEndTimer counter)
+                                        |> middleText
                                     , height fill
                                     ]
                                 <|
@@ -1522,9 +1667,9 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardPosition, discar
                             drewCardColumn : Element FrontendMsg
                             drewCardColumn =
                                 el
-                                    [ middleText <|
-                                        text <|
-                                            displayEndTimer timer
+                                    [ displayEndTimer timer
+                                        |> text
+                                        |> middleText
                                     , height fill
                                     ]
                                 <|
@@ -1818,21 +1963,20 @@ displayFCardsAtTheEnd cards =
     row [ width shrink, spacing 4, centerX, height fill ] (List.indexedMap displayFCardAtTheEnd cards)
 
 
-sizeOfCard : Int -> Int
-sizeOfCard screenWidth =
-    if screenWidth < 600 then
-        5 * screenWidth // 36
 
-    else if screenWidth < 800 then
-        4 * screenWidth // 36
-
-    else
-        3 * screenWidth // 36
+-- sizeOfCard : Int -> Int
+-- sizeOfCard screenWidth =
+--     if screenWidth < 600 then
+--         5 * screenWidth // 36
+--     else if screenWidth < 800 then
+--         4 * screenWidth // 36
+--     else
+--         3 * screenWidth // 36
 
 
 displayOwnCards : List ( FCard, Timeline GBPosition ) -> Maybe (Int -> CardClickMsg) -> Maybe Int -> List (Attribute FrontendMsg)
 displayOwnCards positionedCards maybeCardClickEvent maybeIndex =
-    List.indexedMap (\i ( card, position ) -> elPlacedTimelined position <| displayFCardSized Nothing maybeCardClickEvent maybeIndex i card) positionedCards
+    List.indexedMap (\i ( card, position ) -> elPlacedTimelined (displayFCardSized Nothing maybeCardClickEvent maybeIndex i card) position) positionedCards
 
 
 displayFCard : Maybe CardClickMsg -> FCard -> Element FrontendMsg
@@ -2161,13 +2305,13 @@ positionOpponent screenWidth player opponentDisposition =
 
         TopLeftPlayer ->
             { player = player
-            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace + namePanelWidth + spaceBetweenNameAndCards + toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi } )) player.tableHand
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = leftSpace + namePanelWidth + spaceBetweenNameAndCards + toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians 0 } )) player.tableHand
             , namePosition = { x = leftSpace, y = 0, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
         TopRightPlayer ->
             { player = player
-            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = toFloat screenWidth - toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians <| pi } )) player.tableHand
+            , positionedTableHand = List.indexedMap (\i c -> ( c, { x = toFloat screenWidth - toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians 0 } )) player.tableHand
             , namePosition = { x = toFloat screenWidth - panelWidth - (namePanelWidth / 2), y = 0, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
@@ -2312,20 +2456,21 @@ elPlaced { x, y, width_, height_, rotation } =
     inFront << el [ move { offSet | y = round y, x = round x }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
 
 
-elPlacedTimelined : Timeline GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
-elPlacedTimelined timeline =
+elPlacedTimelined : Element FrontendMsg -> Timeline GBPosition -> Attribute FrontendMsg
+elPlacedTimelined content timeline =
     let
         { x, y, width_, height_, rotation } =
-            interpolatePositionLinearly timeline
+            getGBPosition timeline
     in
-    inFront
-        << el
+    inFront <|
+        el
             [ move { offSet | y = round y, x = round x }
             , rotate rotation
             , width <| px <| round width_
             , height <| px <| round height_
             , Ui.htmlAttribute <| HA.style "z-index" "10"
             ]
+            content
 
 
 
@@ -2483,10 +2628,10 @@ toOwnCardsDisposition viewPort ownCards =
         cardPanel : Float
         cardPanel =
             (if totalCards == 1 then
-                0.2
+                0.11
 
              else if totalCards == 2 then
-                0.3
+                0.27
 
              else if totalCards == 3 then
                 0.4
