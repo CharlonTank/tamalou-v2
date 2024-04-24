@@ -4,14 +4,11 @@ import Animator.Timeline exposing (Timeline)
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard, Power)
-import Internal.Style2 exposing (toRadians)
 import Lamdera exposing (ClientId, SessionId)
 import Random
 import Time exposing (Posix)
 import Ui
 import Ui.Anim
-import Ui.Layout
-import Ui.Prose
 import Url exposing (Url)
 import Utils.Ui exposing (Device)
 
@@ -57,11 +54,6 @@ type BGameStatus
     = BWaitingForPlayers (List BPlayer)
     | BGameInProgress (Maybe SessionId) BDrawPile DiscardPile (List BPlayer) BGameInProgressStatus Bool Bool
     | BGameEnded (List ( BPlayer, Int ))
-
-
-
--- type AnimationRunning
---     |
 
 
 type alias BPlayer =

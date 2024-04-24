@@ -1584,7 +1584,6 @@ displayOwnCards positionedCards maybeCardClickEvent maybeIndex =
 displayFCard : Maybe CardClickMsg -> FCard -> Element FrontendMsg
 displayFCard maybeCardClickMsg frontendCard =
     el
-        -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
         (case maybeCardClickMsg of
             Just cardClickMsg ->
                 [ width fill, height fill ] ++ cardActionBorder cardClickMsg
@@ -1619,7 +1618,6 @@ displayFCardSized length maybeCardClickMsg maybeIndex index frontendCard =
     in
     el [ height fill ] <|
         image
-            -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
             (width (Maybe.withDefault fill length) :: attrs ++ movedUp)
         <|
             case frontendCard of
@@ -1663,7 +1661,7 @@ bigShadow color =
           , color = color
           , x = 0
           , y = 0
-          , size = 6
+          , size = 4
           }
         ]
 
@@ -1720,7 +1718,7 @@ positionOpponent screenWidth player opponentDisposition =
 
         namePanelWidth : Float
         namePanelWidth =
-            toFloat screenWidth / 10
+            toFloat screenWidth / 8
 
         namePanelheight : Float
         namePanelheight =
@@ -1747,30 +1745,34 @@ positionOpponent screenWidth player opponentDisposition =
         leftSpace : Float
         leftSpace =
             20
+
+        rightSpace : Float
+        rightSpace =
+            20
     in
     case opponentDisposition of
         LeftPlayer ->
             { player = player
             , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = leftSpace, y = 80 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians (wantedSpinningRotationValue + pi / 2) } )) player.tableHand
-            , namePosition = { x = leftSpace, y = 80, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
+            , namePosition = { x = leftSpace, y = 65, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
         TopLeftPlayer ->
             { player = player
             , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = leftSpace + namePanelWidth + spaceBetweenNameAndCards + toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians wantedSpinningRotationValue } )) player.tableHand
-            , namePosition = { x = leftSpace, y = 0, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
+            , namePosition = { x = leftSpace, y = 4, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
         TopRightPlayer ->
             { player = player
-            , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = toFloat screenWidth - toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians wantedSpinningRotationValue } )) player.tableHand
-            , namePosition = { x = toFloat screenWidth - panelWidth - (namePanelWidth / 2), y = 0, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
+            , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = toFloat screenWidth - cardWidth - toFloat i * (cardWidth + spaceBetweenEachCard) - rightSpace, y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians wantedSpinningRotationValue } )) player.tableHand
+            , namePosition = { x = toFloat screenWidth - panelWidth - 4, y = 4, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
         RightPlayer ->
             { player = player
-            , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = 0, y = toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians (wantedSpinningRotationValue + 3 * pi / 2) } )) player.tableHand
-            , namePosition = { x = toFloat screenWidth - (namePanelWidth / 2), y = 50, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
+            , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = toFloat screenWidth - cardWidth - rightSpace, y = 90 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians (wantedSpinningRotationValue + 3 * pi / 2) } )) player.tableHand
+            , namePosition = { x = toFloat screenWidth - namePanelWidth - rightSpace, y = 75, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
 
@@ -1810,8 +1812,7 @@ displayOpponentName : GBPosition -> Bool -> String -> Attribute FrontendMsg
 displayOpponentName pos isPlayerTurn name =
     elPlaced pos
         (el
-            -- Containers now width fill by default (instead of width shrink). I couldn't update that here so I recommend you review these attributes
-            ([ width fill, height fill, padding 4, rounded 8, border 1, Font.size 11 ]
+            ([ width fill, height fill, rounded 8, border 1, Font.size 11 ]
                 ++ (if isPlayerTurn then
                         [ background yellow, borderColor yellow ]
 
@@ -1820,8 +1821,8 @@ displayOpponentName pos isPlayerTurn name =
                    )
             )
          <|
-            Prose.paragraph [ width shrink, spacing 4, Font.center, centerY ] <|
-                [ text name ]
+            Prose.paragraph [ width shrink, spacing 4, Font.center, centerY, centerX, padding 2 ] <|
+                [ clipped [ width shrink ] <| text name ]
         )
 
 
@@ -2036,10 +2037,10 @@ toOwnCardsDisposition viewPort ownCards =
                 0.11
 
              else if totalCards == 2 then
-                0.27
+                0.26
 
              else if totalCards == 3 then
-                0.4
+                0.38
 
              else if totalCards == 4 then
                 0.5
@@ -2091,33 +2092,10 @@ toOwnCardsDisposition viewPort ownCards =
         ownCards
 
 
-
--- middleText : Element FrontendMsg
--- middleText =
---     el
---         [ ("It's " ++ fPlayer.name ++ "'s turn")
---             |> text
---             |> displayMiddleText
---         , height fill
---         ]
---     <|
---         none
-
-
 displayMiddleText : GBPosition -> String -> Attribute FrontendMsg
 displayMiddleText drewCardPilePosition string =
     elPlaced drewCardPilePosition
         (el [ below (el [ width <| px 400, height <| px (round drewCardPilePosition.height_), Font.center, padding 6, centerX ] <| text string) ] none)
-
-
-
--- animateCardMove : FCard -> GBPosition -> GBPosition -> List Animated
--- animateCardMove card startPosition endPosition =
---     [ Anim.x endPosition.x
---     , Anim.y endPosition.y
---     , Anim.rotation (degrees 5) -- Adding a slight rotation for effect
---     , Anim.scale 0.95 -- Optionally scale down during movement
---     ]
 
 
 animDuration : Float
