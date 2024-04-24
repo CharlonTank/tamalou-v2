@@ -218,7 +218,8 @@ type GameDisposition
 type alias Positions =
     { drawPilePosition : GBPosition
     , cardsFromDrawPileMovingPositions : List (Timeline GBPosition)
-    , drewCardPosition : GBPosition
+    , drewCardMovingPosition : Timeline GBPosition
+    , middleTextPosition : GBPosition
     , discardPilePosition : GBPosition
     , cardFromDiscardPileMovingPositions : Maybe (Timeline GBPosition)
     , tamalouButtonPosition : GBPosition
@@ -248,7 +249,7 @@ type FrontendMsg
     | ChangeChatInputFrontend String
     | SendMessageFrontend
     | CardClickMsg CardClickMsg
-    | UpdateFlip CardAnimation
+      -- | UpdateFlip CardAnimation
     | AnimMsg Ui.Anim.Msg
     | Frame Posix
     | UpdateFGamePostAnimationFrontend FGame PlayerAction
@@ -292,6 +293,7 @@ type PlayerAction
     | AnimationDoubleCardFailed SessionId Int
     | AnimationSwitchCard
     | AnimationDrawCardFromDiscardPile
+    | AnimationDiscardCard
 
 
 type alias GBPosition =
