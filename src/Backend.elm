@@ -980,7 +980,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                             Nothing ->
                                 ( model, Cmd.none )
 
-                    DrawCardFromDrawPileToBackend ->
+                    DrawFromDrawPileToBackend ->
                         case maybeGame of
                             Just game ->
                                 case game.status of
@@ -1059,7 +1059,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     BGameInProgress maybeTamalouOwner drawPile rest players (BPlayerToPlay bPlayer (BPlayerHasDrawn head)) False False
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just AnimationDrawCardFromDiscardPile)) players
                                             )
 
                                         else

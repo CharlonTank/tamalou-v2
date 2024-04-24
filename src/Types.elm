@@ -21,7 +21,7 @@ type ActionFromGameToBackend
     | ChangeCurrentPlayerNameToBackend String
     | ImReadyToBackend
     | ReStartGameToBackend (Maybe FPlayer)
-    | DrawCardFromDrawPileToBackend
+    | DrawFromDrawPileToBackend
     | DiscardCardInHandToBackend
     | DrawFromDiscardPileToBackend
     | ReplaceCardInTableHandToBackend Int
@@ -217,9 +217,10 @@ type GameDisposition
 
 type alias Positions =
     { drawPilePosition : GBPosition
-    , cardFromDrawPileMovingPositions : List (Timeline GBPosition)
+    , cardsFromDrawPileMovingPositions : List (Timeline GBPosition)
     , drewCardPosition : GBPosition
     , discardPilePosition : GBPosition
+    , cardFromDiscardPileMovingPositions : Maybe (Timeline GBPosition)
     , tamalouButtonPosition : GBPosition
     , playAgainOrPassPosition : GBPosition
     , opponentsDisposition : OpponentsDisposition
@@ -290,6 +291,7 @@ type PlayerAction
     | AnimationDoubleCardSuccess SessionId Int
     | AnimationDoubleCardFailed SessionId Int
     | AnimationSwitchCard
+    | AnimationDrawCardFromDiscardPile
 
 
 type alias GBPosition =
