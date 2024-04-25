@@ -1,22 +1,52 @@
 # Tamalou Card Game
 
-Tamalou is a multiplayer card game currently under development. The game is being built using Lamdera, a Frontend+Backend Elm framework, and Elm UI for the frontend.
+- Tamalou is a multiplayer card game currently under development. The game is being built using Lamdera, a Frontend+Backend Elm framework, and Elm UI for the frontend.
 
 ## Current State of the Project
 
-The game is currently a work in progress. The main logic of the game is implemented in src/Frontend.elm and src/Backend.elm. The most used types are defined in src/Types.elm.
+- The game is currently a work in progress. The main logic of the game is implemented in src/Frontend.elm and src/Backend.elm. The most used types are defined in src/Types.elm.
 
-You can try it out here: [Tamalou](https://tamalou-v2.lamdera.app/)
+- You can try it out here: [Tamalou](https://tamalou-v2.lamdera.app/)
 
 ## Game Rules
 
-The game combines elements of memory, speed, and strategy.
+- The game combines elements of memory, speed, and strategy.
 
 ### Starting the Game
 
-1. At the beginning, you see 2 out of 4 of your cards.
-2. You have the option to draw a card from either the deck or the discard pile.
-3. You can play this card by either clicking on it or by clicking on one of your existing cards.
+1. At the beginning, you see 2 out of your 4 cards.
+2. After 5 seconds, the cards are hidden, and the game begins.
+3. The game is turn based, with each player taking a turn.
+
+### Taking a Turn
+
+#### Taking a Turn - Step 1
+
+- At the beginning of your turn you have 5 possibilities:
+
+1. Draw a card from the deck and go to [Step 2](#Taking-a-Turn---Step-2)
+2. Draw a card from the discard pile go to [Step 2](#Taking-a-Turn---Step-2)
+3. Use the power that has been used by the last player and go to [Step Power](#Taking-a-Turn---Step-Power), check the [precision](#Precision:-Using-the-power-used-before) for more information
+4. Say ["Tamalou!"](#tamalou)
+5. You can also Double as the ["doubling rules"](#Doubling) still applies, in this case, after doubling, you stay [Step 1](#Taking-a-Turn---Step-1)
+
+#### Taking a Turn - Step 2
+
+- You just drew a card, you have 2 possibilities:
+
+1. Discard the card and go to [Step 3](#Taking-a-Turn---Step-3)
+2. Switch the card with one of your cards that will be discarded instead and go to [Step 3](#Taking-a-Turn---Step-3)
+
+#### Taking a Turn - Step 3
+
+- You just discarded a card, you have 2 possibilities:
+
+1. The card discarded has no power, your turn is over.
+2. The card discarded has a power, you can use it now, check the [power rules](#Special-Card-Powers) for more information. After using the power, your turn is over.
+
+### Doubling
+
+- At any time, (except if you already said succesfully "Tamalou!"), if the card on top of the discard pile shares a rank with a card you have, you can "double" by clicking on the card in your table hand. If you are incorrect or if another player acts faster, you draw one additional card as a penalty.
 
 ### Special Card Powers
 
@@ -24,9 +54,9 @@ The game combines elements of memory, speed, and strategy.
 - **Queen**: Allows switching one of your cards with one of your opponent's.
 - **King**: Enables you to look at one of your hidden cards.
 
-### Doubling
+#### Precision: Using the power used before
 
-- At any point, if the card on top of the discard pile shares a rank with a card you have, you can "double" by clicking on the card in your table hand. If you are incorrect or if another player acts faster, you draw one additional card.
+- If the last player used a power from another player, you cannot use the power instead of drawing a card.
 
 ### Ending the Game
 
@@ -98,6 +128,7 @@ state 2000ms -> la carte de p1 à fini de bouger vers le centre, p2 est toujours
 ## Features to be implemented
 
 - [ ] Add rules pages
+- [ ] Add timers
 - [ ] Better way to start a game
 - [ ] Better way to end a game
 - [ ] Add more animations to make the game more appealing
