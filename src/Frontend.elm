@@ -182,25 +182,25 @@ update msg ({ urlPath } as model) =
                     )
 
                 DrawFromDiscardPileFrontend ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
+                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
 
                 DiscardCardFrontend ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DiscardCardInHandToBackend )
+                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DiscardCardInHandToBackend )
 
                 CardClickReplacement cardIndex ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
+                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
 
                 DoubleCardFrontend cardIndex ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
+                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
 
                 LookAtCardFrontend cardIndex ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (LookAtCardInTableHandToBackend cardIndex) )
+                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (LookAtCardInTableHandToBackend cardIndex) )
 
                 ChooseOwnCardToSwitchFrontend cardIndex ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOwnCardToSwitchToBackend cardIndex) )
+                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOwnCardToSwitchToBackend cardIndex) )
 
                 ChooseOpponentCardToSwitchFrontend sessionId cardIndex ->
-                    ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
+                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
 
         -- UpdateFlip cardAnimation ->
         --     let
@@ -246,6 +246,7 @@ update msg ({ urlPath } as model) =
 
                         Nothing ->
                             getMyName model.sessionId fGame
+                , anim = False
 
                 -- , gameDisposition = calculateGameDispositionParts model.viewPort playerAction (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
                 , gameDisposition = Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
@@ -362,6 +363,7 @@ updateFromBackend msg model =
                 Nothing ->
                     ( { model
                         | fGame = fGame
+                        , anim = False
                         , maybeName =
                             case model.maybeName of
                                 Just _ ->
@@ -620,7 +622,7 @@ applyPenaltyAnimationToOpponent sessionId { drawPilePosition, opponentsDispositi
         |> List.filterMap identity
         |> List.Extra.find (\player -> player.player.sessionId == sessionId)
         |> Maybe.andThen (.positionedTableHand >> List.Extra.last >> Maybe.map Tuple.second)
-        |> Maybe.map (\newCardPosition -> Timeline.to (Anim.ms animDuration) (Timeline.current newCardPosition) (Timeline.init drawPilePosition))
+        |> Maybe.map (\newCardPosition -> Timeline.to (Anim.ms animDuration) (Timeline.current newCardPosition) (Timeline.init <| fixSpinningEffectRotation drawPilePosition))
         |> Maybe.withDefault (Timeline.init drawPilePosition)
 
 
@@ -629,8 +631,15 @@ applyPenaltyAnimationToUs { drawPilePosition, ownCardsDisposition } =
     ownCardsDisposition
         |> List.Extra.last
         |> Maybe.map Tuple.second
-        |> Maybe.map (\newCardPosition -> Timeline.to (Anim.ms animDuration) (Timeline.current newCardPosition) (Timeline.init drawPilePosition))
+        |> Maybe.map (\newCardPosition -> Timeline.to (Anim.ms animDuration) (Timeline.current newCardPosition) (Timeline.init <| fixSpinningEffectRotation drawPilePosition))
         |> Maybe.withDefault (Timeline.init drawPilePosition)
+
+
+fixSpinningEffectRotation : GBPosition -> GBPosition
+fixSpinningEffectRotation gbPosition =
+    { gbPosition
+        | rotation = Ui.radians <| toRadians gbPosition.rotation + wantedSpinningRotationValue
+    }
 
 
 applyAnimationToOwnCard : Int -> Timeline GBPosition -> Positions -> List ( FCard, Timeline GBPosition ) -> List ( FCard, Timeline GBPosition )
@@ -680,7 +689,7 @@ type AddOrRemove
 
 
 applyDoubleAnimationsToOpponent : SessionId -> Int -> Timeline GBPosition -> Positions -> OpponentsDisposition -> OpponentsDisposition
-applyDoubleAnimationsToOpponent sessionId cardIndex cardToAnimate ({ discardPilePosition, drawPilePosition, opponentsDisposition } as positions) { leftPlayer, topLeftPlayer, topRightPlayer, rightPlayer } =
+applyDoubleAnimationsToOpponent sessionId cardIndex cardToAnimate { discardPilePosition, opponentsDisposition } { leftPlayer, topLeftPlayer, topRightPlayer, rightPlayer } =
     let
         updateHand newPositionedPlayer positionedPlayer =
             if sessionId == positionedPlayer.player.sessionId then
@@ -961,7 +970,7 @@ displayChatMessage _ ( name, message ) =
 
 
 displayGame : FrontendModel -> Positions -> Element FrontendMsg
-displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, middleTextPosition, discardPilePosition, tamalouButtonPosition, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition, cardsFromDrawPileMovingPositions, cardFromDiscardPileMovingPositions } =
+displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCardMovingPosition, middleTextPosition, discardPilePosition, tamalouButtonPosition, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition, cardsFromDrawPileMovingPositions, cardFromDiscardPileMovingPositions } =
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
             column [ Font.center, contentCenterY, height fill ]
@@ -991,18 +1000,6 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                             ]
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FWaitingPlayerAction _)) ->
-                        let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just DoubleCardFrontend
-                        in
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1010,24 +1007,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerHasDraw _)) ->
-                        let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just DoubleCardFrontend
-                        in
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1036,24 +1021,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerHasDiscard _)) ->
-                        let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just DoubleCardFrontend
-                        in
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1061,24 +1034,13 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " can choose to use a power or not")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerLookACard lookACardStatus)) ->
                         let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just DoubleCardFrontend
-
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
                                 case lookACardStatus of
@@ -1108,16 +1070,11 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                                 -- A fix
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                             )
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
-                        let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                Just DoubleCardFrontend
-                        in
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1125,17 +1082,13 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " is choosing a card to switch")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OwnCardChosen index))) ->
                         let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                Just DoubleCardFrontend
-
                             maybeIndex : Maybe FPlayer -> Maybe Int
                             maybeIndex maybePlayer =
                                 if (maybePlayer |> Maybe.map .sessionId) == Just fPlayer.sessionId then
@@ -1153,7 +1106,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                                 -- a fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                             )
                             []
 
@@ -1172,7 +1125,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
 
                             maybeOwnIndex : Maybe Int
                             maybeOwnIndex =
-                                if model.sessionId == Just opponentCard.sessionId then
+                                if sessionId == Just opponentCard.sessionId then
                                     Just opponentCard.index
 
                                 else
@@ -1197,17 +1150,6 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
                         let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just DoubleCardFrontend
-
                             tamalouButton : Element FrontendMsg
                             tamalouButton =
                                 case maybeTamalouOwner of
@@ -1226,7 +1168,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , elPlaced tamalouButtonPosition <| tamalouButton
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile True maybePowerCard cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1247,17 +1189,6 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerHasDiscard power)) ->
                         let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just DoubleCardFrontend
-
                             displayUsePowerOrPass : Element FrontendMsg
                             displayUsePowerOrPass =
                                 row [ width shrink, centerX, spacing 8 ]
@@ -1272,17 +1203,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , elPlaced playAgainOrPassPosition <| displayUsePowerOrPass
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False (Just power) cardFromDiscardPileMovingPositions
                             )
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard ChooseCardToLook)) ->
-                        let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                Just LookAtCardFrontend
-                        in
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1290,21 +1216,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , displayMiddleText middleTextPosition "Click on a card to look at it"
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (Just LookAtCardFrontend) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard (LookingACard index counter))) ->
-                        let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else
-                                    Just DoubleCardFrontend
-                        in
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1312,17 +1229,12 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , displayMiddleText middleTextPosition ("Remember! " ++ displayEndTimer counter)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg (Just index)
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) (Just index)
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
-                        let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                Just ChooseOwnCardToSwitchFrontend
-                        in
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1330,7 +1242,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , displayMiddleText middleTextPosition "Click on a card to switch"
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (Just ChooseOwnCardToSwitchFrontend) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1372,18 +1284,6 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                             []
 
                     FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FEndTimerRunning timer) ->
-                        let
-                            cardClickMsg : Maybe (Int -> CardClickMsg)
-                            cardClickMsg =
-                                if List.isEmpty discardPile then
-                                    Nothing
-
-                                else if Maybe.map .sessionId maybeTamalouOwner == model.sessionId then
-                                    Nothing
-
-                                else
-                                    Just DoubleCardFrontend
-                        in
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1391,7 +1291,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                              , displayMiddleText middleTextPosition (displayEndTimer timer)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition cardClickMsg Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1400,7 +1300,7 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                         let
                             currentPlayerAndRank : Maybe ( FPlayer, Int )
                             currentPlayerAndRank =
-                                List.Extra.find (\( player, _ ) -> Just player.sessionId == model.sessionId) orderedPlayersAndRank
+                                List.Extra.find (\( player, _ ) -> Just player.sessionId == sessionId) orderedPlayersAndRank
                         in
                         column
                             [ spacing 12, padding 12 ]
@@ -1434,6 +1334,21 @@ displayGame ({ viewPort } as model) { drawPilePosition, drewCardMovingPosition, 
                             [ height fill, spacing 20 ]
                             [ el [ width shrink, centerY, centerX ] <| text "Sorry! The game already started without you, if you wanna play you can just go in a new url"
                             ]
+
+
+doubleCardClickMsg : Maybe SessionId -> Maybe TamalouOwner -> DiscardPile -> Bool -> Maybe (Int -> CardClickMsg)
+doubleCardClickMsg maybeSessionId maybeTamalouOwner discardPile alreadyInAction =
+    if alreadyInAction then
+        Nothing
+
+    else if List.isEmpty discardPile then
+        Nothing
+
+    else if Maybe.map .sessionId maybeTamalouOwner == maybeSessionId then
+        Nothing
+
+    else
+        Just DoubleCardFrontend
 
 
 medal : Int -> String
