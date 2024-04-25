@@ -281,10 +281,11 @@ type ToFrontend
 
 type PlayerAction
     = AnimationDrawCardFromDeck
+    | AnimationDrawCardFromDiscardPile
+    | AnimationReplaceCardInTableHand SessionId Int Card
     | AnimationDoubleCardSuccess SessionId Int Card
     | AnimationDoubleCardFailed SessionId Int Card
     | AnimationSwitchCard
-    | AnimationDrawCardFromDiscardPile
     | AnimationDiscardCard
 
 

@@ -465,7 +465,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                                 { positions
                                                     | ownCardsDisposition =
                                                         positions.ownCardsDisposition
-                                                            |> applyAnimationToOwnCard cardIndex ( card, oldCardPosition ) newGameDisposition
+                                                            |> applyDoubleAnimationToOwnCard cardIndex ( card, oldCardPosition ) newGameDisposition
                                                 }
                                     }
 
@@ -559,7 +559,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                                 { positions
                                                     | ownCardsDisposition =
                                                         positions.ownCardsDisposition
-                                                            |> applyAnimationToOwnCard cardIndex ( card, oldCardPosition ) newGameDisposition
+                                                            |> applyDoubleAnimationToOwnCard cardIndex ( card, oldCardPosition ) newGameDisposition
                                                     , cardsFromDrawPileMovingPositions =
                                                         applyPenaltyAnimationToUs newGameDisposition :: positions.cardsFromDrawPileMovingPositions
                                                 }
@@ -608,10 +608,99 @@ animatePlayerAction playerAction newGameDisposition fModel =
                 AnimationSwitchCard ->
                     Debug.todo "branch 'AnimationSwitchCard' not implemented"
 
-        -- _ ->
-        --     fModel
+                -- We want to animate the cardDrewMovingPosition to the card that is at cardIndex in the tableHand of the player.sessionId == sessionId
+                -- we also want to animate the card from his hand to the discard pile
+                -- (we don't need to animate all the cards)
+                AnimationReplaceCardInTableHand sessionId cardIndex discardedCard ->
+                    let
+                        maybeOpponentOldCardPosition : Maybe (Timeline GBPosition)
+                        maybeOpponentOldCardPosition =
+                            positions.opponentsDisposition
+                                |> findCardPosition sessionId cardIndex
+                    in
+                    case maybeOpponentOldCardPosition of
+                        Just oldCardPosition ->
+                            { fModel
+                                | gameDisposition =
+                                    Calculated
+                                        { positions
+                                            | opponentsDisposition =
+                                                positions.opponentsDisposition
+                                                    -- here we want to animate the card from the oldCardPosition (which is the discardedCard) to the discardPilePosition
+                                                    |> applyReplaceCardAnimationsToOpponent sessionId cardIndex ( discardedCard, oldCardPosition ) newGameDisposition
+                                            , drewCardMovingPosition =
+                                                Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardMovingPosition
+                                        }
+                            }
+
+                        Nothing ->
+                            let
+                                maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
+                                maybeOwnOldCardPosition =
+                                    positions.ownCardsDisposition
+                                        |> List.Extra.getAt cardIndex
+                                        |> Maybe.map Tuple.second
+                            in
+                            case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
+                                ( True, Just oldCardPosition ) ->
+                                    { fModel
+                                        | gameDisposition =
+                                            Calculated
+                                                { positions
+                                                    | ownCardsDisposition =
+                                                        positions.ownCardsDisposition
+                                                            |> applyReplaceCardAnimationsToOwnCard cardIndex ( discardedCard, oldCardPosition ) newGameDisposition
+                                                    , drewCardMovingPosition =
+                                                        Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardMovingPosition
+                                                }
+                                    }
+
+                                _ ->
+                                    fModel
+
         _ ->
             fModel
+
+
+applyReplaceCardAnimationsToOwnCard : Int -> ( Card, Timeline GBPosition ) -> Positions -> List ( FCard, Timeline GBPosition ) -> List ( FCard, Timeline GBPosition )
+applyReplaceCardAnimationsToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { discardPilePosition, ownCardsDisposition } oldOwnCardsDisposition =
+    let
+        applyTransitionToCardInHand : Int -> ( FCard, Timeline GBPosition ) -> ( FCard, Timeline GBPosition )
+        applyTransitionToCardInHand index ( card, position ) =
+            if index == cardIndex then
+                ( FaceUp cardToAnimate, Timeline.to (Anim.ms animDuration) discardPilePosition oldCardPosition )
+
+            else
+                ( card, position )
+    in
+    List.indexedMap applyTransitionToCardInHand oldOwnCardsDisposition
+
+
+applyReplaceCardAnimationsToOpponent : SessionId -> Int -> ( Card, Timeline GBPosition ) -> Positions -> OpponentsDisposition -> OpponentsDisposition
+applyReplaceCardAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosition ) { discardPilePosition } { leftPlayer, topLeftPlayer, topRightPlayer, rightPlayer } =
+    let
+        updateHand : PositionedPlayer -> PositionedPlayer
+        updateHand positionedPlayer =
+            if sessionId == positionedPlayer.player.sessionId then
+                let
+                    applyTransitionToCardInHand : Int -> ( FCard, Timeline GBPosition ) -> ( FCard, Timeline GBPosition )
+                    applyTransitionToCardInHand index ( card, position ) =
+                        if index == cardIndex then
+                            ( FaceUp cardToAnimate, Timeline.to (Anim.ms animDuration) discardPilePosition oldCardPosition )
+
+                        else
+                            ( card, position )
+                in
+                { positionedPlayer | positionedTableHand = List.indexedMap applyTransitionToCardInHand positionedPlayer.positionedTableHand }
+
+            else
+                positionedPlayer
+    in
+    { leftPlayer = Maybe.map updateHand leftPlayer
+    , topLeftPlayer = Maybe.map updateHand topLeftPlayer
+    , topRightPlayer = Maybe.map updateHand topRightPlayer
+    , rightPlayer = Maybe.map updateHand rightPlayer
+    }
 
 
 applyPenaltyAnimationToOpponent : SessionId -> Positions -> Timeline GBPosition
@@ -640,8 +729,15 @@ fixSpinningEffectRotation gbPosition =
     }
 
 
-applyAnimationToOwnCard : Int -> ( Card, Timeline GBPosition ) -> Positions -> List ( FCard, Timeline GBPosition ) -> List ( FCard, Timeline GBPosition )
-applyAnimationToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { discardPilePosition, ownCardsDisposition } oldOwnCardsDisposition =
+fixReverseSpinningEffectRotation : GBPosition -> GBPosition
+fixReverseSpinningEffectRotation gbPosition =
+    { gbPosition
+        | rotation = Ui.radians <| toRadians gbPosition.rotation - wantedSpinningRotationValue
+    }
+
+
+applyDoubleAnimationToOwnCard : Int -> ( Card, Timeline GBPosition ) -> Positions -> List ( FCard, Timeline GBPosition ) -> List ( FCard, Timeline GBPosition )
+applyDoubleAnimationToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { discardPilePosition, ownCardsDisposition } oldOwnCardsDisposition =
     let
         addCardOrRemoveCard : AddOrRemove
         addCardOrRemoveCard =
@@ -689,6 +785,7 @@ type AddOrRemove
 applyDoubleAnimationsToOpponent : SessionId -> Int -> ( Card, Timeline GBPosition ) -> Positions -> OpponentsDisposition -> OpponentsDisposition
 applyDoubleAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosition ) { discardPilePosition, opponentsDisposition } { leftPlayer, topLeftPlayer, topRightPlayer, rightPlayer } =
     let
+        updateHand : PositionedPlayer -> PositionedPlayer -> PositionedPlayer
         updateHand newPositionedPlayer positionedPlayer =
             if sessionId == positionedPlayer.player.sessionId then
                 let
@@ -727,21 +824,21 @@ applyDoubleAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosi
                             in
                             ( card, Timeline.to (Anim.ms animDuration) (Timeline.current newPosition) position )
                 in
-                Just { positionedPlayer | positionedTableHand = List.indexedMap applyTransitionToCardInHand positionedPlayer.positionedTableHand }
+                { positionedPlayer | positionedTableHand = List.indexedMap applyTransitionToCardInHand positionedPlayer.positionedTableHand }
 
             else
-                Just positionedPlayer
+                positionedPlayer
     in
-    { leftPlayer = andThen2 updateHand opponentsDisposition.leftPlayer leftPlayer
-    , topLeftPlayer = andThen2 updateHand opponentsDisposition.topLeftPlayer topLeftPlayer
-    , topRightPlayer = andThen2 updateHand opponentsDisposition.topRightPlayer topRightPlayer
-    , rightPlayer = andThen2 updateHand opponentsDisposition.rightPlayer rightPlayer
+    { leftPlayer = map2 updateHand opponentsDisposition.leftPlayer leftPlayer
+    , topLeftPlayer = map2 updateHand opponentsDisposition.topLeftPlayer topLeftPlayer
+    , topRightPlayer = map2 updateHand opponentsDisposition.topRightPlayer topRightPlayer
+    , rightPlayer = map2 updateHand opponentsDisposition.rightPlayer rightPlayer
     }
 
 
-andThen2 : (a -> b -> Maybe c) -> Maybe a -> Maybe b -> Maybe c
-andThen2 callback maybeA maybeB =
-    Maybe.andThen (\a -> Maybe.andThen (\b -> callback a b) maybeB) maybeA
+map2 : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
+map2 callback maybeA maybeB =
+    Maybe.andThen (\a -> Maybe.map (\b -> callback a b) maybeB) maybeA
 
 
 fPlayersFromFGame : FGame -> List FPlayer

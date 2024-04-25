@@ -2,6 +2,8 @@
 
 - Tamalou is a multiplayer card game currently under development. The game is being built using Lamdera, a Frontend+Backend Elm framework, and Elm UI for the frontend.
 
+- The game combines elements of memory, speed, and strategy.
+
 ## Current State of the Project
 
 - The game is currently a work in progress. The main logic of the game is implemented in src/Frontend.elm and src/Backend.elm. The most used types are defined in src/Types.elm.
@@ -10,12 +12,14 @@
 
 ## Game Rules
 
-- The game combines elements of memory, speed, and strategy.
+- The objective is to have the lowest score at the end of the game.
+- The game is played with a standard 52-card deck.
+- The game can be played with 2 to 5 players.
 
 ### Starting the Game
 
 1. At the beginning, you see 2 out of your 4 cards.
-2. After 5 seconds, the cards are hidden, and the game begins.
+2. After 5 seconds, your cards are hidden, and the game begins.
 3. The game is turn based, with each player taking a turn.
 
 ### Taking a Turn
@@ -35,7 +39,7 @@
 - You just drew a card, you have 2 possibilities:
 
 1. Discard the card and go to [Step 3](#Taking-a-Turn---Step-3)
-2. Switch the card with one of your cards that will be discarded instead and go to [Step 3](#Taking-a-Turn---Step-3)
+2. Replace the card with one of your cards that will be discarded instead and go to [Step 3](#Taking-a-Turn---Step-3)
 
 #### Taking a Turn - Step 3
 
@@ -66,7 +70,11 @@
 
 #### Tamalou
 
-- If you believe you have the lowest score and it is 5 points or less, you can declare "Tamalou". Your cards are then revealed. If your claim is correct, your cards stay visible, immune to the Queen's power, and a final turn is played without the ability to double. If incorrect, your cards are concealed again, you draw an additional card, and play continues.
+- If you believe you have the lowest score and it is 5 points or less (see [Ranking and Scoring](#Ranking-and-Scoring)), you can declare "Tamalou!". Your cards are then revealed.
+
+1. If your claim is correct, your cards stay visible, you cannot double but you are immune to the Queen's power, and a final turn is played.
+
+2. If incorrect, your cards are concealed again, you draw an additional card, and play continues.
 
 ### Ranking and Scoring
 
