@@ -76,6 +76,12 @@ Here are some of the features that are yet to be implemented:
 - [ ] Choosing an opponent card to switch with the Queen
 - [ ] Tamalou failure
 
+## Known issues
+
+- [ ] Doubling failure animation is not working because of the way steps of elm-enimator are working - need to find a way to fix it
+- [ ] The size of the draw pile is weird on iphone when playing in the application
+- [ ] For now when an action occure during another animation the second animation occuring will be cut off - We need to update parts of the game disposition based on the action occuring
+
 <!-- own notes:
 p1 card draw: animation of 2000 ms
 at 1000ms, p2 double: animation of 2000 ms
@@ -91,10 +97,11 @@ state 2000ms -> la carte de p1 à fini de bouger vers le centre, p2 est toujours
 
 ## Features to be implemented
 
+- [ ] Add rules pages
 - [ ] Better way to start a game
 - [ ] Better way to end a game
 - [ ] Add more animations to make the game more appealing
-- [ ] Add a google authentification to be able to play with friends
+- [ ] Add authentification
 - [ ] Add a elo system
 - [ ] Add a matchmaking system
 
