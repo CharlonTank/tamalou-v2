@@ -1180,7 +1180,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                              , displayMiddleText middleTextPosition "You just drew a card"
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition Nothing Nothing
+                                ++ displayOwnCards ownCardsDisposition (Just CardClickReplacement) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
