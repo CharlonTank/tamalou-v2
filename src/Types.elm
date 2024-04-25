@@ -171,7 +171,7 @@ type alias FrontendModel =
     , chat : List ( String, String )
     , gameDisposition : GameDisposition
     , animationState : Ui.Anim.State
-    , anim : Bool
+    , alreadyInAction : Bool
     , posix : Posix
     , animDur : Maybe Int
 

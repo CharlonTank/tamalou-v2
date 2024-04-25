@@ -78,7 +78,7 @@ init url key =
       --   , cardAnim = CardNotFlipped
       , gameDisposition = NotCalculated
       , animationState = Anim.init
-      , anim = False
+      , alreadyInAction = False
       , posix = Time.millisToPosix 0
       , animDur = Nothing
 
@@ -173,7 +173,7 @@ update msg ({ urlPath } as model) =
         CardClickMsg cardClickMsg ->
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
-                    ( { model | anim = True }
+                    ( { model | alreadyInAction = True }
                     , Cmd.batch
                         [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDrawPileToBackend
 
@@ -182,25 +182,25 @@ update msg ({ urlPath } as model) =
                     )
 
                 DrawFromDiscardPileFrontend ->
-                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
 
                 DiscardCardFrontend ->
-                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DiscardCardInHandToBackend )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DiscardCardInHandToBackend )
 
                 CardClickReplacement cardIndex ->
-                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
 
                 DoubleCardFrontend cardIndex ->
-                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
 
                 LookAtCardFrontend cardIndex ->
-                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (LookAtCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (LookAtCardInTableHandToBackend cardIndex) )
 
                 ChooseOwnCardToSwitchFrontend cardIndex ->
-                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOwnCardToSwitchToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOwnCardToSwitchToBackend cardIndex) )
 
                 ChooseOpponentCardToSwitchFrontend sessionId cardIndex ->
-                    ( { model | anim = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
 
         -- UpdateFlip cardAnimation ->
         --     let
@@ -246,7 +246,7 @@ update msg ({ urlPath } as model) =
 
                         Nothing ->
                             getMyName model.sessionId fGame
-                , anim = False
+                , alreadyInAction = False
 
                 -- , gameDisposition = calculateGameDispositionParts model.viewPort playerAction (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
                 , gameDisposition = Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
@@ -363,7 +363,7 @@ updateFromBackend msg model =
                 Nothing ->
                     ( { model
                         | fGame = fGame
-                        , anim = False
+                        , alreadyInAction = False
                         , maybeName =
                             case model.maybeName of
                                 Just _ ->
@@ -970,7 +970,7 @@ displayChatMessage _ ( name, message ) =
 
 
 displayGame : FrontendModel -> Positions -> Element FrontendMsg
-displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCardMovingPosition, middleTextPosition, discardPilePosition, tamalouButtonPosition, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition, cardsFromDrawPileMovingPositions, cardFromDiscardPileMovingPositions } =
+displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePosition, drewCardMovingPosition, middleTextPosition, discardPilePosition, tamalouButtonPosition, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition, cardsFromDrawPileMovingPositions, cardFromDiscardPileMovingPositions } =
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
             column [ Font.center, contentCenterY, height fill ]
@@ -1007,7 +1007,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                              , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1021,7 +1021,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                              , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1034,7 +1034,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " can choose to use a power or not")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1070,7 +1070,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                                 -- A fix
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                             )
                             []
 
@@ -1082,7 +1082,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " is choosing a card to switch")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1106,7 +1106,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                                 -- a fix avec le maybeindex
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False Nothing opponentsDisposition
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                             )
                             []
 
@@ -1168,7 +1168,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                              , elPlaced tamalouButtonPosition <| tamalouButton
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile True maybePowerCard cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1203,7 +1203,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                              , elPlaced playAgainOrPassPosition <| displayUsePowerOrPass
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False (Just power) cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1229,7 +1229,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                              , displayMiddleText middleTextPosition ("Remember! " ++ displayEndTimer counter)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) (Just index)
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) (Just index)
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1291,7 +1291,7 @@ displayGame ({ viewPort, sessionId, anim } as model) { drawPilePosition, drewCar
                              , displayMiddleText middleTextPosition (displayEndTimer timer)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False Nothing opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile anim) Nothing
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )
                             []
@@ -1370,24 +1370,23 @@ medal rank =
             "🤷\u{200D}♂️"
 
 
-elEmplacement : Int -> Element FrontendMsg -> Element FrontendMsg
-elEmplacement widthOfScreen cardToDisplay =
-    el [ behindContent cardToDisplay ] <|
-        image
-            [ width <| px <| widthOfScreen // 7
-            , rounded 8
 
-            -- , height <| px <| widthOfScreen * 15 // 70
-            -- , width shrink
-            ]
-            { source = "/emplacement.png", description = "Emplacement" }
+-- elEmplacement : Int -> Element FrontendMsg -> Element FrontendMsg
+-- elEmplacement widthOfScreen cardToDisplay =
+--     el [ behindContent cardToDisplay ] <|
+--         image
+--             [ width <| px <| widthOfScreen // 7
+--             , rounded 8
+--             -- , height <| px <| widthOfScreen * 15 // 70
+--             -- , width shrink
+--             ]
+--             { source = "/emplacement.png", description = "Emplacement" }
 
 
 displayDiscardCards : GBPosition -> DiscardPile -> Bool -> Maybe Card.Power -> Maybe (Timeline GBPosition) -> List (Attribute FrontendMsg)
 displayDiscardCards discardPilePosition discardPile canDrawCard maybePowerCard maybeCardToAnimate =
     case maybeCardToAnimate of
         Just cardToAnimate ->
-            -- During animations, all cards are displayed without the option to draw.
             case discardPile of
                 first :: second :: _ ->
                     [ elPlacedTimelined (displayFCard Nothing (FaceUp first)) cardToAnimate, elPlaced discardPilePosition (displayFCard Nothing (FaceUp second)) ]
@@ -1399,7 +1398,6 @@ displayDiscardCards discardPilePosition discardPile canDrawCard maybePowerCard m
                     []
 
         Nothing ->
-            -- No animation is happening, so interactive options can be enabled based on game state.
             case ( discardPile, canDrawCard, maybePowerCard ) of
                 ( [], _, _ ) ->
                     []

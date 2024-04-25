@@ -51,7 +51,7 @@ The game combines elements of memory, speed, and strategy.
   - In the event of a tie, the player with fewer cards wins.
   - If there's still a tie, the player who declared "Tamalou" wins.
 
-## Features to be Implemented
+## Features implemented recently
 
 Here are some of the features that are yet to be implemented:
 
@@ -62,10 +62,41 @@ Here are some of the features that are yet to be implemented:
 - [x] Power of King
 - [x] Visibility of other cards
 - [x] Power of Queen
-- [ ] Way to see what cards has been choosen when doubling or for each power
-- [ ] Add card animations
+- [x] Way to see what cards has been choosen when doubling or for each power
+
+## Add card animations in progress
+
+- [x] Doubling success
+- [x] Doubling failure (FIXME: not working because of the way steps of elm-enimator are working - need to find a way to fix it)
+- [x] Drawing from the deck
+- [x] Drawing from the discard pile
+- [x] Discarding a card
+- [ ] Looking at a card
+- [ ] Choosing an owned card to switch with the Queen
+- [ ] Choosing an opponent card to switch with the Queen
+- [ ] Tamalou failure
+
+<!-- own notes:
+p1 card draw: animation of 2000 ms
+at 1000ms, p2 double: animation of 2000 ms
+
+state 0ms -> carte sur le dessus de la drawpile, p1 joue une carte, la carte commence à bouger vers le centre.
+-- state 0ms: on a un nouvel etat à 0ms mais en "attente" car on attend l'animation de p1 qu'elle finisse avant d'updater avec le nouveau state
+
+state 1000ms -> la carte continue de bouger vers le centre, elle est à 50% de la distance, p2 double avec une carte, la carte continue de bouger vers le centre et la deuxieme carte commence à bouger vers la discard pile.
+-- state 1000ms: on a un nouvel etat à 1000ms mais en "attente" car on attend l'animation de p1 qu'elle finisse avant d'updater avec le nouveau state
+
+state 2000ms -> la carte de p1 à fini de bouger vers le centre, p2 est toujours en train de jouer sa carte, la carte de p2 est à 50% de la distance.
+-- state 2000ms: l'état reçu à 0ms avec la carte de p1 en moins dans sa main doit être pris en compte et update le frontend state, le problème c'est que si on fait ça, la carte de p2 va reaparaitre avant que à 3000ms la carte redisparraisse grace au state reçu à 1000ms. -->
+
+## Features to be implemented
+
 - [ ] Better way to start a game
 - [ ] Better way to end a game
+- [ ] Add more animations to make the game more appealing
+- [ ] Add a google authentification to be able to play with friends
+- [ ] Add a elo system
+- [ ] Add a matchmaking system
 
 ## Contributing
 
