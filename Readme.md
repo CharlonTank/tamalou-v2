@@ -115,23 +115,26 @@ Here are some of the features that are yet to be implemented:
 - [x] Power of Queen
 - [x] Way to see what cards has been choosen when doubling or for each power
 
-## Add card animations in progress
+## Animations implemented recently
 
 - [x] Doubling success
 - [x] Doubling failure (FIXME: not working because of the way steps of elm-enimator are working - need to find a way to fix it)
 - [x] Drawing from the deck
 - [x] Drawing from the discard pile
 - [x] Discarding a card
-- [ ] Looking at a card
-- [ ] Choosing an owned card to switch with the Queen
-- [ ] Choosing an opponent card to switch with the Queen
+- [x] Looking at a card
+- [x] Choosing an owned card to switch with the Queen
+- [x] Choosing an opponent card to switch with the Queen
 - [ ] Tamalou failure
 
 ## Known issues
 
-- [ ] Doubling failure animation is not working because of the way steps of elm-enimator are working - need to find a way to fix it
-- [ ] The size of the draw pile is weird on iphone when playing in the application
+- [ ] Doubling failure animation is not working properly because of the way steps of elm-enimator are working - need to find a way to fix it
 - [ ] For now when an action occure during another animation the second animation occuring will be cut off - We need to update parts of the game disposition based on the action occuring
+
+## Bugs fixed recently
+
+- [x] The size of the draw pile is weird on iphone when playing in the application
 
 <!-- own notes:
 p1 card draw: animation of 2000 ms

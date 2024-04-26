@@ -1205,7 +1205,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FWaitingPlayerAction _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
                              ]
@@ -1218,7 +1217,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerHasDraw _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , elPlacedTimelined (displayFCard Nothing FaceDown) drewCardMovingPosition
                              , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
@@ -1232,8 +1230,7 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerHasDiscard _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
-                             , elPlacedTimelined (displayDrawColumn drawPile False) drewCardMovingPosition
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " can choose to use a power or not")
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False (always Nothing) opponentsDisposition
@@ -1259,7 +1256,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition
                                 (case lookACardStatus of
@@ -1280,7 +1276,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " is choosing a card to switch")
                              ]
@@ -1302,7 +1297,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " is now choosing an opponent card to switch with")
                              ]
@@ -1340,7 +1334,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " changed a card with " ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous") ++ "'s card: " ++ displayEndTimer counter)
                              ]
@@ -1365,7 +1358,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile True)
                              , elPlaced playAgainOrPassPosition <| tamalouButton
                              ]
@@ -1378,7 +1370,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerHasDraw fCard)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , elPlacedTimelined (displayFCard (Just DiscardCardFrontend) fCard) drewCardMovingPosition
                              , displayMiddleText middleTextPosition "You just drew a card"
@@ -1400,7 +1391,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , elPlaced playAgainOrPassPosition <| displayUsePowerOrPass
                              ]
@@ -1413,7 +1403,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerLookACard ChooseCardToLook)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition "Click on a card to look at it"
                              ]
@@ -1426,7 +1415,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerLookACard (LookingACard index counter))) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition ("Remember! " ++ displayEndTimer counter)
                              ]
@@ -1439,7 +1427,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition "Click on a card to switch"
                              ]
@@ -1452,7 +1439,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerSwitch2Cards (OwnCardChosen index))) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition "You chose your card, now choose a card to switch with"
                              ]
@@ -1474,7 +1460,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition ("Remember! " ++ displayEndTimer counter)
                              ]
@@ -1487,7 +1472,6 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FEndTimerRunning timer) ->
                         column
                             ([ width <| px <| viewPort.width - 14
-                             , height fill
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (displayEndTimer timer)
                              ]
@@ -1610,7 +1594,7 @@ displayDiscardCards discardPilePosition discardPile canDrawCard maybePowerCard m
                     [ elPlaced discardPilePosition
                         (el
                             [ inFront <|
-                                el [ padding 4, move { offSet | y = 35 } ] <|
+                                el [ padding 16, move { offSet | y = 36 } ] <|
                                     actionButton { label = text <| Card.powerToString Switch2Cards, onPress = Just PowerIsUsedFrontend }
                             , height fill
                             ]
@@ -1623,7 +1607,7 @@ displayDiscardCards discardPilePosition discardPile canDrawCard maybePowerCard m
                     [ elPlaced discardPilePosition
                         (el
                             [ inFront <|
-                                el [ padding 4, move { offSet | y = 35 } ] <|
+                                el [ padding 16, move { offSet | y = 36 } ] <|
                                     actionButton { label = text <| Card.powerToString LookACard, onPress = Just PowerIsUsedFrontend }
                             , height fill
                             ]
@@ -2162,7 +2146,7 @@ calculateGameDisposition viewPort opponents ownCards =
     { drawPilePosition = calculatePosition viewPort.width viewPort.height 0.35 0.35
     , cardsFromDrawPileMovingPositions = []
     , drewCardMovingPosition = Timeline.init (calculatePosition viewPort.width viewPort.height 0.5 0.35)
-    , middleTextPosition = calculatePosition viewPort.width viewPort.height 0.5 0.54
+    , middleTextPosition = calculatePosition viewPort.width viewPort.height 0.5 0.74
     , discardPilePosition = calculatePosition viewPort.width viewPort.height 0.65 0.35
     , cardFromDiscardPileMovingPositions = Nothing
     , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
@@ -2293,7 +2277,7 @@ toOwnCardsDisposition viewPort ownCards =
 displayMiddleText : GBPosition -> String -> Attribute FrontendMsg
 displayMiddleText drewCardPilePosition string =
     elPlaced drewCardPilePosition
-        (el [ below (el [ width <| px 400, height <| px (round drewCardPilePosition.height_), Font.center, padding 6, centerX ] <| text string) ] none)
+        (el [ below (el [ width <| px 500, Font.center, padding 6, centerX ] <| text string) ] none)
 
 
 animDuration : Float
