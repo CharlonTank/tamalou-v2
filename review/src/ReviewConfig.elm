@@ -70,10 +70,10 @@ config =
         )
     , NoUnsortedTopLevelDeclarations.rule
         (NoUnsortedTopLevelDeclarations.sortTopLevelDeclarations
-            -- |> NoUnsortedTopLevelDeclarations.portsFirst
-            -- |> NoUnsortedTopLevelDeclarations.exposedOrderWithPrivateLast
-            -- |> NoUnsortedTopLevelDeclarations.alphabetically
+        --  |> NoUnsortedTopLevelDeclarations.portsFirst
+         |> NoUnsortedTopLevelDeclarations.exposedOrderWithPrivateLast
+        --  |> NoUnsortedTopLevelDeclarations.alphabetically
         )
     ]
-        |> List.map (Rule.ignoreErrorsForDirectories [ "src/Evergreen/" ])
-        |> List.map (Rule.ignoreErrorsForFiles [ "src/DebugApp.elm" ])
+        |> List.map (Rule.ignoreErrorsForDirectories [ "src/Evergreen/", "elm-ui/", "elm-animator/" ])
+        |> List.map (Rule.ignoreErrorsForFiles [ "src/Debuggy/App.elm" ])

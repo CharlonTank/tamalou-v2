@@ -1,7 +1,7 @@
 module Backend exposing (app)
 
 import Card exposing (Card, FCard(..), handIsLessThanFive)
-import DebugApp
+import Debuggy.Logs
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
 import Random
@@ -21,6 +21,65 @@ app =
         , update = update
         , updateFromFrontend = updateFromFrontend
         }
+
+
+assignRanks : Maybe SessionId -> List BPlayer -> List ( BPlayer, Int )
+assignRanks maybeTamalouOwner players =
+    players
+        |> List.sortWith
+            (\playerA playerB ->
+                case compare (Card.tableHandScore playerA.tableHand) (Card.tableHandScore playerB.tableHand) of
+                    EQ ->
+                        case compare (List.length playerA.tableHand) (List.length playerB.tableHand) of
+                            EQ ->
+                                case maybeTamalouOwner of
+                                    Just ownerId ->
+                                        if ownerId == playerA.sessionId then
+                                            LT
+
+                                        else if ownerId == playerB.sessionId then
+                                            GT
+
+                                        else
+                                            EQ
+
+                                    Nothing ->
+                                        EQ
+
+                            ord ->
+                                ord
+
+                    ord ->
+                        ord
+            )
+        |> List.foldl
+            (\player ( ( acc, lastScore ), ( lastCount, nextRank ) ) ->
+                let
+                    currentCount : Int
+                    currentCount =
+                        List.length player.tableHand
+
+                    currentScore : Int
+                    currentScore =
+                        Card.tableHandScore player.tableHand
+
+                    isOwner : Bool
+                    isOwner =
+                        Just player.sessionId == maybeTamalouOwner
+
+                    ( rank, newNextRank ) =
+                        if lastScore == currentScore && lastCount == currentCount && not isOwner then
+                            ( nextRank - 1, nextRank )
+
+                        else
+                            ( nextRank, nextRank + 1 )
+                in
+                ( ( ( player, rank ) :: acc, currentScore ), ( currentCount, newNextRank ) )
+            )
+            ( ( [], -1 ), ( -1, 1 ) )
+        |> Tuple.first
+        |> Tuple.first
+        |> List.reverse
 
 
 bPlayersFromFGame : BGame -> List BPlayer
@@ -498,7 +557,9 @@ update msg ({ games } as model) =
                                                     BWaitingForPlayers newPlayers
                                             in
                                             ( { game | status = newGameStatus }
-                                            , List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame Nothing newGameStatus) newPlayers
+                                            , List.map
+                                                (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend (toFGame Nothing newGameStatus) Nothing))
+                                                newPlayers
                                             )
 
                                         else
@@ -545,7 +606,7 @@ update msg ({ games } as model) =
                                             decrementCounter nb
                                     in
                                     ( { model | games = updateGame newGame games }
-                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) (p1 :: restOfBPlayers)
+                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) (p1 :: restOfBPlayers)
                                     )
 
                                 BGameInProgress maybeTamalouOwner a b (p1 :: restOfBPlayers) (BEndTimerRunning nb) lastMoveIsDouble canUsePowerFromLastPlayer ->
@@ -557,7 +618,7 @@ update msg ({ games } as model) =
                                                     { game | status = BGameInProgress maybeTamalouOwner a b (p1 :: restOfBPlayers) (BEndTimerRunning nb_) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) (p1 :: restOfBPlayers)
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) (p1 :: restOfBPlayers)
                                             )
 
                                         Nothing ->
@@ -573,7 +634,7 @@ update msg ({ games } as model) =
                                                         |> showAllCardsOfAllPlayers
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) (p1 :: restOfBPlayers)
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) (p1 :: restOfBPlayers)
                                             )
 
                                 BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard index counter))) lastMoveIsDouble canUsePowerFromLastPlayer ->
@@ -585,10 +646,19 @@ update msg ({ games } as model) =
                                                     { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard index nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
                                             )
 
                                         Nothing ->
+                                            -- Debug to test the king power
+                                            -- let
+                                            --     newGame : BGame
+                                            --     newGame =
+                                            --         { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard index One))) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                            -- in
+                                            -- ( { model | games = updateGame newGame games }
+                                            -- , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
+                                            -- )
                                             let
                                                 maybeNextPlayer : Maybe BPlayer
                                                 maybeNextPlayer =
@@ -625,7 +695,7 @@ update msg ({ games } as model) =
                                                             }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
                                             )
 
                                 BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OpponentCardChosen ownCardIndex opponentCard counter))) lastMoveIsDouble canUsePowerFromLastPlayer ->
@@ -637,10 +707,10 @@ update msg ({ games } as model) =
                                                     { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OpponentCardChosen ownCardIndex opponentCard nb))) lastMoveIsDouble canUsePowerFromLastPlayer }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
                                             )
 
-                                        -- Test Switch, to be removed once we're sure it works everytime
+                                        -- Debug to test the queen power
                                         -- Nothing ->
                                         --     let
                                         --         newGame : BGame
@@ -648,7 +718,7 @@ update msg ({ games } as model) =
                                         --             { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OpponentCardChosen ownCardIndex opponentCard One))) lastMoveIsDouble canUsePowerFromLastPlayer }
                                         --     in
                                         --     ( { model | games = updateGame newGame games }
-                                        --     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
+                                        --     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
                                         --     )
                                         Nothing ->
                                             let
@@ -687,7 +757,7 @@ update msg ({ games } as model) =
                                                             }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGame.status) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) (Just <| AnimationSwitchCards ( bPlayer.sessionId, ownCardIndex ) ( opponentCard.sessionId, opponentCard.index ))) players
                                             )
 
                                 _ ->
@@ -710,7 +780,7 @@ update msg ({ games } as model) =
                             }
                     in
                     ( { model | games = newGame :: games }
-                    , Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend (toFGame (Just sessionId) newGame.status))
+                    , Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend (toFGame (Just sessionId) newGame.status) Nothing)
                     )
 
 
@@ -766,7 +836,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                         ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
                                         , Cmd.batch <|
                                             Lamdera.sendToFrontend clientId (UpdateChatToFrontend game.chat)
-                                                :: List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
+                                                :: List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame Nothing)) newPlayers
                                         )
 
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players progressStatus lastMoveIsDouble canUsePowerFromLastPlayer ->
@@ -791,11 +861,11 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 in
                                                 ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
                                                 , Cmd.batch <|
-                                                    List.map (\p -> Lamdera.sendToFrontend p.clientId <| UpdateGameStatusToFrontend <| toFGame (Just p.sessionId) newGameStatus) updateClientIdInPlayers
+                                                    List.map (\p -> Lamdera.sendToFrontend p.clientId <| UpdateGameStatusToFrontend (toFGame (Just p.sessionId) newGameStatus) Nothing) updateClientIdInPlayers
                                                 )
 
                                             Nothing ->
-                                                ( model, Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend FGameAlreadyStartedWithoutYou) )
+                                                ( model, Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend FGameAlreadyStartedWithoutYou Nothing) )
 
                                     BGameEnded players ->
                                         ( model
@@ -834,7 +904,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     players
                                         in
                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
+                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame Nothing)) newPlayers
                                         )
 
                                     _ ->
@@ -872,6 +942,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     toFGame Nothing newGameStatus
 
                                                 ( newDrawPile, newSeed ) =
+                                                    -- shuffleWithSeed game.seed (Debug.log "WARNING" Debuggy.Decks.queens)
                                                     shuffleWithSeed game.seed Card.nonShuffledDeck
 
                                                 ( newDrawPile_, newPlayers_ ) =
@@ -891,7 +962,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     BGameInProgress Nothing newDrawPile_ [] newPlayers_ (BStartTimerRunning Five) False False
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame Nothing)) newPlayers
                                             )
 
                                         else
@@ -941,7 +1012,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 players ++ [ maybeFPlayer |> Maybe.map toBPlayer |> Maybe.map (\p -> { p | ready = False }) |> Maybe.withDefault (emptyBPlayer sessionId clientId) ]
                                         in
                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame)) newPlayers
+                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame Nothing)) newPlayers
                                         )
 
                                     BGameEnded players ->
@@ -969,7 +1040,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         )
                                         in
                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                        , Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend frontendGame)
+                                        , Lamdera.sendToFrontend clientId (UpdateGameStatusToFrontend frontendGame Nothing)
                                         )
 
                                     _ ->
@@ -978,7 +1049,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                             Nothing ->
                                 ( model, Cmd.none )
 
-                    DrawCardFromDrawPileToBackend ->
+                    DrawFromDrawPileToBackend ->
                         case maybeGame of
                             Just game ->
                                 case game.status of
@@ -991,10 +1062,16 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         newGameStatus =
                                                             BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile players (BPlayerToPlay bPlayer (BPlayerHasDrawn cardDrew)) lastMoveIsDouble canUsePowerFromLastPlayer
                                                     in
-                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, newSeed ) players
+                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, newSeed ) players (Just AnimationDrawCardFromDeck)
 
                                                 ( Nothing, _ ) ->
-                                                    ( model, Cmd.none )
+                                                    -- TODO: Terminate game because this should not happen, we need to log this...
+                                                    let
+                                                        newGameStatus : BGameStatus
+                                                        newGameStatus =
+                                                            BGameEnded (assignRanks maybeTamalouOwner (stopDisplayCards maybeTamalouOwner players))
+                                                    in
+                                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( model, Cmd.none )
@@ -1027,7 +1104,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                     BGameInProgress maybeTamalouOwner drawPile (card :: discardPile) players (BEndTimerRunning Five) False False
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just AnimationDiscardCard)) players
                                             )
 
                                         else
@@ -1051,7 +1128,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     BGameInProgress maybeTamalouOwner drawPile rest players (BPlayerToPlay bPlayer (BPlayerHasDrawn head)) False False
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just AnimationDrawCardFromDiscardPile)) players
                                             )
 
                                         else
@@ -1070,58 +1147,66 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDrawn cardInHand)) _ _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
-                                                cardToDiscard : Maybe Card
-                                                cardToDiscard =
-                                                    maybeCurrentPlayer |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+                                                maybeCardToDiscard : Maybe Card
+                                                maybeCardToDiscard =
+                                                    maybeCurrentPlayer
+                                                        |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+                                                        |> Maybe.map (\card -> { card | show = True })
 
                                                 maybeCurrentPlayer : Maybe BPlayer
                                                 maybeCurrentPlayer =
                                                     List.Extra.find ((==) sessionId << .sessionId) players
+                                            in
+                                            case maybeCardToDiscard of
+                                                Just cardToDiscard ->
+                                                    let
+                                                        newDiscardPile : DiscardPile
+                                                        newDiscardPile =
+                                                            cardToDiscard :: discardPile
 
-                                                newDiscardPile : DiscardPile
-                                                newDiscardPile =
-                                                    cardToDiscard |> Maybe.map (\c -> { c | show = True }) |> Maybe.map (\c -> c :: discardPile) |> Maybe.withDefault discardPile
-
-                                                newGameStatus : BGameStatus
-                                                newGameStatus =
-                                                    case Maybe.andThen (Card.toPower (maybeTamalouOwner == Nothing || List.length players > 2)) cardToDiscard of
-                                                        Just powerCard ->
-                                                            BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay bPlayer (BPlayerHasDiscard powerCard)) False False
-
-                                                        Nothing ->
-                                                            case nextPlayer maybeTamalouOwner sessionId players of
-                                                                Just nextPlayer_ ->
-                                                                    BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing)) False False
+                                                        newGameStatus : BGameStatus
+                                                        newGameStatus =
+                                                            case Card.toPower (maybeTamalouOwner == Nothing || List.length players > 2) cardToDiscard of
+                                                                Just powerCard ->
+                                                                    BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay bPlayer (BPlayerHasDiscard powerCard)) False False
 
                                                                 Nothing ->
-                                                                    BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BEndTimerRunning Five) False False
+                                                                    case nextPlayer maybeTamalouOwner sessionId players of
+                                                                        Just nextPlayer_ ->
+                                                                            BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing)) False False
 
-                                                updatedPlayers : List BPlayer
-                                                updatedPlayers =
-                                                    List.map
-                                                        (\p ->
-                                                            if p.sessionId == sessionId then
-                                                                { p
-                                                                    | tableHand =
-                                                                        List.indexedMap
-                                                                            (\index card ->
-                                                                                if index == cardIndex then
-                                                                                    { cardInHand | show = False }
+                                                                        Nothing ->
+                                                                            BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers (BEndTimerRunning Five) False False
 
-                                                                                else
-                                                                                    card
-                                                                            )
-                                                                            p.tableHand
-                                                                }
+                                                        updatedPlayers : List BPlayer
+                                                        updatedPlayers =
+                                                            List.map
+                                                                (\p ->
+                                                                    if p.sessionId == sessionId then
+                                                                        { p
+                                                                            | tableHand =
+                                                                                List.indexedMap
+                                                                                    (\index card ->
+                                                                                        if index == cardIndex then
+                                                                                            { cardInHand | show = False }
 
-                                                            else
-                                                                p
-                                                        )
-                                                        players
-                                            in
-                                            ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) updatedPlayers
-                                            )
+                                                                                        else
+                                                                                            card
+                                                                                    )
+                                                                                    p.tableHand
+                                                                        }
+
+                                                                    else
+                                                                        p
+                                                                )
+                                                                players
+                                                    in
+                                                    ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
+                                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just <| AnimationReplaceCardInTableHand sessionId cardIndex cardToDiscard)) updatedPlayers
+                                                    )
+
+                                                Nothing ->
+                                                    ( model, Cmd.none )
 
                                         else
                                             ( model, Cmd.none )
@@ -1165,107 +1250,114 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             BEndTimerRunning _ ->
                                                                 True
                                                        )
-                                        in
-                                        if canTryToDouble then
-                                            case discardPile of
-                                                discardPileHead :: _ ->
-                                                    let
-                                                        currentPlayer : Maybe BPlayer
-                                                        currentPlayer =
-                                                            List.Extra.find ((==) sessionId << .sessionId) players
 
-                                                        maybeMatchingCard : Maybe Card
-                                                        maybeMatchingCard =
-                                                            currentPlayer
-                                                                |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
-                                                                |> Maybe.andThen
-                                                                    (\card ->
-                                                                        if card.rank == discardPileHead.rank then
-                                                                            Just card
+                                            cardFromPlayer : Maybe Card
+                                            cardFromPlayer =
+                                                currentPlayer
+                                                    |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+
+                                            currentPlayer : Maybe BPlayer
+                                            currentPlayer =
+                                                List.Extra.find ((==) sessionId << .sessionId) players
+                                        in
+                                        case ( canTryToDouble, cardFromPlayer ) of
+                                            ( True, Just card ) ->
+                                                case discardPile of
+                                                    discardPileHead :: _ ->
+                                                        let
+                                                            maybeMatchingCard : Maybe Card
+                                                            maybeMatchingCard =
+                                                                if card.rank == discardPileHead.rank then
+                                                                    Just card
+
+                                                                else
+                                                                    Nothing
+                                                        in
+                                                        case ( lastMoveIsDouble, maybeMatchingCard ) of
+                                                            ( False, Just matchingCard ) ->
+                                                                let
+                                                                    ( updatedPlayers, isGameFinished ) =
+                                                                        players
+                                                                            |> List.map
+                                                                                (\p ->
+                                                                                    if p.sessionId == sessionId then
+                                                                                        { p
+                                                                                            | tableHand =
+                                                                                                p.tableHand
+                                                                                                    |> List.Extra.removeAt cardIndex
+                                                                                        }
+
+                                                                                    else
+                                                                                        p
+                                                                                )
+                                                                            |> List.foldr
+                                                                                (\p ( acc, isFinished ) ->
+                                                                                    ( p :: acc, isFinished || List.isEmpty p.tableHand )
+                                                                                )
+                                                                                ( [], False )
+
+                                                                    newGameStatus : BGameStatus
+                                                                    newGameStatus =
+                                                                        if isGameFinished then
+                                                                            let
+                                                                                orderedPlayers : List ( BPlayer, Int )
+                                                                                orderedPlayers =
+                                                                                    updatedPlayers
+                                                                                        |> assignRanks maybeTamalouOwner
+                                                                                        |> showAllCardsOfAllPlayers
+                                                                            in
+                                                                            BGameEnded orderedPlayers
 
                                                                         else
-                                                                            Nothing
-                                                                    )
-                                                    in
-                                                    case ( lastMoveIsDouble, maybeMatchingCard ) of
-                                                        ( False, Just matchingCard ) ->
-                                                            let
-                                                                ( updatedPlayers, isGameFinished ) =
-                                                                    players
-                                                                        |> List.map
-                                                                            (\p ->
-                                                                                if p.sessionId == sessionId then
-                                                                                    { p
-                                                                                        | tableHand =
-                                                                                            p.tableHand
-                                                                                                |> List.Extra.removeAt cardIndex
-                                                                                    }
+                                                                            let
+                                                                                newDiscardPile : DiscardPile
+                                                                                newDiscardPile =
+                                                                                    { matchingCard | show = True } :: discardPile
+                                                                            in
+                                                                            BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers bGameInProgressStatus True canUsePowerFromLastPlayer
+                                                                in
+                                                                ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
+                                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just <| AnimationDoubleCardSuccess sessionId cardIndex card)) updatedPlayers
+                                                                )
 
-                                                                                else
-                                                                                    p
-                                                                            )
-                                                                        |> List.foldr
-                                                                            (\p ( acc, isFinished ) ->
-                                                                                ( p :: acc, isFinished || List.isEmpty p.tableHand )
-                                                                            )
-                                                                            ( [], False )
-
-                                                                newGameStatus : BGameStatus
-                                                                newGameStatus =
-                                                                    if isGameFinished then
+                                                            _ ->
+                                                                case drawCardFromDrawPile game of
+                                                                    ( Just cardDrew, ( newDrawPile, newDiscardPile, newSeed ) ) ->
                                                                         let
-                                                                            orderedPlayers : List ( BPlayer, Int )
-                                                                            orderedPlayers =
-                                                                                updatedPlayers
-                                                                                    |> assignRanks maybeTamalouOwner
-                                                                                    |> showAllCardsOfAllPlayers
-                                                                        in
-                                                                        BGameEnded orderedPlayers
+                                                                            newGameStatus : BGameStatus
+                                                                            newGameStatus =
+                                                                                BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile updatedPlayers bGameInProgressStatus lastMoveIsDouble canUsePowerFromLastPlayer
 
-                                                                    else
+                                                                            updatedPlayers : List BPlayer
+                                                                            updatedPlayers =
+                                                                                players
+                                                                                    |> List.map
+                                                                                        (\p ->
+                                                                                            if p.sessionId == sessionId then
+                                                                                                { p | tableHand = p.tableHand ++ [ { cardDrew | show = False } ] }
+
+                                                                                            else
+                                                                                                p
+                                                                                        )
+                                                                        in
+                                                                        ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
+                                                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just <| AnimationDoubleCardFailed sessionId cardIndex card)) updatedPlayers
+                                                                        )
+
+                                                                    ( Nothing, _ ) ->
+                                                                        -- TODO: Terminate game because this should not happen, we need to log this...
                                                                         let
-                                                                            newDiscardPile : DiscardPile
-                                                                            newDiscardPile =
-                                                                                { matchingCard | show = True } :: discardPile
+                                                                            newGameStatus : BGameStatus
+                                                                            newGameStatus =
+                                                                                BGameEnded (assignRanks maybeTamalouOwner (stopDisplayCards maybeTamalouOwner players))
                                                                         in
-                                                                        BGameInProgress maybeTamalouOwner drawPile newDiscardPile updatedPlayers bGameInProgressStatus True canUsePowerFromLastPlayer
-                                                            in
-                                                            ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) updatedPlayers
-                                                            )
+                                                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
-                                                        _ ->
-                                                            case drawCardFromDrawPile game of
-                                                                ( Just cardDrew, ( newDrawPile, newDiscardPile, newSeed ) ) ->
-                                                                    let
-                                                                        newGameStatus : BGameStatus
-                                                                        newGameStatus =
-                                                                            BGameInProgress maybeTamalouOwner newDrawPile newDiscardPile updatedPlayers bGameInProgressStatus lastMoveIsDouble canUsePowerFromLastPlayer
+                                                    _ ->
+                                                        ( model, Cmd.none )
 
-                                                                        updatedPlayers : List BPlayer
-                                                                        updatedPlayers =
-                                                                            players
-                                                                                |> List.map
-                                                                                    (\p ->
-                                                                                        if p.sessionId == sessionId then
-                                                                                            { p | tableHand = p.tableHand ++ [ { cardDrew | show = False } ] }
-
-                                                                                        else
-                                                                                            p
-                                                                                    )
-                                                                    in
-                                                                    ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-                                                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) updatedPlayers
-                                                                    )
-
-                                                                ( Nothing, _ ) ->
-                                                                    ( model, Cmd.none )
-
-                                                _ ->
-                                                    ( model, Cmd.none )
-
-                                        else
-                                            ( model, Cmd.none )
+                                            _ ->
+                                                ( model, Cmd.none )
 
                                     _ ->
                                         ( model, Cmd.none )
@@ -1308,14 +1400,14 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             )
                                             in
                                             ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) newPlayers
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) newPlayers
                                             )
 
                                         else
                                             ( { model | errors = "1: LookAtCardInTableHandToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                                     bGameStatus ->
-                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "LookAtCardInTableHandToBackend" bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                        ( { model | errors = ("2: " ++ Debuggy.Logs.bGameInProgressLogs "LookAtCardInTableHandToBackend" bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
                                 ( { model | errors = "3: LookAtCardInTableHandToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
@@ -1331,7 +1423,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 newGameStatus =
                                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble canUsePowerFromLastPlayer
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( model, Cmd.none )
@@ -1421,7 +1513,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             ownCard =
                                                 bPlayer.tableHand |> List.Extra.getAt cardIndex
                                         in
-                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                     _ ->
                                         ( model, Cmd.none )
@@ -1449,7 +1541,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         Card.LookACard ->
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerLookACard ChooseCardToLook)) lastMoveIsDouble True
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( model, Cmd.none )
@@ -1469,13 +1561,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         Card.LookACard ->
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerLookACard ChooseCardToLook)) lastMoveIsDouble False
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( { model | errors = "1: PowerIsUsedToBackend: Wrong player playing" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                                     bGameStatus ->
-                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "PowerIsUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                        ( { model | errors = ("2: " ++ Debuggy.Logs.bGameInProgressLogs "PowerIsUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
                                 ( { model | errors = "3: PowerIsUsedToBackend: Game not found" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
@@ -1496,13 +1588,13 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                         Nothing ->
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BEndTimerRunning Five) lastMoveIsDouble False
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( { model | errors = "1: PowerIsNotUsedToBackend: Wrong player playing" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                                     bGameStatus ->
-                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "PowerIsNotUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                        ( { model | errors = ("2: " ++ Debuggy.Logs.bGameInProgressLogs "PowerIsNotUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
                                 ( { model | errors = "3: PowerIsNotUsedToBackend: Game not found" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
@@ -1559,11 +1651,17 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                         )
                                                         in
                                                         ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-                                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) updatedPlayers
+                                                        , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) updatedPlayers
                                                         )
 
                                                     ( Nothing, _ ) ->
-                                                        ( model, Cmd.none )
+                                                        -- TODO: Terminate game because this should not happen, we need to log this...
+                                                        let
+                                                            newGameStatus : BGameStatus
+                                                            newGameStatus =
+                                                                BGameEnded (assignRanks (Just sessionId) (stopDisplayCards (Just sessionId) players))
+                                                        in
+                                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                             else
                                                 let
@@ -1584,7 +1682,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                                 )
                                                 in
                                                 ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
-                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) updatedPlayers
+                                                , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) updatedPlayers
                                                 )
 
                                         else
@@ -1631,10 +1729,10 @@ updateGame newGame games =
         games
 
 
-updateGameStateAndNotifyPlayers : BackendModel -> String -> ( BGameStatus, Random.Seed ) -> List BPlayer -> ( BackendModel, Cmd BackendMsg )
-updateGameStateAndNotifyPlayers ({ games } as model) urlPath ( newGameStatus, newSeed ) players =
+updateGameStateAndNotifyPlayers : BackendModel -> String -> ( BGameStatus, Random.Seed ) -> List BPlayer -> Maybe PlayerAction -> ( BackendModel, Cmd BackendMsg )
+updateGameStateAndNotifyPlayers ({ games } as model) urlPath ( newGameStatus, newSeed ) players maybePlayerAction =
     ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend <| toFGame (Just player.sessionId) newGameStatus) players
+    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) maybePlayerAction) players
     )
 
 
@@ -1644,62 +1742,3 @@ updateGameStatus urlPath ( newGameStatus, newSeed ) games =
         ((==) urlPath << .urlPath)
         (\g -> { g | status = newGameStatus, seed = newSeed })
         games
-
-
-assignRanks : Maybe SessionId -> List BPlayer -> List ( BPlayer, Int )
-assignRanks maybeTamalouOwner players =
-    players
-        |> List.sortWith
-            (\playerA playerB ->
-                case compare (Card.tableHandScore playerA.tableHand) (Card.tableHandScore playerB.tableHand) of
-                    EQ ->
-                        case compare (List.length playerA.tableHand) (List.length playerB.tableHand) of
-                            EQ ->
-                                case maybeTamalouOwner of
-                                    Just ownerId ->
-                                        if ownerId == playerA.sessionId then
-                                            LT
-
-                                        else if ownerId == playerB.sessionId then
-                                            GT
-
-                                        else
-                                            EQ
-
-                                    Nothing ->
-                                        EQ
-
-                            ord ->
-                                ord
-
-                    ord ->
-                        ord
-            )
-        |> List.foldl
-            (\player ( ( acc, lastScore ), ( lastCount, nextRank ) ) ->
-                let
-                    currentCount : Int
-                    currentCount =
-                        List.length player.tableHand
-
-                    currentScore : Int
-                    currentScore =
-                        Card.tableHandScore player.tableHand
-
-                    isOwner : Bool
-                    isOwner =
-                        Just player.sessionId == maybeTamalouOwner
-
-                    ( rank, newNextRank ) =
-                        if lastScore == currentScore && lastCount == currentCount && not isOwner then
-                            ( nextRank - 1, nextRank )
-
-                        else
-                            ( nextRank, nextRank + 1 )
-                in
-                ( ( ( player, rank ) :: acc, currentScore ), ( currentCount, newNextRank ) )
-            )
-            ( ( [], -1 ), ( -1, 1 ) )
-        |> Tuple.first
-        |> Tuple.first
-        |> List.reverse

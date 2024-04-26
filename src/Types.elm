@@ -1,13 +1,15 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), LookACardStatus(..), Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PlayerAction(..), PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), VisibleAngle(..))
 
+import Animator.Timeline exposing (Timeline)
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard, Power)
-import Element exposing (Device)
 import Lamdera exposing (ClientId, SessionId)
 import Random
 import Time exposing (Posix)
+import Ui
 import Url exposing (Url)
+import Utils.Ui exposing (Device)
 
 
 type ActionFromGameToBackend
@@ -15,7 +17,7 @@ type ActionFromGameToBackend
     | ChangeCurrentPlayerNameToBackend String
     | ImReadyToBackend
     | ReStartGameToBackend (Maybe FPlayer)
-    | DrawCardFromDrawPileToBackend
+    | DrawFromDrawPileToBackend
     | DiscardCardInHandToBackend
     | DrawFromDiscardPileToBackend
     | ReplaceCardInTableHandToBackend Int
@@ -161,12 +163,20 @@ type alias FrontendModel =
     , urlPath : String
     , errors : List String
     , admin : Bool
-    , screenHeight : Int
-    , screenWidth : Int
+    , viewPort : { height : Int, width : Int }
     , ready : Bool
     , maybeName : Maybe String
     , chatInput : String
     , chat : List ( String, String )
+    , gameDisposition : GameDisposition
+
+    -- , animationState : Ui.Anim.State
+    , alreadyInAction : Bool
+    , posix : Posix
+
+    -- , animDur : Maybe Int
+    -- , nextStates : List ( FGame, PlayerAction )
+    -- , animations : List (Timeline GBPosition)
     }
 
 
@@ -184,11 +194,81 @@ type FrontendMsg
     | ChangeChatInputFrontend String
     | SendMessageFrontend
     | CardClickMsg CardClickMsg
+      -- | UpdateFlip CardAnimation
+      -- | AnimMsg Ui.Anim.Msg
+    | Frame Posix
+    | UpdateFGamePostAnimationFrontend FGame PlayerAction
+
+
+type alias GBPosition =
+    { x : Float
+    , y : Float
+    , width_ : Float
+    , height_ : Float
+    , rotation : Ui.Angle
+    }
+
+
+type GameDisposition
+    = NotCalculated
+    | Calculated Positions
 
 
 type LookACardStatus
     = ChooseCardToLook
     | LookingACard Int Counter
+
+
+type OpponentDisposition
+    = LeftPlayer
+    | TopLeftPlayer
+    | TopRightPlayer
+    | RightPlayer
+
+
+
+-- type CardAnimation
+--     = CardFlipped Card
+--     | CardNotFlipped
+--     | CardFlipping FCard
+
+
+type alias OpponentsDisposition =
+    { leftPlayer : Maybe PositionedPlayer
+    , topLeftPlayer : Maybe PositionedPlayer
+    , topRightPlayer : Maybe PositionedPlayer
+    , rightPlayer : Maybe PositionedPlayer
+    }
+
+
+type PlayerAction
+    = AnimationDrawCardFromDeck
+    | AnimationDrawCardFromDiscardPile
+    | AnimationReplaceCardInTableHand SessionId Int Card
+    | AnimationDoubleCardSuccess SessionId Int Card
+    | AnimationDoubleCardFailed SessionId Int Card
+    | AnimationSwitchCards ( SessionId, Int ) ( SessionId, Int )
+    | AnimationDiscardCard
+
+
+type alias PositionedPlayer =
+    { player : FPlayer
+    , positionedTableHand : List ( FCard, Timeline GBPosition )
+    , namePosition : GBPosition
+    }
+
+
+type alias Positions =
+    { drawPilePosition : GBPosition
+    , cardsFromDrawPileMovingPositions : List (Timeline GBPosition)
+    , drewCardMovingPosition : Timeline GBPosition
+    , middleTextPosition : GBPosition
+    , discardPilePosition : GBPosition
+    , cardFromDiscardPileMovingPositions : Maybe (Timeline GBPosition)
+    , playAgainOrPassPosition : GBPosition
+    , opponentsDisposition : OpponentsDisposition
+    , ownCardsDisposition : List ( FCard, Timeline GBPosition )
+    }
 
 
 type Switch2CardsStatus
@@ -212,7 +292,14 @@ type ToBackend
 type ToFrontend
     = NoOpToFrontend
     | UpdateAdminToFrontend (List String)
-    | UpdateGameStatusToFrontend FGame
+    | UpdateGameStatusToFrontend FGame (Maybe PlayerAction)
     | UpdateGameAndChatToFrontend ( FGame, List ( String, String ) )
     | UpdateChatToFrontend (List ( String, String ))
     | GotSessionIdAndClientIdToFrontend SessionId ClientId
+
+
+type VisibleAngle
+    = AngleZero
+    | AnglePiOverTwo
+    | AnglePi
+    | AngleThreePiOverTwo

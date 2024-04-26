@@ -1,0 +1,18 @@
+{
+  "name": "tamalou-v2",
+  "version": "1.0.0",
+  "description": "Tamalou is a multiplayer card game currently under development. The game is being built using Lamdera, a Frontend+Backend Elm framework, and Elm UI for the frontend.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/android": "^5.7.4",
+    "@capacitor/cli": "^5.7.4",
+    "@capacitor/core": "^5.7.4",
+    "@capacitor/ios": "^5.7.4"
+  }
+}

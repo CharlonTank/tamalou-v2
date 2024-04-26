@@ -1,10 +1,10 @@
 module Utils.Element exposing (attributeNone)
 
-import Element exposing (Attribute, htmlAttribute)
 import Html.Attributes as HA
 import Types exposing (FrontendMsg)
+import Ui
 
 
-attributeNone : Attribute FrontendMsg
+attributeNone : Ui.Attribute FrontendMsg
 attributeNone =
-    htmlAttribute <| HA.class ""
+    Ui.htmlAttribute <| HA.class ""

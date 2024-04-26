@@ -19,13 +19,16 @@ See <https://dashboard.lamdera.app/docs/evergreen> for more info.
 
 -}
 
-import Element exposing (Device, DeviceClass(..), Orientation(..))
 import Evergreen.V2.Card
 import Evergreen.V2.Types
 import Evergreen.V6.Card
 import Evergreen.V6.Types
 import Lamdera.Migrations exposing (..)
 import List
+import Ui
+import Ui.Anim
+import Ui.Layout
+import Ui.Prose
 
 
 frontendModel : Evergreen.V2.Types.FrontendModel -> ModelMigration Evergreen.V6.Types.FrontendModel Evergreen.V6.Types.FrontendMsg
