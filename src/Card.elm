@@ -1,4 +1,4 @@
-module Card exposing (Card, FCard(..), Power(..), Rank(..), Suit(..), debugDeck, handIsLessThanFive, nonShuffledDeck, powerToString, tableHandScore, toPower, toString)
+module Card exposing (Card, FCard(..), Power(..), Rank(..), Suit(..), handIsLessThanFive, nonShuffledDeck, powerToString, tableHandScore, toPower, toString)
 
 
 type alias Card =
@@ -72,59 +72,6 @@ nonShuffledDeck =
     , { suit = Spades, rank = Jack, show = False }
     , { suit = Spades, rank = Queen, show = False }
     , { suit = Spades, rank = King, show = False }
-    ]
-
-
-debugDeck : List Card
-debugDeck =
-    [ { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
-    , { suit = Clubs, rank = Ace, show = False }
-    , { suit = Diamonds, rank = Ace, show = False }
-    , { suit = Hearts, rank = Ace, show = False }
-    , { suit = Spades, rank = Ace, show = False }
     ]
 
 

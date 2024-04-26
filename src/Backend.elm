@@ -1,7 +1,9 @@
 module Backend exposing (app)
 
 import Card exposing (Card, FCard(..), handIsLessThanFive)
-import DebugApp
+import Debuggy.App
+import Debuggy.Decks
+import Debuggy.Logs
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
 import Random
@@ -591,7 +593,7 @@ update msg ({ games } as model) =
                                             )
 
                                         Nothing ->
-                                            -- DEBUG
+                                            -- Debug to test the king power
                                             -- let
                                             --     newGame : BGame
                                             --     newGame =
@@ -651,7 +653,7 @@ update msg ({ games } as model) =
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
                                             )
 
-                                        -- Test Switch, to be removed once we're sure it works everytime
+                                        -- Debug to test the queen power
                                         -- Nothing ->
                                         --     let
                                         --         newGame : BGame
@@ -698,7 +700,7 @@ update msg ({ games } as model) =
                                                             }
                                             in
                                             ( { model | games = updateGame newGame games }
-                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) (Just <| AnimationSwitchCards ( bPlayer.sessionId, ownCardIndex ) ( opponentCard.sessionId, opponentCard.index ))) players
                                             )
 
                                 _ ->
@@ -883,7 +885,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     toFGame Nothing newGameStatus
 
                                                 ( newDrawPile, newSeed ) =
-                                                    -- shuffleWithSeed game.seed (Debug.log "WARNING" Card.debugDeck)
+                                                    -- shuffleWithSeed game.seed (Debug.log "WARNING" Debuggy.Decks.queens)
                                                     shuffleWithSeed game.seed Card.nonShuffledDeck
 
                                                 ( newDrawPile_, newPlayers_ ) =
@@ -1348,7 +1350,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             ( { model | errors = "1: LookAtCardInTableHandToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                                     bGameStatus ->
-                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "LookAtCardInTableHandToBackend" bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                        ( { model | errors = ("2: " ++ Debuggy.Logs.bGameInProgressLogs "LookAtCardInTableHandToBackend" bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
                                 ( { model | errors = "3: LookAtCardInTableHandToBackend" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
@@ -1364,7 +1366,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                 newGameStatus =
                                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble canUsePowerFromLastPlayer
                                             in
-                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players (Just AnimationSwitchCard)
+                                            updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                         else
                                             ( model, Cmd.none )
@@ -1454,7 +1456,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             ownCard =
                                                 bPlayer.tableHand |> List.Extra.getAt cardIndex
                                         in
-                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players (Just AnimationSwitchCard)
+                                        updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
 
                                     _ ->
                                         ( model, Cmd.none )
@@ -1508,7 +1510,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             ( { model | errors = "1: PowerIsUsedToBackend: Wrong player playing" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                                     bGameStatus ->
-                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "PowerIsUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                        ( { model | errors = ("2: " ++ Debuggy.Logs.bGameInProgressLogs "PowerIsUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
                                 ( { model | errors = "3: PowerIsUsedToBackend: Game not found" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
@@ -1535,7 +1537,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                             ( { model | errors = "1: PowerIsNotUsedToBackend: Wrong player playing" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                                     bGameStatus ->
-                                        ( { model | errors = ("2: " ++ DebugApp.bGameInProgressLogs "PowerIsNotUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
+                                        ( { model | errors = ("2: " ++ Debuggy.Logs.bGameInProgressLogs "PowerIsNotUsedToBackend: " bGameStatus) :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )
 
                             Nothing ->
                                 ( { model | errors = "3: PowerIsNotUsedToBackend: Game not found" :: errors }, Lamdera.broadcast (UpdateAdminToFrontend errors) )

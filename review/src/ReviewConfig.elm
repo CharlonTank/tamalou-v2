@@ -76,4 +76,4 @@ config =
         )
     ]
         |> List.map (Rule.ignoreErrorsForDirectories [ "src/Evergreen/" ])
-        |> List.map (Rule.ignoreErrorsForFiles [ "src/DebugApp.elm" ])
+        |> List.map (Rule.ignoreErrorsForFiles [ "src/Debuggy/App.elm", "elm-ui", "elm-animator" ])

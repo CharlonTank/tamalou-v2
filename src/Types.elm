@@ -284,7 +284,7 @@ type PlayerAction
     | AnimationReplaceCardInTableHand SessionId Int Card
     | AnimationDoubleCardSuccess SessionId Int Card
     | AnimationDoubleCardFailed SessionId Int Card
-    | AnimationSwitchCard
+    | AnimationSwitchCards ( SessionId, Int ) ( SessionId, Int )
     | AnimationDiscardCard
 
 
