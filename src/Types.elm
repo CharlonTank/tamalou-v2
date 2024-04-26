@@ -214,7 +214,6 @@ type alias Positions =
     , middleTextPosition : GBPosition
     , discardPilePosition : GBPosition
     , cardFromDiscardPileMovingPositions : Maybe (Timeline GBPosition)
-    , tamalouButtonPosition : GBPosition
     , playAgainOrPassPosition : GBPosition
     , opponentsDisposition : OpponentsDisposition
     , ownCardsDisposition : List ( FCard, Timeline GBPosition )

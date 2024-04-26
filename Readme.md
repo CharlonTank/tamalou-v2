@@ -10,7 +10,20 @@
 
 - You can try it out here: [Tamalou](https://tamalou-v2.lamdera.app/)
 
-## Game Rules
+## Rules condensed
+
+- 2 to 5 players.
+- The objective is to have the lowest score at the end of the game.
+- The score is determined by the sum of the points of the cards in your hand:
+
+  - Ace to 9: Worth 1 to 9 points respectively.
+  - 10: Worth 0 points.
+  - Jack, Queen, King: Each worth 10 points.
+
+- At any time, if the card on top of the discard pile shares a rank with a card you have, you can "double" by clicking on the card in your table hand. If you are incorrect or if another player acts faster, you draw one additional card as a penalty.
+- When you have 5 points or less, you can declare "Tamalou!" to reveal your cards and do a final turn, if you have more than 5 points, you draw a card and play continues.
+
+## Full Game Rules
 
 - The objective is to have the lowest score at the end of the game.
 - The game is played with a standard 52-card deck.
