@@ -592,50 +592,53 @@ update msg ({ games } as model) =
 
                                         Nothing ->
                                             -- DEBUG
+                                            -- let
+                                            --     newGame : BGame
+                                            --     newGame =
+                                            --         { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard index One))) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                            -- in
+                                            -- ( { model | games = updateGame newGame games }
+                                            -- , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
+                                            -- )
                                             let
+                                                maybeNextPlayer : Maybe BPlayer
+                                                maybeNextPlayer =
+                                                    nextPlayer maybeTamalouOwner bPlayer.sessionId players
+
                                                 newGame : BGame
                                                 newGame =
-                                                    { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerLookACard (LookingACard index One))) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                                    case maybeNextPlayer of
+                                                        Just nextPlayer_ ->
+                                                            { game
+                                                                | status =
+                                                                    BGameInProgress maybeTamalouOwner
+                                                                        a
+                                                                        b
+                                                                        (stopDisplayCards Nothing players)
+                                                                        (BPlayerToPlay nextPlayer_
+                                                                            (BWaitingPlayerAction
+                                                                                (if canUsePowerFromLastPlayer then
+                                                                                    Just Card.LookACard
+
+                                                                                 else
+                                                                                    Nothing
+                                                                                )
+                                                                            )
+                                                                        )
+                                                                        lastMoveIsDouble
+                                                                        canUsePowerFromLastPlayer
+                                                            }
+
+                                                        Nothing ->
+                                                            { game
+                                                                | status =
+                                                                    BGameInProgress maybeTamalouOwner a b (stopDisplayCards Nothing players) (BEndTimerRunning Five) lastMoveIsDouble canUsePowerFromLastPlayer
+                                                            }
                                             in
                                             ( { model | games = updateGame newGame games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
                                             )
 
-                                -- let
-                                --     maybeNextPlayer : Maybe BPlayer
-                                --     maybeNextPlayer =
-                                --         nextPlayer maybeTamalouOwner bPlayer.sessionId players
-                                --     newGame : BGame
-                                --     newGame =
-                                --         case maybeNextPlayer of
-                                --             Just nextPlayer_ ->
-                                --                 { game
-                                --                     | status =
-                                --                         BGameInProgress maybeTamalouOwner
-                                --                             a
-                                --                             b
-                                --                             (stopDisplayCards Nothing players)
-                                --                             (BPlayerToPlay nextPlayer_
-                                --                                 (BWaitingPlayerAction
-                                --                                     (if canUsePowerFromLastPlayer then
-                                --                                         Just Card.LookACard
-                                --                                      else
-                                --                                         Nothing
-                                --                                     )
-                                --                                 )
-                                --                             )
-                                --                             lastMoveIsDouble
-                                --                             canUsePowerFromLastPlayer
-                                --                 }
-                                --             Nothing ->
-                                --                 { game
-                                --                     | status =
-                                --                         BGameInProgress maybeTamalouOwner a b (stopDisplayCards Nothing players) (BEndTimerRunning Five) lastMoveIsDouble canUsePowerFromLastPlayer
-                                --                 }
-                                -- in
-                                -- ( { model | games = updateGame newGame games }
-                                -- , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
-                                -- )
                                 BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OpponentCardChosen ownCardIndex opponentCard counter))) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                     case decrementCounter counter of
                                         Just nb ->

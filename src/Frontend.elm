@@ -1625,41 +1625,6 @@ displayPlayerAndCards ( player, rank ) =
         ]
 
 
-veryLightGrey : Color
-veryLightGrey =
-    rgb 240 240 240
-
-
-lightGrey : Color
-lightGrey =
-    rgb 220 220 220
-
-
-
--- displayPlayerView : Int -> Maybe SessionId -> Maybe String -> DeviceClass -> List FPlayer -> FTableHand -> Maybe (Int -> CardClickMsg) -> Bool -> Maybe Int -> Element FrontendMsg
--- displayPlayerView screenWidth _ _ _ _ tableHand maybeCardClick _ maybeIndex =
---     row [ width shrink, alignBottom, centerX ]
---         [ displayOwnCards screenWidth tableHand maybeCardClick maybeIndex
---         ]
--- displayIndexedFCard : Maybe (Int -> CardClickMsg) -> Int -> FCard -> Element FrontendMsg
--- displayIndexedFCard maybeCardClickMsg index frontendCard =
---     image
---         ([ height fill, centerX ]
---             ++ (case maybeCardClickMsg of
---                     Just cardClickMsg ->
---                         cardActionBorder (cardClickMsg index)
---                     Nothing ->
---                         []
---                )
---         )
---     <|
---         case frontendCard of
---             FaceUp card ->
---                 { description = Card.toString card, source = "/cardImages/" ++ Card.toString card ++ ".png" }
---             FaceDown ->
---                 { description = "back", source = "/cardImages/BackCovers/Pomegranate.png" }
-
-
 cardActionBorder : CardClickMsg -> List (Attribute FrontendMsg)
 cardActionBorder cardClickMsg =
     let
