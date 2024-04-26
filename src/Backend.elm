@@ -943,9 +943,9 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                     toFGame Nothing newGameStatus
 
                                                 ( newDrawPile, newSeed ) =
-                                                    shuffleWithSeed game.seed (Debug.log "WARNING" Debuggy.Decks.queens)
+                                                    -- shuffleWithSeed game.seed (Debug.log "WARNING" Debuggy.Decks.queens)
+                                                    shuffleWithSeed game.seed Card.nonShuffledDeck
 
-                                                -- shuffleWithSeed game.seed Card.nonShuffledDeck
                                                 ( newDrawPile_, newPlayers_ ) =
                                                     List.foldl
                                                         (\player ( drawPile_, players_ ) ->
