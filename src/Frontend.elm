@@ -1107,13 +1107,14 @@ displayGameLobby fModel players =
                         ]
 
                 Nothing ->
-                    column [ height fill ]
-                        [ el [ width shrink, centerX, centerY ] <| text "Sorry, the game already started, you can't join"
-                        , el [ width shrink, centerX, centerY ] <| text "Wait for the next game"
-                        , column [ width shrink, centerX, spacing 4 ]
-                            [ el [ width shrink, centerX ] <| text <| "Players playing"
-                            , column [ width shrink, spacing 8, centerX ] <| List.map displayPlayerName players
+                    column [ centerY, spacing 4 ]
+                        [ el [ centerX ] <| text "Sorry, the game already started, you can't join"
+                        , el [ centerX ] <| text "Wait for the next game"
+                        , column [ centerX, spacing 4 ]
+                            [ el [ centerX ] <| text <| "Players playing"
+                            , column [ spacing 8, centerX ] <| List.map displayPlayerName players
                             ]
+                        , actionButton { label = el [ link fModel.urlPath ] <| text "Refresh", onPress = Nothing }
                         ]
 
         Nothing ->
@@ -1791,13 +1792,13 @@ displayFCard maybeCardClickMsg frontendCard =
     el
         (case maybeCardClickMsg of
             Just cardClickMsg ->
-                [ width fill, height fill ] ++ cardActionBorder cardClickMsg
+                height fill :: cardActionBorder cardClickMsg
 
             Nothing ->
-                [ width fill, height fill ]
+                [ height fill ]
         )
     <|
-        image [ height fill, width shrink, centerX ] <|
+        image [ width fill ] <|
             case frontendCard of
                 FaceUp card ->
                     { description = Card.toString card, source = "/cardImages/" ++ Card.toString card ++ ".png" }
