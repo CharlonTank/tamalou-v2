@@ -2298,7 +2298,7 @@ displayMiddleText drewCardPilePosition string =
 
 animDuration : Float
 animDuration =
-    1000
+    500
 
 
 wantedSpinningRotationValue : Float
