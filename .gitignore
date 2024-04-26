@@ -1,2 +1,9 @@
 .DS_Store
 elm-stuff
+node_modules
+package-lock.json
+
+# capacitor
+android
+ios
+capacitor.config.json
