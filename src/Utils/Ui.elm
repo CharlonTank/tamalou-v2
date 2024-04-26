@@ -1,18 +1,8 @@
-module Utils.Ui exposing (Device, DeviceClass(..), Orientation(..), attributeNone, classifyDevice)
-
-import Html.Attributes as HA
-import Ui
-import Ui.Anim
-import Ui.Layout
-import Ui.Prose
-
-
-attributeNone : Ui.Attribute msg
-attributeNone =
-    Ui.htmlAttribute <| HA.class ""
-
+module Utils.Ui exposing (Device, DeviceClass(..), Orientation(..), classifyDevice)
 
 {-| -}
+
+
 type alias Device =
     { class : DeviceClass
     , orientation : Orientation
@@ -42,36 +32,31 @@ classifyDevice : { window | height : Int, width : Int } -> Device
 classifyDevice window =
     { class =
         let
-            longSide =
-                max window.width window.height
-
+            shortSide : Int
             shortSide =
                 min window.width window.height
         in
         if shortSide < 600 then
             Phone
 
-        else if longSide <= 1200 then
-            Tablet
-
-        else if longSide > 1200 && longSide <= 1920 then
-            Desktop
-
         else
-            BigDesktop
+            let
+                longSide : Int
+                longSide =
+                    max window.width window.height
+            in
+            if longSide <= 1200 then
+                Tablet
+
+            else if longSide > 1200 && longSide <= 1920 then
+                Desktop
+
+            else
+                BigDesktop
     , orientation =
         if window.width < window.height then
             Portrait
 
         else
             Landscape
-    }
-
-
-edges : { bottom : Int, left : Int, right : Int, top : Int }
-edges =
-    { bottom = 0
-    , left = 0
-    , right = 0
-    , top = 0
     }

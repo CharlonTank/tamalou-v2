@@ -1,8 +1,6 @@
 module Backend exposing (app)
 
 import Card exposing (Card, FCard(..), handIsLessThanFive)
-import Debuggy.App
-import Debuggy.Decks
 import Debuggy.Logs
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
@@ -23,6 +21,65 @@ app =
         , update = update
         , updateFromFrontend = updateFromFrontend
         }
+
+
+assignRanks : Maybe SessionId -> List BPlayer -> List ( BPlayer, Int )
+assignRanks maybeTamalouOwner players =
+    players
+        |> List.sortWith
+            (\playerA playerB ->
+                case compare (Card.tableHandScore playerA.tableHand) (Card.tableHandScore playerB.tableHand) of
+                    EQ ->
+                        case compare (List.length playerA.tableHand) (List.length playerB.tableHand) of
+                            EQ ->
+                                case maybeTamalouOwner of
+                                    Just ownerId ->
+                                        if ownerId == playerA.sessionId then
+                                            LT
+
+                                        else if ownerId == playerB.sessionId then
+                                            GT
+
+                                        else
+                                            EQ
+
+                                    Nothing ->
+                                        EQ
+
+                            ord ->
+                                ord
+
+                    ord ->
+                        ord
+            )
+        |> List.foldl
+            (\player ( ( acc, lastScore ), ( lastCount, nextRank ) ) ->
+                let
+                    currentCount : Int
+                    currentCount =
+                        List.length player.tableHand
+
+                    currentScore : Int
+                    currentScore =
+                        Card.tableHandScore player.tableHand
+
+                    isOwner : Bool
+                    isOwner =
+                        Just player.sessionId == maybeTamalouOwner
+
+                    ( rank, newNextRank ) =
+                        if lastScore == currentScore && lastCount == currentCount && not isOwner then
+                            ( nextRank - 1, nextRank )
+
+                        else
+                            ( nextRank, nextRank + 1 )
+                in
+                ( ( ( player, rank ) :: acc, currentScore ), ( currentCount, newNextRank ) )
+            )
+            ( ( [], -1 ), ( -1, 1 ) )
+        |> Tuple.first
+        |> Tuple.first
+        |> List.reverse
 
 
 bPlayersFromFGame : BGame -> List BPlayer
@@ -1090,15 +1147,15 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerHasDrawn cardInHand)) _ _ ->
                                         if sessionId == bPlayer.sessionId then
                                             let
-                                                maybeCurrentPlayer : Maybe BPlayer
-                                                maybeCurrentPlayer =
-                                                    List.Extra.find ((==) sessionId << .sessionId) players
-
                                                 maybeCardToDiscard : Maybe Card
                                                 maybeCardToDiscard =
                                                     maybeCurrentPlayer
                                                         |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
                                                         |> Maybe.map (\card -> { card | show = True })
+
+                                                maybeCurrentPlayer : Maybe BPlayer
+                                                maybeCurrentPlayer =
+                                                    List.Extra.find ((==) sessionId << .sessionId) players
                                             in
                                             case maybeCardToDiscard of
                                                 Just cardToDiscard ->
@@ -1166,15 +1223,6 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players bGameInProgressStatus lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         let
-                                            currentPlayer : Maybe BPlayer
-                                            currentPlayer =
-                                                List.Extra.find ((==) sessionId << .sessionId) players
-
-                                            cardFromPlayer : Maybe Card
-                                            cardFromPlayer =
-                                                currentPlayer
-                                                    |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
-
                                             canTryToDouble : Bool
                                             canTryToDouble =
                                                 (maybeTamalouOwner /= Just sessionId)
@@ -1202,6 +1250,15 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             BEndTimerRunning _ ->
                                                                 True
                                                        )
+
+                                            cardFromPlayer : Maybe Card
+                                            cardFromPlayer =
+                                                currentPlayer
+                                                    |> Maybe.andThen (\p -> List.Extra.getAt cardIndex p.tableHand)
+
+                                            currentPlayer : Maybe BPlayer
+                                            currentPlayer =
+                                                List.Extra.find ((==) sessionId << .sessionId) players
                                         in
                                         case ( canTryToDouble, cardFromPlayer ) of
                                             ( True, Just card ) ->
@@ -1685,62 +1742,3 @@ updateGameStatus urlPath ( newGameStatus, newSeed ) games =
         ((==) urlPath << .urlPath)
         (\g -> { g | status = newGameStatus, seed = newSeed })
         games
-
-
-assignRanks : Maybe SessionId -> List BPlayer -> List ( BPlayer, Int )
-assignRanks maybeTamalouOwner players =
-    players
-        |> List.sortWith
-            (\playerA playerB ->
-                case compare (Card.tableHandScore playerA.tableHand) (Card.tableHandScore playerB.tableHand) of
-                    EQ ->
-                        case compare (List.length playerA.tableHand) (List.length playerB.tableHand) of
-                            EQ ->
-                                case maybeTamalouOwner of
-                                    Just ownerId ->
-                                        if ownerId == playerA.sessionId then
-                                            LT
-
-                                        else if ownerId == playerB.sessionId then
-                                            GT
-
-                                        else
-                                            EQ
-
-                                    Nothing ->
-                                        EQ
-
-                            ord ->
-                                ord
-
-                    ord ->
-                        ord
-            )
-        |> List.foldl
-            (\player ( ( acc, lastScore ), ( lastCount, nextRank ) ) ->
-                let
-                    currentCount : Int
-                    currentCount =
-                        List.length player.tableHand
-
-                    currentScore : Int
-                    currentScore =
-                        Card.tableHandScore player.tableHand
-
-                    isOwner : Bool
-                    isOwner =
-                        Just player.sessionId == maybeTamalouOwner
-
-                    ( rank, newNextRank ) =
-                        if lastScore == currentScore && lastCount == currentCount && not isOwner then
-                            ( nextRank - 1, nextRank )
-
-                        else
-                            ( nextRank, nextRank + 1 )
-                in
-                ( ( ( player, rank ) :: acc, currentScore ), ( currentCount, newNextRank ) )
-            )
-            ( ( [], -1 ), ( -1, 1 ) )
-        |> Tuple.first
-        |> Tuple.first
-        |> List.reverse

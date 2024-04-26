@@ -2,7 +2,6 @@ module Frontend exposing (app)
 
 -- import Animator exposing (Animation, keyframes, set, step, scaleX, ms)
 
-import Animator exposing (scaleY)
 import Animator.Timeline as Timeline exposing (Timeline)
 import Animator.Transition
 import Animator.Value
@@ -14,25 +13,19 @@ import Card exposing (Card, FCard(..), Power(..))
 import Delay
 import Html.Attributes as HA
 import Internal.Style2 exposing (toRadians)
-import Json.Decode exposing (maybe)
 import Lamdera exposing (SessionId)
 import List.Extra
 import Palette.Anim as PAnim
 import Palette.Color exposing (..)
-import Simple.Animation.Animated as SAnim
-import Simple.Animation.Property as SP
-import Svg exposing (Svg)
-import Svg.Attributes as SvgA
 import Task
 import Time exposing (Posix)
-import Types exposing (ActionFromGameToBackend(..), CardAnimation(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PlayerAction(..), PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
+import Types exposing (ActionFromGameToBackend(..), CardClickMsg(..), Counter(..), DiscardPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PlayerAction(..), PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), VisibleAngle(..))
 import Ui exposing (..)
-import Ui.Anim as Anim exposing (Animated, onTimeline, scaleX)
+import Ui.Anim as Anim
 import Ui.Events as Events
 import Ui.Font as Font
 import Ui.Input as Input
-import Ui.Layout as Layout
-import Ui.Prose as Prose exposing (paragraph)
+import Ui.Prose as Prose
 import Ui.Shadow as Shadow
 import Url
 import Utils.Ui exposing (..)
@@ -52,7 +45,7 @@ app =
 
 
 subscriptions : FrontendModel -> Sub FrontendMsg
-subscriptions model =
+subscriptions _ =
     Sub.batch
         [ Browser.Events.onResize (\w h -> GotWindowSize { height = h, width = w })
         , Browser.Events.onAnimationFrame Frame
@@ -77,11 +70,12 @@ init url key =
 
       --   , cardAnim = CardNotFlipped
       , gameDisposition = NotCalculated
-      , animationState = Anim.init
+
+      --   , animationState = Anim.init
       , alreadyInAction = False
       , posix = Time.millisToPosix 0
-      , animDur = Nothing
 
+      --   , animDur = Nothing
       --   , nextStates = []
       --   , animations = []
       }
@@ -174,11 +168,7 @@ update msg ({ urlPath } as model) =
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
                     ( { model | alreadyInAction = True }
-                    , Cmd.batch
-                        [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDrawPileToBackend
-
-                        -- , Delay.after 0 (UpdateFlip (CardFlipping FaceDown))
-                        ]
+                    , Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDrawPileToBackend
                     )
 
                 DrawFromDiscardPileFrontend ->
@@ -223,19 +213,18 @@ update msg ({ urlPath } as model) =
         --         _ ->
         --             Cmd.none
         --     )
-        AnimMsg animMsg ->
-            let
-                ( newAnimationState, cmds ) =
-                    Anim.update AnimMsg animMsg model.animationState
-            in
-            ( { model | animationState = newAnimationState }
-            , cmds
-            )
-
+        -- AnimMsg animMsg ->
+        --     let
+        --         ( newAnimationState, cmds ) =
+        --             Anim.update AnimMsg animMsg model.animationState
+        --     in
+        --     ( { model | animationState = newAnimationState }
+        --     , cmds
+        --     )
         Frame posix ->
             ( updateEveryTimelineOnFrame model posix, Cmd.none )
 
-        UpdateFGamePostAnimationFrontend fGame playerAction ->
+        UpdateFGamePostAnimationFrontend fGame _ ->
             -- based on the playerAction, let's update the model's gameDisposition
             ( { model
                 | fGame = fGame
@@ -246,10 +235,10 @@ update msg ({ urlPath } as model) =
 
                         Nothing ->
                             getMyName model.sessionId fGame
+                , gameDisposition = Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
                 , alreadyInAction = False
 
                 -- , gameDisposition = calculateGameDispositionParts model.viewPort playerAction (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
-                , gameDisposition = Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
               }
             , Cmd.none
             )
@@ -297,21 +286,16 @@ updateEveryTimelineOnFrame model posix =
 
         Calculated positions ->
             let
+                updatedPositions : Positions
                 updatedPositions =
                     { positions
-                        | ownCardsDisposition =
-                            positions.ownCardsDisposition
-                                |> List.map (updateCardPosition posix)
-                        , drewCardMovingPosition =
-                            positions.drewCardMovingPosition
-                                |> Timeline.update posix
-                        , opponentsDisposition =
-                            positions.opponentsDisposition
-                                |> updateOpponentsDisposition posix
-                        , cardsFromDrawPileMovingPositions =
+                        | cardsFromDrawPileMovingPositions =
                             positions.cardsFromDrawPileMovingPositions
                                 |> List.map (Timeline.update posix)
                                 |> List.filter Timeline.isRunning
+                        , drewCardMovingPosition =
+                            positions.drewCardMovingPosition
+                                |> Timeline.update posix
                         , cardFromDiscardPileMovingPositions =
                             positions.cardFromDiscardPileMovingPositions
                                 |> Maybe.map (Timeline.update posix)
@@ -323,6 +307,12 @@ updateEveryTimelineOnFrame model posix =
                                         else
                                             Nothing
                                     )
+                        , opponentsDisposition =
+                            positions.opponentsDisposition
+                                |> updateOpponentsDisposition posix
+                        , ownCardsDisposition =
+                            positions.ownCardsDisposition
+                                |> List.map (updateCardPosition posix)
                     }
             in
             { model
@@ -363,7 +353,6 @@ updateFromBackend msg model =
                 Nothing ->
                     ( { model
                         | fGame = fGame
-                        , alreadyInAction = False
                         , maybeName =
                             case model.maybeName of
                                 Just _ ->
@@ -372,6 +361,7 @@ updateFromBackend msg model =
                                 Nothing ->
                                     getMyName model.sessionId fGame
                         , gameDisposition = Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
+                        , alreadyInAction = False
                       }
                     , Cmd.none
                     )
@@ -429,48 +419,18 @@ animatePlayerAction playerAction newGameDisposition fModel =
     case fModel.gameDisposition of
         Calculated positions ->
             case playerAction of
-                AnimationDoubleCardSuccess sessionId cardIndex card ->
-                    let
-                        maybeOpponentOldCardPosition : Maybe (Timeline GBPosition)
-                        maybeOpponentOldCardPosition =
-                            positions.opponentsDisposition
-                                |> findCardPosition sessionId cardIndex
-                    in
-                    case maybeOpponentOldCardPosition of
-                        Just oldCardPosition ->
-                            { fModel
-                                | gameDisposition =
-                                    Calculated
-                                        { positions
-                                            | opponentsDisposition =
-                                                positions.opponentsDisposition
-                                                    |> applyDoubleAnimationsToOpponent sessionId cardIndex ( card, oldCardPosition ) newGameDisposition
-                                        }
-                            }
-
-                        Nothing ->
-                            let
-                                maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
-                                maybeOwnOldCardPosition =
-                                    positions.ownCardsDisposition
-                                        |> List.Extra.getAt cardIndex
-                                        |> Maybe.map Tuple.second
-                                        |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
-                            in
-                            case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
-                                ( True, Just oldCardPosition ) ->
-                                    { fModel
-                                        | gameDisposition =
-                                            Calculated
-                                                { positions
-                                                    | ownCardsDisposition =
-                                                        positions.ownCardsDisposition
-                                                            |> applyDoubleAnimationToOwnCard cardIndex ( card, oldCardPosition ) newGameDisposition
-                                                }
-                                    }
-
-                                _ ->
-                                    fModel
+                AnimationDrawCardFromDeck ->
+                    { fModel
+                        | gameDisposition =
+                            Calculated
+                                { positions
+                                    | cardsFromDrawPileMovingPositions =
+                                        (Timeline.init positions.drawPilePosition
+                                            |> Timeline.to (Anim.ms animDuration) (Timeline.current positions.drewCardMovingPosition)
+                                        )
+                                            :: positions.cardsFromDrawPileMovingPositions
+                                }
+                    }
 
                 -------- IS NOT WORKING-------------------------------------------
                 ------------------------WAITING FOR MGRIFFITH---------------------
@@ -521,66 +481,6 @@ animatePlayerAction playerAction newGameDisposition fModel =
                 --                     []
                 -- IS NOT WORKING-------------------------------------------------
                 ------------------------------------------------------------------
-                AnimationDoubleCardFailed sessionId cardIndex card ->
-                    let
-                        maybeOpponentOldCardPosition : Maybe (Timeline GBPosition)
-                        maybeOpponentOldCardPosition =
-                            positions.opponentsDisposition
-                                |> findCardPosition sessionId cardIndex
-                                |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
-                    in
-                    case maybeOpponentOldCardPosition of
-                        Just oldCardPosition ->
-                            { fModel
-                                | gameDisposition =
-                                    Calculated
-                                        { positions
-                                            | opponentsDisposition =
-                                                positions.opponentsDisposition
-                                                    |> applyDoubleAnimationsToOpponent sessionId cardIndex ( card, oldCardPosition ) newGameDisposition
-                                            , cardsFromDrawPileMovingPositions =
-                                                applyPenaltyAnimationToOpponent sessionId newGameDisposition :: positions.cardsFromDrawPileMovingPositions
-                                        }
-                            }
-
-                        Nothing ->
-                            let
-                                maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
-                                maybeOwnOldCardPosition =
-                                    positions.ownCardsDisposition
-                                        |> List.Extra.getAt cardIndex
-                                        |> Maybe.map Tuple.second
-                            in
-                            case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
-                                ( True, Just oldCardPosition ) ->
-                                    { fModel
-                                        | gameDisposition =
-                                            Calculated
-                                                { positions
-                                                    | ownCardsDisposition =
-                                                        positions.ownCardsDisposition
-                                                            |> applyDoubleAnimationToOwnCard cardIndex ( card, oldCardPosition ) newGameDisposition
-                                                    , cardsFromDrawPileMovingPositions =
-                                                        applyPenaltyAnimationToUs newGameDisposition :: positions.cardsFromDrawPileMovingPositions
-                                                }
-                                    }
-
-                                _ ->
-                                    fModel
-
-                AnimationDrawCardFromDeck ->
-                    { fModel
-                        | gameDisposition =
-                            Calculated
-                                { positions
-                                    | cardsFromDrawPileMovingPositions =
-                                        (Timeline.init positions.drawPilePosition
-                                            |> Timeline.to (Anim.ms animDuration) (Timeline.current positions.drewCardMovingPosition)
-                                        )
-                                            :: positions.cardsFromDrawPileMovingPositions
-                                }
-                    }
-
                 AnimationDrawCardFromDiscardPile ->
                     { fModel
                         | gameDisposition =
@@ -591,17 +491,6 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                             (Timeline.init positions.discardPilePosition
                                                 |> Timeline.to (Anim.ms animDuration) (Timeline.current positions.drewCardMovingPosition)
                                             )
-                                }
-                    }
-
-                AnimationDiscardCard ->
-                    { fModel
-                        | gameDisposition =
-                            Calculated
-                                { positions
-                                    | drewCardMovingPosition =
-                                        positions.drewCardMovingPosition
-                                            |> Timeline.to (Anim.ms animDuration) positions.discardPilePosition
                                 }
                     }
 
@@ -618,12 +507,12 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                 | gameDisposition =
                                     Calculated
                                         { positions
-                                            | opponentsDisposition =
+                                            | drewCardMovingPosition =
+                                                Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardMovingPosition
+                                            , opponentsDisposition =
                                                 positions.opponentsDisposition
                                                     -- here we want to animate the card from the oldCardPosition (which is the discardedCard) to the discardPilePosition
                                                     |> applyReplaceCardAnimationsToOpponent sessionId cardIndex ( discardedCard, oldCardPosition ) newGameDisposition
-                                            , drewCardMovingPosition =
-                                                Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardMovingPosition
                                         }
                             }
 
@@ -641,18 +530,107 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                         | gameDisposition =
                                             Calculated
                                                 { positions
-                                                    | ownCardsDisposition =
+                                                    | drewCardMovingPosition =
+                                                        Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardMovingPosition
+                                                    , ownCardsDisposition =
                                                         positions.ownCardsDisposition
                                                             |> applyReplaceCardAnimationsToOwnCard cardIndex ( discardedCard, oldCardPosition ) newGameDisposition
-                                                    , drewCardMovingPosition =
-                                                        Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardMovingPosition
                                                 }
                                     }
 
                                 _ ->
                                     fModel
 
-                -- FOR THIS CASE: there are 2 possibilities: 2 opponents cards switching or our own card switched with an opponent card.
+                AnimationDoubleCardSuccess sessionId cardIndex card ->
+                    let
+                        maybeOpponentOldCardPosition : Maybe (Timeline GBPosition)
+                        maybeOpponentOldCardPosition =
+                            positions.opponentsDisposition
+                                |> findCardPosition sessionId cardIndex
+                    in
+                    case maybeOpponentOldCardPosition of
+                        Just oldCardPosition ->
+                            { fModel
+                                | gameDisposition =
+                                    Calculated
+                                        { positions
+                                            | opponentsDisposition =
+                                                positions.opponentsDisposition
+                                                    |> applyDoubleAnimationsToOpponent sessionId cardIndex ( card, oldCardPosition ) newGameDisposition
+                                        }
+                            }
+
+                        Nothing ->
+                            let
+                                maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
+                                maybeOwnOldCardPosition =
+                                    positions.ownCardsDisposition
+                                        |> List.Extra.getAt cardIndex
+                                        |> Maybe.map Tuple.second
+                                        |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
+                            in
+                            case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
+                                ( True, Just oldCardPosition ) ->
+                                    { fModel
+                                        | gameDisposition =
+                                            Calculated
+                                                { positions
+                                                    | ownCardsDisposition =
+                                                        positions.ownCardsDisposition
+                                                            |> applyDoubleAnimationToOwnCard cardIndex ( card, oldCardPosition ) newGameDisposition
+                                                }
+                                    }
+
+                                _ ->
+                                    fModel
+
+                AnimationDoubleCardFailed sessionId cardIndex card ->
+                    let
+                        maybeOpponentOldCardPosition : Maybe (Timeline GBPosition)
+                        maybeOpponentOldCardPosition =
+                            positions.opponentsDisposition
+                                |> findCardPosition sessionId cardIndex
+                                |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
+                    in
+                    case maybeOpponentOldCardPosition of
+                        Just oldCardPosition ->
+                            { fModel
+                                | gameDisposition =
+                                    Calculated
+                                        { positions
+                                            | cardsFromDrawPileMovingPositions =
+                                                applyPenaltyAnimationToOpponent sessionId newGameDisposition :: positions.cardsFromDrawPileMovingPositions
+                                            , opponentsDisposition =
+                                                positions.opponentsDisposition
+                                                    |> applyDoubleAnimationsToOpponent sessionId cardIndex ( card, oldCardPosition ) newGameDisposition
+                                        }
+                            }
+
+                        Nothing ->
+                            let
+                                maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
+                                maybeOwnOldCardPosition =
+                                    positions.ownCardsDisposition
+                                        |> List.Extra.getAt cardIndex
+                                        |> Maybe.map Tuple.second
+                            in
+                            case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
+                                ( True, Just oldCardPosition ) ->
+                                    { fModel
+                                        | gameDisposition =
+                                            Calculated
+                                                { positions
+                                                    | cardsFromDrawPileMovingPositions =
+                                                        applyPenaltyAnimationToUs newGameDisposition :: positions.cardsFromDrawPileMovingPositions
+                                                    , ownCardsDisposition =
+                                                        positions.ownCardsDisposition
+                                                            |> applyDoubleAnimationToOwnCard cardIndex ( card, oldCardPosition ) newGameDisposition
+                                                }
+                                    }
+
+                                _ ->
+                                    fModel
+
                 AnimationSwitchCards ( sessionId1, cardIndex1 ) ( sessionId2, cardIndex2 ) ->
                     let
                         maybeOpponentOldCardPosition1 : Maybe (Timeline GBPosition)
@@ -733,6 +711,18 @@ animatePlayerAction playerAction newGameDisposition fModel =
                         ( Nothing, Nothing ) ->
                             fModel
 
+                -- FOR THIS CASE: there are 2 possibilities: 2 opponents cards switching or our own card switched with an opponent card.
+                AnimationDiscardCard ->
+                    { fModel
+                        | gameDisposition =
+                            Calculated
+                                { positions
+                                    | drewCardMovingPosition =
+                                        positions.drewCardMovingPosition
+                                            |> Timeline.to (Anim.ms animDuration) positions.discardPilePosition
+                                }
+                    }
+
         _ ->
             fModel
 
@@ -779,7 +769,7 @@ applySwitchAnimationToOwnCard cardIndex oldCardPosition oldOwnCardsDisposition =
 
 
 applyReplaceCardAnimationsToOwnCard : Int -> ( Card, Timeline GBPosition ) -> Positions -> List ( FCard, Timeline GBPosition ) -> List ( FCard, Timeline GBPosition )
-applyReplaceCardAnimationsToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { discardPilePosition, ownCardsDisposition } oldOwnCardsDisposition =
+applyReplaceCardAnimationsToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { discardPilePosition } oldOwnCardsDisposition =
     let
         applyTransitionToCardInHand : Int -> ( FCard, Timeline GBPosition ) -> ( FCard, Timeline GBPosition )
         applyTransitionToCardInHand index ( card, position ) =
@@ -1001,7 +991,7 @@ view model =
     { title = "Tamalou!"
     , body =
         [ layout
-            [ behindContent <| image [ width fill, height fill ] { source = "/background.png", description = "background" }
+            [ behindContent <| image [ width fill, height fill ] { description = "background", source = "/background.png" }
             , Font.size 12
             ]
           <|
@@ -1079,6 +1069,7 @@ displayGameLobby fModel players =
                         [ column [ width shrink, width <| portion 3, height fill, spacing 20 ]
                             [ el [ width shrink, centerX ] <| text "Tamalou!"
                             , let
+                                label : { element : Element FrontendMsg, id : Input.Label }
                                 label =
                                     Input.label "your-name-input" [ width shrink, centerX ] <| text "Your name"
                               in
@@ -1181,7 +1172,7 @@ displayChatMessage _ ( name, message ) =
 
 
 displayGame : FrontendModel -> Positions -> Element FrontendMsg
-displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePosition, drewCardMovingPosition, middleTextPosition, discardPilePosition, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition, cardsFromDrawPileMovingPositions, cardFromDiscardPileMovingPositions } =
+displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, cardsFromDrawPileMovingPositions, drewCardMovingPosition, middleTextPosition, discardPilePosition, cardFromDiscardPileMovingPositions, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition } =
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
             column [ Font.center, contentCenterY, height fill ]
@@ -1201,7 +1192,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             [ height fill ]
                             [ displayGameLobby model players ]
 
-                    FGameInProgress _ hand _ _ players (FStartTimerRunning timer) ->
+                    FGameInProgress _ _ _ _ _ (FStartTimerRunning timer) ->
                         column
                             ([ height fill, Font.size 28 ] ++ displayOwnCards ownCardsDisposition Nothing Nothing)
                             [ column [ centerX, centerY, spacing 16 ]
@@ -1210,7 +1201,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                                 ]
                             ]
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FWaitingPlayerAction _)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FWaitingPlayerAction _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1223,7 +1214,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerHasDraw _)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerHasDraw _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1237,7 +1228,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerHasDiscard _)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerHasDiscard _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1250,7 +1241,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerLookACard lookACardStatus)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerLookACard lookACardStatus)) ->
                         let
                             maybeHighlightCard : Maybe FPlayer -> Maybe Int
                             maybeHighlightCard maybePlayer =
@@ -1285,7 +1276,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1298,7 +1289,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OwnCardChosen index))) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OwnCardChosen index))) ->
                         let
                             maybeHighlightCard : Maybe FPlayer -> Maybe Int
                             maybeHighlightCard maybePlayer =
@@ -1321,7 +1312,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile players (FPlayerToPlay fPlayer (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
                         let
                             maybeHighlightCard : Maybe FPlayer -> Maybe Int
                             maybeHighlightCard maybePlayer =
@@ -1359,7 +1350,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
                         let
                             tamalouButton : Element FrontendMsg
                             tamalouButton =
@@ -1383,7 +1374,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerHasDraw fCard)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerHasDraw fCard)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1397,7 +1388,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerHasDiscard power)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerHasDiscard power)) ->
                         let
                             displayUsePowerOrPass : Element FrontendMsg
                             displayUsePowerOrPass =
@@ -1418,7 +1409,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard ChooseCardToLook)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerLookACard ChooseCardToLook)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1431,7 +1422,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerLookACard (LookingACard index counter))) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerLookACard (LookingACard index counter))) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1444,7 +1435,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1457,7 +1448,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards (OwnCardChosen index))) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerSwitch2Cards (OwnCardChosen index))) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1470,7 +1461,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FYourTurn (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerSwitch2Cards (OpponentCardChosen index opponentCard counter))) ->
                         let
                             maybeHighlightCard : Maybe FPlayer -> Maybe Int
                             maybeHighlightCard maybePlayer =
@@ -1492,7 +1483,7 @@ displayGame ({ viewPort, sessionId, alreadyInAction } as model) { drawPilePositi
                             )
                             []
 
-                    FGameInProgress maybeTamalouOwner hand drawPile discardPile players (FEndTimerRunning timer) ->
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FEndTimerRunning timer) ->
                         column
                             ([ width <| px <| viewPort.width - 14
                              , height fill
@@ -1597,19 +1588,22 @@ displayDiscardCards discardPilePosition discardPile canDrawCard maybePowerCard m
     case maybeCardToAnimate of
         Just cardToAnimate ->
             case discardPile of
+                [] ->
+                    []
+
                 first :: second :: _ ->
                     [ elPlacedTimelined (displayFCard Nothing (FaceUp first)) cardToAnimate, elPlaced discardPilePosition (displayFCard Nothing (FaceUp second)) ]
 
                 first :: _ ->
                     [ elPlacedTimelined (displayFCard Nothing (FaceUp first)) cardToAnimate ]
 
-                [] ->
-                    []
-
         Nothing ->
             case ( discardPile, canDrawCard, maybePowerCard ) of
                 ( [], _, _ ) ->
                     []
+
+                ( first :: _, True, Just PlayAgain ) ->
+                    [ elPlaced discardPilePosition (displayFCard Nothing (FaceUp first)) ]
 
                 ( first :: _, True, Just Switch2Cards ) ->
                     [ elPlaced discardPilePosition
@@ -1637,11 +1631,9 @@ displayDiscardCards discardPilePosition discardPile canDrawCard maybePowerCard m
                         )
                     ]
 
-                ( first :: _, True, Just PlayAgain ) ->
-                    [ elPlaced discardPilePosition (displayFCard Nothing (FaceUp first)) ]
-
                 ( first :: _, True, Nothing ) ->
                     let
+                        action : Maybe CardClickMsg
                         action =
                             case Card.toPower True first of
                                 Just _ ->
@@ -1870,11 +1862,11 @@ minimalistShadow =
 bigShadow : Ui.Color -> Ui.Attribute FrontendMsg
 bigShadow color =
     Shadow.shadows
-        [ { blur = 8
-          , color = color
-          , x = 0
+        [ { x = 0
           , y = 0
           , size = 4
+          , blur = 8
+          , color = color
           }
         ]
 
@@ -1921,13 +1913,21 @@ toOpponentsDisposition screenWidth players =
 positionOpponent : Int -> FPlayer -> OpponentDisposition -> PositionedPlayer
 positionOpponent screenWidth player opponentDisposition =
     let
-        panelWidth : Float
-        panelWidth =
-            cardsPanelWidth + namePanelWidth
+        cardWidth : Float
+        cardWidth =
+            if List.length player.tableHand > 4 then
+                (cardsPanelWidth - (spaceBetweenEachCard * (toFloat (List.length player.tableHand) - 1))) / toFloat (List.length player.tableHand)
+
+            else
+                cardsPanelWidth / 5
 
         cardsPanelWidth : Float
         cardsPanelWidth =
             toFloat screenWidth / 4
+
+        leftSpace : Float
+        leftSpace =
+            20
 
         namePanelWidth : Float
         namePanelWidth =
@@ -1937,29 +1937,13 @@ positionOpponent screenWidth player opponentDisposition =
         namePanelheight =
             50
 
-        cardWidth : Float
-        cardWidth =
-            if List.length player.tableHand > 4 then
-                (cardsPanelWidth - (spaceBetweenEachCard * (toFloat (List.length player.tableHand) - 1))) / toFloat (List.length player.tableHand)
-
-            else
-                cardsPanelWidth / 5
+        rightSpace : Float
+        rightSpace =
+            20
 
         spaceBetweenEachCard : Float
         spaceBetweenEachCard =
             4
-
-        spaceBetweenNameAndCards : Float
-        spaceBetweenNameAndCards =
-            8
-
-        leftSpace : Float
-        leftSpace =
-            20
-
-        rightSpace : Float
-        rightSpace =
-            20
     in
     case opponentDisposition of
         LeftPlayer ->
@@ -1969,12 +1953,22 @@ positionOpponent screenWidth player opponentDisposition =
             }
 
         TopLeftPlayer ->
+            let
+                spaceBetweenNameAndCards : Float
+                spaceBetweenNameAndCards =
+                    8
+            in
             { player = player
             , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = leftSpace + namePanelWidth + spaceBetweenNameAndCards + toFloat i * (cardWidth + spaceBetweenEachCard), y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians wantedSpinningRotationValue } )) player.tableHand
             , namePosition = { x = leftSpace, y = 4, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
 
         TopRightPlayer ->
+            let
+                panelWidth : Float
+                panelWidth =
+                    cardsPanelWidth + namePanelWidth
+            in
             { player = player
             , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = toFloat screenWidth - cardWidth - toFloat i * (cardWidth + spaceBetweenEachCard) - rightSpace, y = 0, width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians wantedSpinningRotationValue } )) player.tableHand
             , namePosition = { x = toFloat screenWidth - panelWidth - rightSpace - 4, y = 4, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
@@ -1992,14 +1986,6 @@ displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard maybePositioned
     case maybePositionedPlayer of
         Just positionedPlayer ->
             let
-                switchingCardsMsg : Maybe (Int -> CardClickMsg)
-                switchingCardsMsg =
-                    if isSwitchingCard && not isTamalouOwner then
-                        Just <| ChooseOpponentCardToSwitchFrontend positionedPlayer.player.sessionId
-
-                    else
-                        Nothing
-
                 isPlayerTurn : Bool
                 isPlayerTurn =
                     maybeSessionId == Just positionedPlayer.player.sessionId
@@ -2012,11 +1998,20 @@ displayOpponent maybeTamalouOwner maybeSessionId isSwitchingCard maybePositioned
 
                         Nothing ->
                             False
+
+                switchingCardsMsg : Maybe (Int -> CardClickMsg)
+                switchingCardsMsg =
+                    if isSwitchingCard && not isTamalouOwner then
+                        Just <| ChooseOpponentCardToSwitchFrontend positionedPlayer.player.sessionId
+
+                    else
+                        Nothing
             in
             displayOpponentName positionedPlayer.namePosition isPlayerTurn positionedPlayer.player.name
                 :: List.indexedMap
                     (\i ( c, position ) ->
                         let
+                            newPosition : Timeline GBPosition
                             newPosition =
                                 case maybeCardIndex of
                                     Just index ->
@@ -2043,29 +2038,21 @@ moveUpBasedOnRotation timeline =
         position : GBPosition
         position =
             getGBPosition timeline
-
-        newPosition =
-            case toVisibleAngle position.rotation of
-                AngleZero ->
-                    { position | y = position.y + 20 }
-
-                AnglePiOverTwo ->
-                    { position | x = position.x + 20 }
-
-                AnglePi ->
-                    { position | y = position.y - 20 }
-
-                AngleThreePiOverTwo ->
-                    { position | x = position.x - 20 }
     in
-    Timeline.init newPosition
+    (case toVisibleAngle position.rotation of
+        AngleZero ->
+            { position | y = position.y + 20 }
 
+        AnglePiOverTwo ->
+            { position | x = position.x + 20 }
 
-type VisibleAngle
-    = AngleZero
-    | AnglePiOverTwo
-    | AnglePi
-    | AngleThreePiOverTwo
+        AnglePi ->
+            { position | y = position.y - 20 }
+
+        AngleThreePiOverTwo ->
+            { position | x = position.x - 20 }
+    )
+        |> Timeline.init
 
 
 toVisibleAngle : Ui.Angle -> VisibleAngle
@@ -2117,7 +2104,7 @@ heightCardRatio =
 
 elPlaced : GBPosition -> Element FrontendMsg -> Attribute FrontendMsg
 elPlaced { x, y, width_, height_, rotation } =
-    inFront << el [ move { offSet | y = round y, x = round x }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
+    inFront << el [ move { offSet | x = round x, y = round y }, rotate rotation, width <| px <| round width_, height <| px <| round height_ ]
 
 
 elPlacedTimelined : Element FrontendMsg -> Timeline GBPosition -> Attribute FrontendMsg
@@ -2128,7 +2115,7 @@ elPlacedTimelined content timeline =
     in
     inFront <|
         el
-            [ move { offSet | y = round y, x = round x }
+            [ move { offSet | x = round x, y = round y }
             , rotate rotation
             , width <| px <| round width_
             , height <| px <| round height_
@@ -2145,70 +2132,16 @@ offSet =
     }
 
 
-calculateDrawPilePosition : Int -> Int -> GBPosition
-calculateDrawPilePosition screenWidth screenHeight =
+calculatePosition : Int -> Int -> Float -> Float -> GBPosition
+calculatePosition screenWidth screenHeight xOffset yOffset =
     let
-        width =
-            cardWidthInMiddle screenWidth
-
-        height =
-            width * heightCardRatio
+        ( width_, height_ ) =
+            ( cardWidthInMiddle screenWidth, cardWidthInMiddle screenWidth * heightCardRatio )
     in
-    { x = toFloat screenWidth * 0.35 - width / 2
-    , y = toFloat screenHeight * 0.35 - height / 2
-    , width_ = width
-    , height_ = height
-    , rotation = Ui.radians 0
-    }
-
-
-calculateDrewCardPosition : Int -> Int -> GBPosition
-calculateDrewCardPosition screenWidth screenHeight =
-    let
-        width =
-            cardWidthInMiddle screenWidth
-
-        height =
-            width * heightCardRatio
-    in
-    { x = toFloat screenWidth * 0.5 - width / 2
-    , y = toFloat screenHeight * 0.35 - height / 2
-    , width_ = width
-    , height_ = height
-    , rotation = Ui.radians 0
-    }
-
-
-calculateMiddleTextPosition : Int -> Int -> GBPosition
-calculateMiddleTextPosition screenWidth screenHeight =
-    let
-        width =
-            cardWidthInMiddle screenWidth
-
-        height =
-            width * heightCardRatio
-    in
-    { x = toFloat screenWidth * 0.5 - width / 2
-    , y = toFloat screenHeight * 0.54 - 20 / 2
-    , width_ = width
-    , height_ = height
-    , rotation = Ui.radians 0
-    }
-
-
-calculateDiscardPilePosition : Int -> Int -> GBPosition
-calculateDiscardPilePosition screenWidth screenHeight =
-    let
-        width =
-            cardWidthInMiddle screenWidth
-
-        height =
-            width * heightCardRatio
-    in
-    { x = toFloat screenWidth * 0.65 - width / 2
-    , y = toFloat screenHeight * 0.35 - height / 2
-    , width_ = width
-    , height_ = height
+    { x = toFloat screenWidth * xOffset - width_ / 2
+    , y = toFloat screenHeight * yOffset - height_ / 2
+    , width_ = width_
+    , height_ = height_
     , rotation = Ui.radians 0
     }
 
@@ -2225,11 +2158,11 @@ calculatePlayAgainOrPassPosition screenWidth screenHeight =
 
 calculateGameDisposition : { height : Int, width : Int } -> List FPlayer -> List FCard -> Positions
 calculateGameDisposition viewPort opponents ownCards =
-    { drawPilePosition = calculateDrawPilePosition viewPort.width viewPort.height
+    { drawPilePosition = calculatePosition viewPort.width viewPort.height 0.35 0.35
     , cardsFromDrawPileMovingPositions = []
-    , drewCardMovingPosition = Timeline.init (calculateDrewCardPosition viewPort.width viewPort.height)
-    , middleTextPosition = calculateMiddleTextPosition viewPort.width viewPort.height
-    , discardPilePosition = calculateDiscardPilePosition viewPort.width viewPort.height
+    , drewCardMovingPosition = Timeline.init (calculatePosition viewPort.width viewPort.height 0.5 0.35)
+    , middleTextPosition = calculateMiddleTextPosition viewPort.width viewPort.height 0.5 0.54
+    , discardPilePosition = calculatePosition viewPort.width viewPort.height 0.65 0.35
     , cardFromDiscardPileMovingPositions = Nothing
     , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
     , opponentsDisposition = toOpponentsDisposition viewPort.width opponents
@@ -2292,9 +2225,13 @@ displayAllOpponents maybeTamalouOwner maybeSessionId isSwitchingCard maybeHighli
         |> List.concat
 
 
-toOwnCardsDisposition : { width : Int, height : Int } -> List FCard -> List ( FCard, Timeline GBPosition )
+toOwnCardsDisposition : { height : Int, width : Int } -> List FCard -> List ( FCard, Timeline GBPosition )
 toOwnCardsDisposition viewPort ownCards =
     let
+        cardHeight : Float
+        cardHeight =
+            cardWidth * heightCardRatio
+
         cardPanel : Float
         cardPanel =
             (if totalCards == 1 then
@@ -2317,29 +2254,25 @@ toOwnCardsDisposition viewPort ownCards =
             )
                 * toFloat viewPort.width
 
-        totalCards : Int
-        totalCards =
-            List.length ownCards
+        cardWidth : Float
+        cardWidth =
+            (cardPanel - totalSpaceBetweenCards) / toFloat totalCards
 
         spaceBetweenEachCard : Float
         spaceBetweenEachCard =
             64 / (toFloat <| List.length ownCards)
 
-        totalSpaceBetweenCards : Float
-        totalSpaceBetweenCards =
-            toFloat (totalCards - 1) * spaceBetweenEachCard
-
-        cardWidth : Float
-        cardWidth =
-            (cardPanel - totalSpaceBetweenCards) / toFloat totalCards
-
-        cardHeight : Float
-        cardHeight =
-            cardWidth * heightCardRatio
-
         startX : Float
         startX =
             (toFloat viewPort.width - (toFloat totalCards * cardWidth + totalSpaceBetweenCards)) / 2
+
+        totalCards : Int
+        totalCards =
+            List.length ownCards
+
+        totalSpaceBetweenCards : Float
+        totalSpaceBetweenCards =
+            toFloat (totalCards - 1) * spaceBetweenEachCard
     in
     List.indexedMap
         (\i c ->
