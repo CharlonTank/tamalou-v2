@@ -1441,34 +1441,18 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                 case game.status of
                                     BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards (OwnCardChosen cardIndex))) lastMoveIsDouble canUsePowerFromLastPlayer ->
                                         let
-                                            -- maybeNextPlayer : Maybe BPlayer
-                                            -- maybeNextPlayer =
-                                            --     nextPlayer maybeTamalouOwner bPlayer.sessionId newPlayers
                                             newGameStatus : BGameStatus
                                             newGameStatus =
-                                                -- case maybeNextPlayer of
-                                                --     Just nextPlayer_ ->
                                                 BGameInProgress maybeTamalouOwner
                                                     drawPile
                                                     discardPile
                                                     newPlayers
                                                     (BPlayerToPlay bPlayer <|
-                                                        BPlayerSwitch2Cards (OpponentCardChosen cardIndex { sessionId = opponentSessionId, index = opponentCardIndex } Three)
+                                                        BPlayerSwitch2Cards (OpponentCardChosen cardIndex { sessionId = opponentSessionId, index = opponentCardIndex } Two)
                                                     )
-                                                    -- (BPlayerToPlay nextPlayer_
-                                                    --     (BWaitingPlayerAction
-                                                    --         (if canUsePowerFromLastPlayer then
-                                                    --             Just Card.Switch2Cards
-                                                    --          else
-                                                    --             Nothing
-                                                    --         )
-                                                    --     )
-                                                    -- )
                                                     lastMoveIsDouble
                                                     canUsePowerFromLastPlayer
 
-                                            -- Nothing ->
-                                            --     BGameInProgress maybeTamalouOwner drawPile discardPile newPlayers (BEndTimerRunning Five) lastMoveIsDouble False
                                             newPlayers : List BPlayer
                                             newPlayers =
                                                 players
@@ -1536,7 +1520,6 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BWaitingPlayerAction (Just powerCard))) lastMoveIsDouble True
 
                                                         Card.Switch2Cards ->
-                                                            -- This should not be possible to reach this case if
                                                             BGameInProgress maybeTamalouOwner drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerSwitch2Cards ChooseOwnCardToSwitch)) lastMoveIsDouble True
 
                                                         Card.LookACard ->

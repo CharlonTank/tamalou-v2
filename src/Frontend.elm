@@ -1126,7 +1126,7 @@ displayChat screenWidth screenHeight chatInput chat =
     column
         [ width shrink, width <| Ui.portion 4, height Ui.fill, Ui.spacing 8, Ui.paddingXY 12 12, Ui.background veryLightGrey, rounded 8 ]
         [ el [ width shrink, Ui.centerX ] <| Ui.text "Chat between players"
-        , Ui.scrollable [] <| column [ Ui.spacing 6, height <| px <| screenHeight * 70 // 100, Ui.htmlAttribute <| HA.id "chatty" ] <| List.map (displayChatMessage screenWidth) chat
+        , column [ Ui.spacing 6, height <| px <| screenHeight * 70 // 100, scrollable, Ui.htmlAttribute <| HA.id "chatty" ] <| List.map (displayChatMessage screenWidth) chat
         , row [ Ui.alignBottom, Ui.spacing 4 ]
             [ Input.text [ width shrink, Ui.centerX, width <| px <| screenWidth * 40 // 100, Ui.alignLeft ]
                 { label = Input.labelHidden "mess"
@@ -2072,8 +2072,8 @@ displayOpponentName pos isPlayerTurn name =
                    )
             )
          <|
-            Prose.paragraph [ width shrink, spacing 4, Font.center, centerY, centerX, padding 2 ] <|
-                [ clipped [ width shrink ] <| text name ]
+            Prose.paragraph [ width shrink, spacing 4, Font.center, centerY, centerX, padding 2, clip ] <|
+                [ text name ]
         )
 
 
