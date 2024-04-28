@@ -991,8 +991,9 @@ view model =
     { title = "Tamalou!"
     , body =
         [ layout
-            [ behindContent <| image [ width fill, height fill ] { description = "background", source = "/background.png" }
+            [ behindContent <| image [] { description = "background", source = "/background.png" }
             , Font.size 12
+            , height fill
             ]
           <|
             displayModel model
@@ -1140,7 +1141,7 @@ displayChat screenWidth screenHeight chatInput chat =
                             []
 
                         else
-                            [ Events.onClick SendMessageFrontend
+                            [ Events.onMouseUp SendMessageFrontend
                             ]
                        )
                 )
@@ -1353,7 +1354,7 @@ displayGame ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePositi
                                         none
 
                                     Nothing ->
-                                        el (actionBorder yellow ++ [ Events.onClick TamalouFrontend, Font.color blue, Font.italic, centerX ]) <|
+                                        el (actionBorder yellow ++ [ Events.onMouseUp TamalouFrontend, Font.color blue, Font.italic, centerX ]) <|
                                             text "Tamalou!"
                         in
                         column
@@ -1727,7 +1728,7 @@ cardActionBorder cardClickMsg =
     in
     [ rounded 8
     , bigShadow color
-    , Events.onClick <| CardClickMsg cardClickMsg
+    , Events.onMouseUp <| CardClickMsg cardClickMsg
     , height fill
     , width fill
     ]
@@ -1782,7 +1783,7 @@ displayFCard maybeCardClickMsg frontendCard =
                 [ height fill ]
         )
     <|
-        image [ width fill ] <|
+        image [] <|
             case frontendCard of
                 FaceUp card ->
                     { description = Card.toString card, source = "/cardImages/" ++ Card.toString card ++ ".png" }
@@ -1858,7 +1859,7 @@ bigShadow color =
 
 actionButton : { label : Element FrontendMsg, onPress : Maybe FrontendMsg } -> Element FrontendMsg
 actionButton { label, onPress } =
-    el (actionBorder yellow ++ [ Events.onClick <| Maybe.withDefault NoOpFrontendMsg onPress, Font.center, centerX ]) <| label
+    el (actionBorder yellow ++ [ Events.onMouseUp <| Maybe.withDefault NoOpFrontendMsg onPress, Font.center, centerX ]) <| label
 
 
 displayDrawColumn : List FCard -> Bool -> Element FrontendMsg
