@@ -149,6 +149,86 @@ state 1000ms -> la carte continue de bouger vers le centre, elle est à 50% de l
 state 2000ms -> la carte de p1 à fini de bouger vers le centre, p2 est toujours en train de jouer sa carte, la carte de p2 est à 50% de la distance.
 -- state 2000ms: l'état reçu à 0ms avec la carte de p1 en moins dans sa main doit être pris en compte et update le frontend state, le problème c'est que si on fait ça, la carte de p2 va reaparaitre avant que à 3000ms la carte redisparraisse grace au state reçu à 1000ms. -->
 
+<!-- animatePlayerAction : PlayerActionAnimation -> Positions -> FrontendModel -> FrontendModel
+animatePlayerAction playerAction newGameDisposition fModel =
+    case fModel.gameDisposition of
+        Calculated positions ->
+            case playerAction of
+                AnimationDrawCardFromDeck ->
+                    { fModel
+                        | gameDisposition =
+                            Calculated
+                                { positions
+                                    | cardsFromDrawPileMovingPositions =
+                                        (Timeline.init positions.drawPilePosition
+                                            |> Timeline.to (Anim.ms animDuration) (Timeline.current positions.drewCardMovingPosition)
+                                        )
+                                            :: positions.cardsFromDrawPileMovingPositions
+                                }
+                    }
+
+                -------- IS NOT WORKING-------------------------------------------
+                ------------------------WAITING FOR MGRIFFITH---------------------
+                -- For now, same same as AnimationDoubleCardSuccess because:
+                --                 AnimationDoubleCardFailed sessionId cardIndex ->
+                --                     let
+                --                         maybeCardToAnimate : Maybe GBPosition
+                --                         maybeCardToAnimate =
+                --                             positions.opponentsDisposition
+                --                                 |> findCardPosition sessionId cardIndex
+                --                     in
+                --                     case maybeCardToAnimate of
+                --                         Just cardToAnimate ->
+                --                             let
+                --                                 -- Initialize the timeline with the original card position
+                --                                 initialTimeline =
+                --                                     Timeline.init cardToAnimate
+                --                                 -- Define the steps to go to the discard pile and come back
+                --                                 steps =
+                --                                     [ Timeline.transitionTo (Anim.ms 200) positions.discardPilePosition
+                --                                     , Timeline.wait (Anim.ms 200) -- Optional wait if needed
+                --                                     , Timeline.transitionTo (Anim.ms 200) cardToAnimate
+                --                                     ]
+                --                             in
+                --                             [ Timeline.queue steps initialTimeline ]
+                --                         Nothing ->
+                --                             let
+                --                                 maybeOwnCardToAnimate : Maybe (Timeline GBPosition)
+                --                                 maybeOwnCardToAnimate =
+                --                                     positions.ownCardsDisposition
+                --                                         |> List.Extra.getAt cardIndex
+                --                                         |> Maybe.map Tuple.second
+                --                             in
+                --                             case ( fModel.sessionId == Just sessionId, maybeOwnCardToAnimate ) of
+                --                                 ( True, Just ownCardTimeline ) ->
+                --                                     let
+                --                                         -- Define the steps to go to the discard pile and come back
+                --                                         steps =
+                --                                             [ Timeline.transitionTo (Anim.ms 200) positions.discardPilePosition
+                --                                             , Timeline.wait (Anim.ms 200) -- Optional wait if needed
+                --                                             , Timeline.transitionTo (Anim.ms 200) (Timeline.current ownCardTimeline)
+                --                                             ]
+                --                                     in
+                --                                     [ Timeline.queue steps ownCardTimeline ]
+                --                                 _ ->
+                --                                     []
+                --                 _ ->
+                --                     []
+                -- IS NOT WORKING-------------------------------------------------
+                ------------------------------------------------------------------ -->
+
+<!-- OLD CARD EMPLACEMENT IMAGE -->
+<!-- -- elEmplacement : Int -> Element FrontendMsg -> Element FrontendMsg
+-- elEmplacement widthOfScreen cardToDisplay =
+--     el [ behindContent cardToDisplay ] <|
+--         image
+--             [ width <| px <| widthOfScreen // 7
+--             , rounded 8
+--             -- , height <| px <| widthOfScreen * 15 // 70
+--             -- , width shrink
+--             ]
+--             { source = "/emplacement.png", description = "Emplacement" } -->
+
 ## Features to be implemented
 
 - [ ] Add rules pages

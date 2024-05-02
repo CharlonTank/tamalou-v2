@@ -1,7 +1,6 @@
 module Backend exposing (app)
 
 import Card exposing (Card, FCard(..), handIsLessThanFive)
-import Debuggy.Decks
 import Debuggy.Logs
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
@@ -1713,7 +1712,7 @@ updateGame newGame games =
         games
 
 
-updateGameStateAndNotifyPlayers : BackendModel -> String -> ( BGameStatus, Random.Seed ) -> List BPlayer -> Maybe PlayerAction -> ( BackendModel, Cmd BackendMsg )
+updateGameStateAndNotifyPlayers : BackendModel -> String -> ( BGameStatus, Random.Seed ) -> List BPlayer -> Maybe PlayerActionAnimation -> ( BackendModel, Cmd BackendMsg )
 updateGameStateAndNotifyPlayers ({ games } as model) urlPath ( newGameStatus, newSeed ) players maybePlayerAction =
     ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) maybePlayerAction) players

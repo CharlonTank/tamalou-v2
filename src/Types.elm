@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PlayerAction(..), PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), VisibleAngle(..))
+module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PlayerActionAnimation(..), PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), VisibleAngle(..))
 
 import Animator.Timeline exposing (Timeline)
 import Browser exposing (UrlRequest)
@@ -197,7 +197,7 @@ type FrontendMsg
       -- | UpdateFlip CardAnimation
       -- | AnimMsg Ui.Anim.Msg
     | Frame Posix
-    | UpdateFGamePostAnimationFrontend FGame PlayerAction
+    | UpdateFGamePostAnimationFrontend FGame PlayerActionAnimation
 
 
 type alias GBPosition =
@@ -241,7 +241,7 @@ type alias OpponentsDisposition =
     }
 
 
-type PlayerAction
+type PlayerActionAnimation
     = AnimationDrawCardFromDeck
     | AnimationDrawCardFromDiscardPile
     | AnimationReplaceCardInTableHand SessionId Int Card
@@ -292,14 +292,7 @@ type ToBackend
 type ToFrontend
     = NoOpToFrontend
     | UpdateAdminToFrontend (List String)
-    | UpdateGameStatusToFrontend FGame (Maybe PlayerAction)
+    | UpdateGameStatusToFrontend FGame (Maybe PlayerActionAnimation)
     | UpdateGameAndChatToFrontend ( FGame, List ( String, String ) )
     | UpdateChatToFrontend (List ( String, String ))
     | GotSessionIdAndClientIdToFrontend SessionId ClientId
-
-
-type VisibleAngle
-    = AngleZero
-    | AnglePiOverTwo
-    | AnglePi
-    | AngleThreePiOverTwo
