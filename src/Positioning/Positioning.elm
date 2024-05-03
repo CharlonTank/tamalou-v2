@@ -1,25 +1,15 @@
-module Positioning exposing (VisibleAngle(..), animDuration, calculateGameDisposition, getGBPosition, moveUpBasedOnRotation, offSet, updateCardPosition, updateOpponentsDisposition, wantedSpinningRotationValue)
+module Positioning.Positioning exposing (calculateGameDisposition, getGBPosition, moveUpBasedOnRotation, updateCardPosition, updateOpponentsDisposition)
 
 import Animator.Timeline as Timeline exposing (Timeline)
 import Animator.Transition
 import Animator.Value
 import Card exposing (FCard)
 import Internal.Style2 exposing (toRadians)
+import Positioning.Helpers exposing (wantedSpinningRotationValue)
+import Positioning.Types exposing (GBPosition, OpponentDisposition(..), VisibleAngle(..))
 import Time exposing (Posix)
-import Types exposing (FPlayer, GBPosition, OpponentDisposition(..), OpponentsDisposition, PositionedPlayer, Positions)
-import Ui exposing (Position)
-
-
-type VisibleAngle
-    = AngleZero
-    | AnglePiOverTwo
-    | AnglePi
-    | AngleThreePiOverTwo
-
-
-animDuration : Float
-animDuration =
-    500
+import Types exposing (FPlayer, OpponentsDisposition, PositionedPlayer, Positions)
+import Ui
 
 
 calculateGameDisposition : { height : Int, width : Int } -> List FPlayer -> List FCard -> Positions
@@ -69,14 +59,6 @@ moveUpBasedOnRotation timeline =
         |> Timeline.init
 
 
-offSet : Position
-offSet =
-    { x = 0
-    , y = 0
-    , z = 0
-    }
-
-
 updateCardPosition : Posix -> ( FCard, Timeline GBPosition ) -> ( FCard, Timeline GBPosition )
 updateCardPosition posix ( card, cardTimeline ) =
     ( card, Timeline.update posix cardTimeline )
@@ -90,11 +72,6 @@ updateOpponentsDisposition posix opponentsDisposition =
         , topRightPlayer = Maybe.map (updatePositionedPlayer posix) opponentsDisposition.topRightPlayer
         , rightPlayer = Maybe.map (updatePositionedPlayer posix) opponentsDisposition.rightPlayer
     }
-
-
-wantedSpinningRotationValue : Float
-wantedSpinningRotationValue =
-    2 * pi
 
 
 updatePositionedPlayer : Posix -> PositionedPlayer -> PositionedPlayer
@@ -211,6 +188,40 @@ toOpponentsDisposition screenWidth players =
             { leftPlayer = Nothing, topLeftPlayer = Nothing, topRightPlayer = Nothing, rightPlayer = Nothing }
 
 
+heightCardRatio : Float
+heightCardRatio =
+    380 / 250
+
+
+cardWidthInMiddle : Int -> Float
+cardWidthInMiddle widthOfScreen =
+    toFloat widthOfScreen / 10
+
+
+calculatePosition : Int -> Int -> Float -> Float -> GBPosition
+calculatePosition screenWidth screenHeight xOffset yOffset =
+    let
+        ( width_, height_ ) =
+            ( cardWidthInMiddle screenWidth, cardWidthInMiddle screenWidth * heightCardRatio )
+    in
+    { x = toFloat screenWidth * xOffset - width_ / 2
+    , y = toFloat screenHeight * yOffset - height_ / 2
+    , width_ = width_
+    , height_ = height_
+    , rotation = Ui.radians 0
+    }
+
+
+calculatePlayAgainOrPassPosition : Int -> Int -> GBPosition
+calculatePlayAgainOrPassPosition screenWidth screenHeight =
+    { x = toFloat screenWidth * 0.5 - 180 / 2
+    , y = toFloat screenHeight * 0.4 - 20 / 2
+    , width_ = 180
+    , height_ = 20
+    , rotation = Ui.radians 0
+    }
+
+
 positionOpponent : Int -> FPlayer -> OpponentDisposition -> PositionedPlayer
 positionOpponent screenWidth player opponentDisposition =
     let
@@ -280,37 +291,3 @@ positionOpponent screenWidth player opponentDisposition =
             , positionedTableHand = List.indexedMap (\i c -> ( c, Timeline.init { x = toFloat screenWidth - cardWidth - rightSpace, y = 90 + 30 + toFloat i * (cardWidth + spaceBetweenEachCard), width_ = cardWidth, height_ = cardWidth * heightCardRatio, rotation = Ui.radians (wantedSpinningRotationValue + 3 * pi / 2) } )) player.tableHand
             , namePosition = { x = toFloat screenWidth - namePanelWidth - rightSpace, y = 75, width_ = namePanelWidth, height_ = namePanelheight, rotation = Ui.radians 0 }
             }
-
-
-heightCardRatio : Float
-heightCardRatio =
-    380 / 250
-
-
-cardWidthInMiddle : Int -> Float
-cardWidthInMiddle widthOfScreen =
-    toFloat widthOfScreen / 10
-
-
-calculatePosition : Int -> Int -> Float -> Float -> GBPosition
-calculatePosition screenWidth screenHeight xOffset yOffset =
-    let
-        ( width_, height_ ) =
-            ( cardWidthInMiddle screenWidth, cardWidthInMiddle screenWidth * heightCardRatio )
-    in
-    { x = toFloat screenWidth * xOffset - width_ / 2
-    , y = toFloat screenHeight * yOffset - height_ / 2
-    , width_ = width_
-    , height_ = height_
-    , rotation = Ui.radians 0
-    }
-
-
-calculatePlayAgainOrPassPosition : Int -> Int -> GBPosition
-calculatePlayAgainOrPassPosition screenWidth screenHeight =
-    { x = toFloat screenWidth * 0.5 - 180 / 2
-    , y = toFloat screenHeight * 0.4 - 20 / 2
-    , width_ = 180
-    , height_ = 20
-    , rotation = Ui.radians 0
-    }

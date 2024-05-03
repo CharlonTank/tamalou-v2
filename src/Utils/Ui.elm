@@ -1,6 +1,11 @@
-module Utils.Ui exposing (Device, DeviceClass(..), Orientation(..), classifyDevice)
+module Utils.Ui exposing (Device, DeviceClass(..), Orientation(..), actionBorder, bigShadow, classifyDevice)
 
 {-| -}
+
+-- import Types exposing (FMsg)
+
+import Ui exposing (..)
+import Ui.Shadow as Shadow
 
 
 type alias Device =
@@ -21,6 +26,27 @@ type DeviceClass
 type Orientation
     = Portrait
     | Landscape
+
+
+actionBorder : Color -> List (Attribute msg)
+actionBorder color =
+    [ rounded 8
+    , background color
+    , paddingXY 4 4
+    , minimalistShadow
+    ]
+
+
+bigShadow : Ui.Color -> Ui.Attribute msg
+bigShadow color =
+    Shadow.shadows
+        [ { blur = 8
+          , color = color
+          , size = 4
+          , x = 0
+          , y = 0
+          }
+        ]
 
 
 {-| Takes in a Window.Size and returns a device profile which can be used for responsiveness.
@@ -60,3 +86,15 @@ classifyDevice window =
         else
             Landscape
     }
+
+
+minimalistShadow : Ui.Attribute msg
+minimalistShadow =
+    Shadow.shadows
+        [ { blur = 2
+          , color = rgba 0 0 0 0.2
+          , size = 1
+          , x = 0
+          , y = 0
+          }
+        ]

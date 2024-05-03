@@ -229,6 +229,61 @@ animatePlayerAction playerAction newGameDisposition fModel =
 --             ]
 --             { source = "/emplacement.png", description = "Emplacement" } -->
 
+<!-- ------------------------------------------------------------------------------------------------------------------------------------------
+--------------__ FOR NOW, WHEN AN ACTION OCCURE DURING ANOTHER ANIMATION, THE SECOND ANIMATION OCCURING WILL BE CUT OFF __----------------
+--------------__ WE NEED TO UPDATE PARTS OF THE GAME DISPOSITION BASED ON THE ACTION OCCURING __------------------------------------------
+-- type GameDispositionPart
+--     = OpponentsDispositionPart OpponentDisposition Index
+-- calculateGameDispositionParts : { height : Int, width : Int } -> PlayerAction -> List FPlayer -> List FCard -> GameDisposition
+-- calculateGameDispositionParts viewPort playerAction opponents ownCards =
+--     case playerAction of
+--         AnimationDrawCardFromDeck sessionId ->
+--             Calculated
+--                 { drawPilePosition = calculateDrawPilePosition viewPort.width viewPort.height
+--                 , drewCardPosition = calculateDrewCardPosition viewPort.width viewPort.height
+--                 , discardPilePosition = calculateDiscardPilePosition viewPort.width viewPort.height
+--                 , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
+--                 , opponentsDisposition = toOpponentsDisposition viewPort.width opponents
+--                 , ownCardsDisposition = toOwnCardsDisposition viewPort ownCards
+--                 }
+--         DrawFromDiscardPile ->
+--             Calculated
+--                 { drawPilePosition = calculateDrawPilePosition viewPort.width viewPort.height
+--                 , drewCardPosition = calculateDrewCardPosition viewPort.width viewPort.height
+--                 , discardPilePosition = calculateDiscardPilePosition viewPort.width viewPort.height
+--                 , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
+--                 , opponentsDisposition = toOpponentsDisposition viewPort.width opponents
+--                 , ownCardsDisposition = toOwnCardsDisposition viewPort ownCards
+--                 }
+--         DiscardCard ->
+--             Calculated
+--                 { drawPilePosition = calculateDrawPilePosition viewPort.width viewPort.height
+--                 , drewCardPosition = calculateDrewCardPosition viewPort.width viewPort.height
+--                 , discardPilePosition = calculateDiscardPilePosition viewPort.width viewPort.height
+--                 , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
+--                 , opponentsDisposition = toOpponentsDisposition viewPort.width opponents
+--                 , ownCardsDisposition = toOwnCardsDisposition viewPort ownCards
+--                 }
+--         Tamalou ->
+--             Calculated
+--                 { drawPilePosition = calculateDrawPilePosition viewPort.width viewPort.height
+--                 , drewCardPosition = calculateDrewCardPosition viewPort.width viewPort.height
+--                 , discardPilePosition = calculateDiscardPilePosition view
+------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------ -->
+<!-- Maybe one day if I want to use Anim.layout instead of Ui.layout -->
+<!-- -- [ Anim.layout
+--     { options = []
+--     , toMsg = AnimMsg
+--     , breakpoints = Nothing
+--     }
+--     model.animationState
+--     [ behindContent <| image [ width fill, height fill ] { source = "/background.png", description = "background" }
+--     , Font.size 12
+--     ]
+--     (displayModel model)
+-- ] -->
+
 ## Features to be implemented
 
 - [ ] Add rules pages

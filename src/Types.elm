@@ -1,13 +1,13 @@
-module Types exposing (ActionFromGameToBackend(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GBPosition, GameDisposition(..), LookACardStatus(..), OpponentDisposition(..), OpponentsDisposition, PlayerActionAnimation(..), PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..), VisibleAngle(..))
+module Types exposing (ActionFromGameToBackend(..), AddOrRemove(..), BDrawPile, BGame, BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), Counter(..), DiscardPile, FDrawPile, FGame(..), FGameInProgressStatus(..), FPlayer, FPlayerToPlayStatus(..), FTableHand, FrontendModel, FrontendMsg(..), GameDisposition(..), LookACardStatus(..), OpponentsDisposition, PlayerActionAnimation(..), PositionedPlayer, Positions, Switch2CardsStatus(..), TamalouOwner, ToBackend(..), ToFrontend(..))
 
 import Animator.Timeline exposing (Timeline)
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Card exposing (Card, FCard, Power)
 import Lamdera exposing (ClientId, SessionId)
+import Positioning.Types exposing (GBPosition)
 import Random
 import Time exposing (Posix)
-import Ui
 import Url exposing (Url)
 import Utils.Ui exposing (Device)
 
@@ -29,6 +29,11 @@ type ActionFromGameToBackend
     | PowerIsNotUsedToBackend
     | TamalouToBackend
     | SendMessageToBackend String
+
+
+type AddOrRemove
+    = Add
+    | Remove
 
 
 type alias BDrawPile =
@@ -200,15 +205,6 @@ type FrontendMsg
     | UpdateFGamePostAnimationFrontend FGame PlayerActionAnimation
 
 
-type alias GBPosition =
-    { x : Float
-    , y : Float
-    , width_ : Float
-    , height_ : Float
-    , rotation : Ui.Angle
-    }
-
-
 type GameDisposition
     = NotCalculated
     | Calculated Positions
@@ -217,20 +213,6 @@ type GameDisposition
 type LookACardStatus
     = ChooseCardToLook
     | LookingACard Int Counter
-
-
-type OpponentDisposition
-    = LeftPlayer
-    | TopLeftPlayer
-    | TopRightPlayer
-    | RightPlayer
-
-
-
--- type CardAnimation
---     = CardFlipped Card
---     | CardNotFlipped
---     | CardFlipping FCard
 
 
 type alias OpponentsDisposition =
