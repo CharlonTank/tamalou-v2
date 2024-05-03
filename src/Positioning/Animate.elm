@@ -508,6 +508,8 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                             |> Timeline.to (Anim.ms animDuration) positions.discardPilePosition
                                 }
                     }
+                NoPlayerAction ->
+                    fModel
 
         _ ->
             fModel

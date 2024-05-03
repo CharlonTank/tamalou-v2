@@ -230,18 +230,15 @@ updateFromBackend msg model =
 
                 Nothing ->
                     ( { model
-                        | fGame = fGame
-                        , maybeName =
+                        | maybeName =
                             case model.maybeName of
                                 Just _ ->
                                     model.maybeName
 
                                 Nothing ->
                                     getMyName model.sessionId fGame
-                        , gameDisposition = Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
-                        , alreadyInAction = False
                       }
-                    , Cmd.none
+                    , Delay.after (round animDuration) (UpdateFGamePostAnimationFrontend fGame NoPlayerAction)
                     )
 
         UpdateGameAndChatToFrontend ( fGame, chat ) ->
