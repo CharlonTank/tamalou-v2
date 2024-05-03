@@ -3,9 +3,11 @@ module Display.Game exposing (..)
 import Card exposing (FCard(..))
 import Display.Common exposing (..)
 import Display.Lobby as Lobby
+import Game exposing (FGame(..), FGameInProgressStatus(..))
 import List.Extra
 import Palette.Anim as Anim
 import Palette.Color exposing (..)
+import Player exposing (FPlayer, FPlayerToPlayStatus(..), LookACardStatus(..), Switch2CardsStatus(..))
 import Positioning.Ui exposing (..)
 import Types exposing (..)
 import Ui exposing (..)

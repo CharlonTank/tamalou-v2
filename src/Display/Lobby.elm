@@ -2,7 +2,8 @@ module Display.Lobby exposing (..)
 
 import Display.Chat exposing (displayChat)
 import Display.Common exposing (actionButton, displayPlayerName)
-import Types exposing (FPlayer, FrontendModel, FrontendMsg(..))
+import Player exposing (FPlayer)
+import Types exposing (FrontendModel, FrontendMsg(..))
 import Ui exposing (..)
 import Ui.Input as Input
 import Utils.List as List

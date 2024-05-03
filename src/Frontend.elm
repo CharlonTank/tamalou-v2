@@ -8,8 +8,10 @@ import Card exposing (FCard)
 import Delay
 import Display.Admin exposing (displayAdmin)
 import Display.Game exposing (game)
+import Game exposing (FGame(..))
 import Lamdera exposing (SessionId)
 import List.Extra
+import Player exposing (FPlayer)
 import Positioning.Animate exposing (animDuration, animatePlayerAction, updateEveryTimelineOnFrame)
 import Positioning.Helpers exposing (scrollToBottom)
 import Positioning.Positioning exposing (..)

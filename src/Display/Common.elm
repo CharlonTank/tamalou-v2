@@ -1,8 +1,11 @@
 module Display.Common exposing (..)
 
 import Card exposing (FCard(..))
+import Counter exposing (Counter(..))
+import Game exposing (DiscardPile, TamalouOwner)
 import Lamdera exposing (SessionId)
 import Palette.Color exposing (..)
+import Player exposing (FPlayer)
 import Types exposing (..)
 import Ui exposing (..)
 import Ui.Events as Events

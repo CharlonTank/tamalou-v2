@@ -1,7 +1,9 @@
 module Debuggy.Logs exposing (bGameInProgressLogs)
 
 import Card
-import Types exposing (BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), Counter, LookACardStatus(..), Switch2CardsStatus(..))
+import Counter exposing (Counter(..))
+import Game exposing (BGameInProgressStatus(..), BGameStatus(..))
+import Player exposing (BPlayer, BPlayerToPlayStatus(..), LookACardStatus(..), Switch2CardsStatus(..))
 import Utils.String as String
 
 
@@ -65,19 +67,19 @@ bPlayerToPlayStatusLogs status =
 counterToString : Counter -> String
 counterToString counter =
     case counter of
-        Types.Five ->
+        Five ->
             "Five"
 
-        Types.Four ->
+        Four ->
             "Four"
 
-        Types.Three ->
+        Three ->
             "Three"
 
-        Types.Two ->
+        Two ->
             "Two"
 
-        Types.One ->
+        One ->
             "One"
 
 

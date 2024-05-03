@@ -5,10 +5,11 @@ import Animator.Transition
 import Animator.Value
 import Card exposing (FCard)
 import Internal.Style2 exposing (toRadians)
+import Player exposing (FPlayer)
 import Positioning.Helpers exposing (wantedSpinningRotationValue)
 import Positioning.Types exposing (GBPosition, OpponentDisposition(..), VisibleAngle(..))
 import Time exposing (Posix)
-import Types exposing (FPlayer, OpponentsDisposition, PositionedPlayer, Positions)
+import Types exposing (OpponentsDisposition, PositionedPlayer, Positions)
 import Ui
 
 

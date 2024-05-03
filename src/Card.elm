@@ -1,4 +1,4 @@
-module Card exposing (Card, FCard(..), Power(..), Rank(..), Suit(..), handIsLessThanFive, nonShuffledDeck, powerToString, tableHandScore, toPower, toString)
+module Card exposing (Card, FCard(..), Power(..), Rank, Suit(..), handIsLessThanFive, nonShuffledDeck, powerToString, showAllCards, tableHandScore, toFCard, toPower, toString)
 
 
 type alias Card =
@@ -117,6 +117,11 @@ powerToString power =
             "Look a Card"
 
 
+showAllCards : List Card -> List Card
+showAllCards =
+    List.map (\card -> { card | show = True })
+
+
 tableHandScore : List Card -> Int
 tableHandScore hand =
     List.foldl
@@ -163,6 +168,15 @@ tableHandScore hand =
         )
         0
         hand
+
+
+toFCard : Card -> FCard
+toFCard card =
+    if card.show then
+        FaceUp card
+
+    else
+        FaceDown
 
 
 toPower : Bool -> Card -> Maybe Power
