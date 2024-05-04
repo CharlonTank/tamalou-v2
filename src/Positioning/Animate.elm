@@ -7,6 +7,7 @@ import List.Extra
 import Positioning.Helpers exposing (findCardPosition, fixReverseSpinningEffectRotation, fixSpinningEffectRotation)
 import Positioning.Positioning exposing (updateCardPosition, updateOpponentsDisposition)
 import Positioning.Types exposing (GBPosition)
+import Simple.Animation exposing (steps)
 import Time exposing (Posix)
 import Types exposing (AddOrRemove(..), FrontendModel, GameDisposition(..), OpponentsDisposition, PlayerActionAnimation(..), PositionedPlayer, Positions)
 import Ui.Anim as Anim
@@ -71,7 +72,31 @@ applyDoubleAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosi
                     applyTransitionToCardInHand : Int -> ( FCard, Timeline GBPosition ) -> ( FCard, Timeline GBPosition )
                     applyTransitionToCardInHand index ( card, position ) =
                         if index == cardIndex then
-                            ( FaceUp cardToAnimate, Timeline.to (Anim.ms animDuration) discardPilePosition oldCardPosition )
+                            if addCardOrRemoveCard == Add then
+                                ( FaceUp cardToAnimate
+                                , let
+                                    newCardPosition : GBPosition
+                                    newCardPosition =
+                                        case List.Extra.getAt index newPositionedPlayer.positionedTableHand of
+                                            Just ( _, newPos ) ->
+                                                Timeline.current newPos
+
+                                            Nothing ->
+                                                Timeline.current position
+
+                                    steps : List (Timeline.Step GBPosition)
+                                    steps =
+                                        -- []
+                                        [ Timeline.transitionTo (Anim.ms <| animDuration) discardPilePosition
+                                        , Timeline.transitionTo (Anim.ms <| animDuration) newCardPosition
+                                        ]
+                                  in
+                                  Timeline.scale 0.5 <| Timeline.queue steps oldCardPosition
+                                  -- position
+                                )
+
+                            else
+                                ( FaceUp cardToAnimate, Timeline.to (Anim.ms animDuration) discardPilePosition oldCardPosition )
 
                         else
                             let
@@ -224,8 +249,11 @@ updateEveryTimelineOnFrame model posix =
                                 |> List.map (Timeline.update posix)
                                 |> List.filter Timeline.isRunning
                         , drewCardMovingPosition =
-                            positions.drewCardMovingPosition
-                                |> Timeline.update posix
+                            if Timeline.isRunning positions.drewCardMovingPosition then
+                                Timeline.update posix positions.drewCardMovingPosition
+
+                            else
+                                positions.drewCardMovingPosition
                         , cardFromDiscardPileMovingPositions =
                             positions.cardFromDiscardPileMovingPositions
                                 |> Maybe.map (Timeline.update posix)
@@ -508,13 +536,59 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                             |> Timeline.to (Anim.ms animDuration) positions.discardPilePosition
                                 }
                     }
+
                 NoPlayerAction ->
                     fModel
 
+        -- SAME AS DOUBLE FAILED
+        -- AnimationTamalouFailed sessionId ->
+        --     let
+        --         maybeOpponentOldCardPosition : Maybe (Timeline GBPosition)
+        --         maybeOpponentOldCardPosition =
+        --             positions.opponentsDisposition
+        --                 |> findCardPosition sessionId 0
+        --                 |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
+        --     in
+        --     case maybeOpponentOldCardPosition of
+        --         Just oldCardPosition ->
+        --             { fModel
+        --                 | gameDisposition =
+        --                     Calculated
+        --                         { positions
+        --                             | cardsFromDrawPileMovingPositions =
+        --                                 applyPenaltyAnimationToOpponent sessionId newGameDisposition :: positions.cardsFromDrawPileMovingPositions
+        --                             , opponentsDisposition =
+        --                                 positions.opponentsDisposition
+        --                                     |> applyDoubleAnimationsToOpponent sessionId 0 ( FaceDown, oldCardPosition ) newGameDisposition
+        --                         }
+        --             }
+        --         Nothing ->
+        --             let
+        --                 maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
+        --                 maybeOwnOldCardPosition =
+        --                     positions.ownCardsDisposition
+        --                         |> List.Extra.getAt 0
+        --                         |> Maybe.map Tuple.second
+        --             in
+        --             case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
+        --                 ( True, Just oldCardPosition ) ->
+        --                     { fModel
+        --                         | gameDisposition =
+        --                             Calculated
+        --                                 { positions
+        --                                     | cardsFromDrawPileMovingPositions =
+        --                                         applyPenaltyAnimationToUs newGameDisposition :: positions.cardsFromDrawPileMovingPositions
+        --                                     , ownCardsDisposition =
+        --                                         positions.ownCardsDisposition
+        --                                             |> applyDoubleAnimationToOwnCard 0 ( FaceDown, oldCardPosition ) newGameDisposition
+        --                                 }
+        --                     }
+        --                 _ ->
+        --                     fModel
         _ ->
             fModel
 
 
 animDuration : Float
 animDuration =
-    500
+    2000

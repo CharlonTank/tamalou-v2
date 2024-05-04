@@ -15,11 +15,11 @@ import Ui
 
 calculateGameDisposition : { height : Int, width : Int } -> List FPlayer -> List FCard -> Positions
 calculateGameDisposition viewPort opponents ownCards =
-    { drawPilePosition = calculatePosition viewPort.width viewPort.height 0.35 0.35
+    { drawPilePosition = calculateCardPosition viewPort.width viewPort.height 0.35 0.35
     , cardsFromDrawPileMovingPositions = []
-    , drewCardMovingPosition = Timeline.init (calculatePosition viewPort.width viewPort.height 0.5 0.35)
-    , middleTextPosition = calculatePosition viewPort.width viewPort.height 0.5 0.74
-    , discardPilePosition = calculatePosition viewPort.width viewPort.height 0.65 0.35
+    , drewCardMovingPosition = Timeline.init (calculateCardPosition viewPort.width viewPort.height 0.5 0.35)
+    , middleTextPosition = calculateCardPosition viewPort.width viewPort.height 0.5 0.74
+    , discardPilePosition = calculateCardPosition viewPort.width viewPort.height 0.65 0.35
     , cardFromDiscardPileMovingPositions = Nothing
     , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
     , opponentsDisposition = toOpponentsDisposition viewPort.width opponents
@@ -199,8 +199,8 @@ cardWidthInMiddle widthOfScreen =
     toFloat widthOfScreen / 10
 
 
-calculatePosition : Int -> Int -> Float -> Float -> GBPosition
-calculatePosition screenWidth screenHeight xOffset yOffset =
+calculateCardPosition : Int -> Int -> Float -> Float -> GBPosition
+calculateCardPosition screenWidth screenHeight xOffset yOffset =
     let
         ( width_, height_ ) =
             ( cardWidthInMiddle screenWidth, cardWidthInMiddle screenWidth * heightCardRatio )

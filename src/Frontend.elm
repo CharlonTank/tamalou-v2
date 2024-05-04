@@ -38,10 +38,15 @@ app =
 
 
 subscriptions : FrontendModel -> Sub FrontendMsg
-subscriptions _ =
+subscriptions fModel =
     Sub.batch
         [ Browser.Events.onResize (\w h -> GotWindowSize { height = h, width = w })
-        , Browser.Events.onAnimationFrame Frame
+        , case fModel.fGame of
+            FGameInProgress _ _ _ _ _ _ ->
+                Browser.Events.onAnimationFrame Frame
+
+            _ ->
+                Sub.none
         ]
 
 
@@ -209,8 +214,8 @@ updateFromBackend msg model =
         UpdateAdminToFrontend errors ->
             ( { model | errors = errors }, Cmd.none )
 
-        UpdateGameStatusToFrontend fGame maybePlayerAction ->
-            case maybePlayerAction of
+        UpdateGameStatusToFrontend fGame maybePlayerActionAnimation ->
+            case maybePlayerActionAnimation of
                 Just playerAction ->
                     let
                         newGameDisposition : Positions
