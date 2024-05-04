@@ -215,13 +215,13 @@ updateFromBackend msg model =
             ( { model | errors = errors }, Cmd.none )
 
         UpdateGameStatusToFrontend fGame maybePlayerActionAnimation ->
+            let
+                newGameDisposition : Positions
+                newGameDisposition =
+                    calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
+            in
             case maybePlayerActionAnimation of
                 Just playerAction ->
-                    let
-                        newGameDisposition : Positions
-                        newGameDisposition =
-                            calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
-                    in
                     ( { model
                         | maybeName =
                             case model.maybeName of
@@ -237,15 +237,18 @@ updateFromBackend msg model =
 
                 Nothing ->
                     ( { model
-                        | maybeName =
+                        | fGame = fGame
+                        , maybeName =
                             case model.maybeName of
                                 Just _ ->
                                     model.maybeName
 
                                 Nothing ->
                                     getMyName model.sessionId fGame
+                        , gameDisposition = Calculated newGameDisposition
                       }
-                    , Delay.after (round animDuration) (UpdateFGamePostAnimationFrontend fGame NoPlayerAction)
+                    , Cmd.none
+                      -- , Delay.after (round animDuration) (UpdateFGamePostAnimationFrontend fGame NoPlayerAction)
                     )
 
         UpdateGameAndChatToFrontend ( fGame, chat ) ->
@@ -322,7 +325,7 @@ view model =
     { title = "Tamalou!"
     , body =
         [ layout
-            [ behindContent <| image [ height fill ] { description = "background", source = "/background.png" }
+            [ behindContent <| el [ height fill ] <| image [ height fill ] { description = "background", source = "/background.png" }
             , Font.size 12
             , height fill
             ]

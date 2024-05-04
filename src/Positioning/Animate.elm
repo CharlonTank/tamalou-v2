@@ -27,7 +27,29 @@ applyDoubleAnimationToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { dis
         applyTransitionToCardInHand : Int -> ( FCard, Timeline GBPosition ) -> ( FCard, Timeline GBPosition )
         applyTransitionToCardInHand index ( card, position ) =
             if index == cardIndex then
-                ( FaceUp cardToAnimate, Timeline.to (Anim.ms animDuration) discardPilePosition oldCardPosition )
+                if addCardOrRemoveCard == Add then
+                    ( FaceUp cardToAnimate
+                    , let
+                        newCardPosition : Timeline GBPosition
+                        newCardPosition =
+                            case List.Extra.getAt index ownCardsDisposition of
+                                Just ( _, newPos ) ->
+                                    newPos
+
+                                Nothing ->
+                                    position
+
+                        steps : List (Timeline.Step GBPosition)
+                        steps =
+                            [ Timeline.transitionTo (Anim.ms <| animDuration) discardPilePosition
+                            , Timeline.transitionTo (Anim.ms <| animDuration) (Timeline.current newCardPosition)
+                            ]
+                      in
+                      Timeline.scale 0.5 <| Timeline.queue steps oldCardPosition
+                    )
+
+                else
+                    ( FaceUp cardToAnimate, Timeline.to (Anim.ms animDuration) discardPilePosition oldCardPosition )
 
             else
                 let
@@ -75,24 +97,22 @@ applyDoubleAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosi
                             if addCardOrRemoveCard == Add then
                                 ( FaceUp cardToAnimate
                                 , let
-                                    newCardPosition : GBPosition
+                                    newCardPosition : Timeline GBPosition
                                     newCardPosition =
                                         case List.Extra.getAt index newPositionedPlayer.positionedTableHand of
                                             Just ( _, newPos ) ->
-                                                Timeline.current newPos
+                                                newPos
 
                                             Nothing ->
-                                                Timeline.current position
+                                                position
 
                                     steps : List (Timeline.Step GBPosition)
                                     steps =
-                                        -- []
                                         [ Timeline.transitionTo (Anim.ms <| animDuration) discardPilePosition
-                                        , Timeline.transitionTo (Anim.ms <| animDuration) newCardPosition
+                                        , Timeline.transitionTo (Anim.ms <| animDuration) (Timeline.current newCardPosition)
                                         ]
                                   in
                                   Timeline.scale 0.5 <| Timeline.queue steps oldCardPosition
-                                  -- position
                                 )
 
                             else
@@ -404,7 +424,8 @@ animatePlayerAction playerAction newGameDisposition fModel =
                         maybeOpponentOldCardPosition =
                             positions.opponentsDisposition
                                 |> findCardPosition sessionId cardIndex
-                                |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
+
+                        -- |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
                     in
                     case maybeOpponentOldCardPosition of
                         Just oldCardPosition ->
@@ -591,4 +612,4 @@ animatePlayerAction playerAction newGameDisposition fModel =
 
 animDuration : Float
 animDuration =
-    2000
+    500
