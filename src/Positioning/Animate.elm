@@ -41,11 +41,12 @@ applyDoubleAnimationToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { dis
 
                         steps : List (Timeline.Step GBPosition)
                         steps =
-                            [ Timeline.transitionTo (Anim.ms <| animDuration) discardPilePosition
-                            , Timeline.transitionTo (Anim.ms <| animDuration) (Timeline.current newCardPosition)
+                            [ Timeline.transitionTo (Anim.ms <| animDuration * 8 / 20) discardPilePosition
+                            , Timeline.wait (Anim.ms <| animDuration * 8 / 20)
+                            , Timeline.transitionTo (Anim.ms <| animDuration * 4 / 20) (Timeline.current newCardPosition)
                             ]
                       in
-                      Timeline.scale 0.5 <| Timeline.queue steps oldCardPosition
+                      Timeline.queue steps oldCardPosition
                     )
 
                 else
@@ -108,11 +109,12 @@ applyDoubleAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosi
 
                                     steps : List (Timeline.Step GBPosition)
                                     steps =
-                                        [ Timeline.transitionTo (Anim.ms <| animDuration) discardPilePosition
-                                        , Timeline.transitionTo (Anim.ms <| animDuration) (Timeline.current newCardPosition)
+                                        [ Timeline.transitionTo (Anim.ms <| animDuration * 8 / 20) discardPilePosition
+                                        , Timeline.wait (Anim.ms <| animDuration * 8 / 20)
+                                        , Timeline.transitionTo (Anim.ms <| animDuration * 4 / 20) (Timeline.current newCardPosition)
                                         ]
                                   in
-                                  Timeline.scale 0.5 <| Timeline.queue steps oldCardPosition
+                                  Timeline.queue steps oldCardPosition
                                 )
 
                             else
