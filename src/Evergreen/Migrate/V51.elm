@@ -34,12 +34,12 @@ import List
 
 
 frontendModel : Evergreen.V49.Types.FrontendModel -> ModelMigration Evergreen.V51.Types.FrontendModel Evergreen.V51.Types.FrontendMsg
-frontendModel _ =
+frontendModel old =
     ModelUnchanged
 
 
 backendModel : Evergreen.V49.Types.BackendModel -> ModelMigration Evergreen.V51.Types.BackendModel Evergreen.V51.Types.BackendMsg
-backendModel _ =
+backendModel old =
     ModelUnchanged
 
 
@@ -49,12 +49,12 @@ frontendMsg old =
 
 
 toBackend : Evergreen.V49.Types.ToBackend -> MsgMigration Evergreen.V51.Types.ToBackend Evergreen.V51.Types.BackendMsg
-toBackend _ =
+toBackend old =
     MsgUnchanged
 
 
 backendMsg : Evergreen.V49.Types.BackendMsg -> MsgMigration Evergreen.V51.Types.BackendMsg Evergreen.V51.Types.BackendMsg
-backendMsg _ =
+backendMsg old =
     MsgUnchanged
 
 
