@@ -1,4 +1,4 @@
-module Card exposing (Card, FCard(..), Power(..), Rank, Suit(..), handIsLessThanFive, nonShuffledDeck, powerToString, showAllCards, tableHandScore, toFCard, toPower, toString)
+module Card exposing (Card, FCard(..), Power(..), Rank(..), Suit(..), handIsLessThanFive, nonShuffledDeck, powerToString, showAllCards, tableHandScore, toFCard, toPower, toString)
 
 
 type alias Card =

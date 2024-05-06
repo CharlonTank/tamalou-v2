@@ -6,10 +6,8 @@ import Evergreen.V6.Card
 import Lamdera
 import Time
 import Ui
-import Ui.Anim
-import Ui.Layout
-import Ui.Prose
 import Url
+import Utils.Ui as Ui
 
 
 type alias FPlayer =

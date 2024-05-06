@@ -3,11 +3,9 @@ module Debuggy.App exposing (..)
 import Card exposing (Rank(..))
 import Http
 import Json.Encode
-import Lamdera exposing (ClientId, SessionId)
 import Task
 import Time
-import Types exposing (BGameInProgressStatus(..), BGameStatus(..), BPlayer, BPlayerToPlayStatus(..), Counter(..), LookACardStatus(..), Switch2CardsStatus(..))
-import Utils.String as String
+import Types exposing (..)
 
 
 

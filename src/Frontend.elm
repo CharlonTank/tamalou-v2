@@ -198,8 +198,6 @@ update msg ({ urlPath } as model) =
                             getMyName model.sessionId fGame
                 , gameDisposition = Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
                 , alreadyInAction = False
-
-                -- , gameDisposition = calculateGameDispositionParts model.viewPort playerAction (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
               }
             , Cmd.none
             )

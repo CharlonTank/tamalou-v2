@@ -44,6 +44,7 @@ config =
     , NoDebug.Log.rule
     , NoDebug.TodoOrToString.rule
         |> Rule.ignoreErrorsForDirectories [ "tests/" ]
+
     -- , NoExposingEverything.rule
     -- , NoImportingEverything.rule []
     , NoMissingTypeAnnotation.rule
@@ -70,9 +71,9 @@ config =
         )
     , NoUnsortedTopLevelDeclarations.rule
         (NoUnsortedTopLevelDeclarations.sortTopLevelDeclarations
-        --  |> NoUnsortedTopLevelDeclarations.portsFirst
-         |> NoUnsortedTopLevelDeclarations.exposedOrderWithPrivateLast
-        --  |> NoUnsortedTopLevelDeclarations.alphabetically
+            --  |> NoUnsortedTopLevelDeclarations.portsFirst
+            |> NoUnsortedTopLevelDeclarations.exposedOrderWithPrivateLast
+         --  |> NoUnsortedTopLevelDeclarations.alphabetically
         )
     ]
         |> List.map (Rule.ignoreErrorsForDirectories [ "src/Evergreen/", "elm-ui/", "elm-animator/" ])

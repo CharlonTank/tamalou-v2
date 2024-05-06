@@ -29,6 +29,7 @@ import Ui
 import Ui.Anim
 import Ui.Layout
 import Ui.Prose
+import Utils.Ui exposing (DeviceClass(..), Orientation(..))
 
 
 frontendModel : Evergreen.V2.Types.FrontendModel -> ModelMigration Evergreen.V6.Types.FrontendModel Evergreen.V6.Types.FrontendMsg

@@ -7,9 +7,6 @@ import Lamdera
 import Random
 import Time
 import Ui
-import Ui.Anim
-import Ui.Layout
-import Ui.Prose
 import Url
 import Utils.Ui as Ui
 
