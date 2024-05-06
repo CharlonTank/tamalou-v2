@@ -4,6 +4,7 @@ import Card exposing (FCard(..))
 import Display.Common exposing (..)
 import Display.Lobby as Lobby
 import Game exposing (FGame(..), FGameInProgressStatus(..))
+import Html.Attributes as HA
 import List.Extra
 import Palette.Anim as Anim
 import Palette.Color exposing (..)
@@ -49,6 +50,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FWaitingPlayerAction _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
                              ]
@@ -61,6 +63,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerHasDraw _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , elPlacedTimelined (displayFCard Nothing FaceDown) drewCardMovingPosition
                              , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
@@ -74,6 +77,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerHasDiscard _)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " can choose to use a power or not")
                              ]
@@ -100,6 +104,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition
                                 (case lookACardStatus of
@@ -120,6 +125,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " is choosing a card to switch")
                              ]
@@ -141,6 +147,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " is now choosing an opponent card to switch with")
                              ]
@@ -178,6 +185,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (fPlayer.name ++ " changed a card with " ++ (opponent |> Maybe.map .name |> Maybe.withDefault "Anonymous") ++ "'s card: " ++ displayEndTimer counter)
                              ]
@@ -202,6 +210,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile True)
                              , elPlaced playAgainOrPassPosition <| tamalouButton
                              ]
@@ -214,6 +223,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerHasDraw fCard)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , elPlacedTimelined (displayFCard (Just DiscardCardFrontend) fCard) drewCardMovingPosition
                              , displayMiddleText middleTextPosition "You just drew a card"
@@ -235,6 +245,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , elPlaced playAgainOrPassPosition <| displayUsePowerOrPass
                              ]
@@ -247,6 +258,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerLookACard ChooseCardToLook)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition "Click on a card to look at it"
                              ]
@@ -259,6 +271,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerLookACard (LookingACard index counter))) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition ("Remember! " ++ displayEndTimer counter)
                              ]
@@ -271,6 +284,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerSwitch2Cards ChooseOwnCardToSwitch)) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition "Click on a card to switch"
                              ]
@@ -283,6 +297,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FPlayerSwitch2Cards (OwnCardChosen index))) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition "You chose your card, now choose a card to switch with"
                              ]
@@ -304,6 +319,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                         in
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition ("Remember! " ++ displayEndTimer counter)
                              ]
@@ -316,6 +332,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FEndTimerRunning timer) ->
                         column
                             ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
                              , elPlaced drawPilePosition (displayDrawColumn drawPile False)
                              , displayMiddleText middleTextPosition (displayEndTimer timer)
                              ]

@@ -53,10 +53,10 @@ displayFCardSized length maybeCardClickMsg maybeIndex index frontendCard =
         <|
             case frontendCard of
                 FaceUp card ->
-                    { description = Card.toString card, source = "/cardImages/" ++ Card.toString card ++ ".png" }
+                    { description = Card.toString card, onLoad = Nothing, source = "/cardImages/" ++ Card.toString card ++ ".png" }
 
                 FaceDown ->
-                    { description = "back", source = "/cardImages/BackCovers/Pomegranate.png" }
+                    { description = "back", onLoad = Nothing, source = "/cardImages/BackCovers/Pomegranate.png" }
 
 
 displayFCardAtTheEnd : Int -> FCard -> Element FrontendMsg
@@ -83,10 +83,10 @@ displayFCard maybeCardClickMsg frontendCard =
         image [] <|
             case frontendCard of
                 FaceUp card ->
-                    { description = Card.toString card, source = "/cardImages/" ++ Card.toString card ++ ".png" }
+                    { description = Card.toString card, onLoad = Nothing, source = "/cardImages/" ++ Card.toString card ++ ".png" }
 
                 FaceDown ->
-                    { description = "back", source = "/cardImages/BackCovers/Pomegranate.png" }
+                    { description = "back", onLoad = Nothing, source = "/cardImages/BackCovers/Pomegranate.png" }
 
 
 displayFCardsAtTheEnd : List FCard -> Element FrontendMsg

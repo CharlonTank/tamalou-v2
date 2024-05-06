@@ -7,7 +7,6 @@ import List.Extra
 import Positioning.Helpers exposing (findCardPosition, fixReverseSpinningEffectRotation, fixSpinningEffectRotation)
 import Positioning.Positioning exposing (updateCardPosition, updateOpponentsDisposition)
 import Positioning.Types exposing (GBPosition)
-import Simple.Animation exposing (steps)
 import Time exposing (Posix)
 import Types exposing (AddOrRemove(..), FrontendModel, GameDisposition(..), OpponentsDisposition, PlayerActionAnimation(..), PositionedPlayer, Positions)
 import Ui.Anim as Anim

@@ -325,7 +325,7 @@ view model =
     { title = "Tamalou!"
     , body =
         [ layout
-            [ behindContent <| el [ height fill ] <| image [ height fill ] { description = "background", source = "/background.png" }
+            [ behindContent <| image [ height fill ] { description = "background", onLoad = Nothing, source = "/background.png" }
             , Font.size 12
             , height fill
             ]
