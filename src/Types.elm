@@ -134,7 +134,7 @@ type PlayerActionAnimation
     | AnimationDoubleCardFailed SessionId Int Card
     | AnimationSwitchCards ( SessionId, Int ) ( SessionId, Int )
     | AnimationDiscardCard
-      -- | AnimationTamalouFailed SessionId
+    | AnimationTamalouFailed SessionId
     | NoPlayerAction
 
 

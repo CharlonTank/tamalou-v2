@@ -559,56 +559,84 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                 }
                     }
 
+                AnimationTamalouFailed sessionId ->
+                    if fModel.sessionId == Just sessionId then
+                        { fModel
+                            | gameDisposition =
+                                Calculated
+                                    { positions
+                                        | cardsFromDrawPileMovingPositions =
+                                            applyPenaltyAnimationToUs newGameDisposition :: positions.cardsFromDrawPileMovingPositions
+                                        , ownCardsDisposition =
+                                            positions.ownCardsDisposition
+                                                |> repositionOwnCardsInHand newGameDisposition
+                                    }
+                        }
+
+                    else
+                        { fModel
+                            | gameDisposition =
+                                Calculated
+                                    { positions
+                                        | cardsFromDrawPileMovingPositions =
+                                            applyPenaltyAnimationToOpponent sessionId newGameDisposition :: positions.cardsFromDrawPileMovingPositions
+                                        , opponentsDisposition =
+                                            positions.opponentsDisposition
+                                                |> repositionOpponentsCardsInHand sessionId newGameDisposition
+                                    }
+                        }
+
+                -- SAME AS DOUBLE FAILED
                 NoPlayerAction ->
                     fModel
 
-        -- SAME AS DOUBLE FAILED
-        -- AnimationTamalouFailed sessionId ->
-        --     let
-        --         maybeOpponentOldCardPosition : Maybe (Timeline GBPosition)
-        --         maybeOpponentOldCardPosition =
-        --             positions.opponentsDisposition
-        --                 |> findCardPosition sessionId 0
-        --                 |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
-        --     in
-        --     case maybeOpponentOldCardPosition of
-        --         Just oldCardPosition ->
-        --             { fModel
-        --                 | gameDisposition =
-        --                     Calculated
-        --                         { positions
-        --                             | cardsFromDrawPileMovingPositions =
-        --                                 applyPenaltyAnimationToOpponent sessionId newGameDisposition :: positions.cardsFromDrawPileMovingPositions
-        --                             , opponentsDisposition =
-        --                                 positions.opponentsDisposition
-        --                                     |> applyDoubleAnimationsToOpponent sessionId 0 ( FaceDown, oldCardPosition ) newGameDisposition
-        --                         }
-        --             }
-        --         Nothing ->
-        --             let
-        --                 maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
-        --                 maybeOwnOldCardPosition =
-        --                     positions.ownCardsDisposition
-        --                         |> List.Extra.getAt 0
-        --                         |> Maybe.map Tuple.second
-        --             in
-        --             case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
-        --                 ( True, Just oldCardPosition ) ->
-        --                     { fModel
-        --                         | gameDisposition =
-        --                             Calculated
-        --                                 { positions
-        --                                     | cardsFromDrawPileMovingPositions =
-        --                                         applyPenaltyAnimationToUs newGameDisposition :: positions.cardsFromDrawPileMovingPositions
-        --                                     , ownCardsDisposition =
-        --                                         positions.ownCardsDisposition
-        --                                             |> applyDoubleAnimationToOwnCard 0 ( FaceDown, oldCardPosition ) newGameDisposition
-        --                                 }
-        --                     }
-        --                 _ ->
-        --                     fModel
         _ ->
             fModel
+
+
+repositionOpponentsCardsInHand : SessionId -> Positions -> OpponentsDisposition -> OpponentsDisposition
+repositionOpponentsCardsInHand sessionId { opponentsDisposition } { leftPlayer, topLeftPlayer, topRightPlayer, rightPlayer } =
+    let
+        repositionOpponentCardsInHand : List ( FCard, Timeline GBPosition ) -> List ( FCard, Timeline GBPosition ) -> List ( FCard, Timeline GBPosition )
+        repositionOpponentCardsInHand newHand oldHand =
+            List.indexedMap
+                (\index ( card, position ) ->
+                    case List.Extra.getAt index newHand of
+                        Just ( _, newPos ) ->
+                            ( card, Timeline.to (Anim.ms animDuration) (Timeline.current newPos) position )
+
+                        Nothing ->
+                            ( card, position )
+                )
+                oldHand
+
+        updateHand : PositionedPlayer -> PositionedPlayer -> PositionedPlayer
+        updateHand newPositionedPlayer oldPositionedPlayer =
+            if sessionId == newPositionedPlayer.player.sessionId then
+                { oldPositionedPlayer | positionedTableHand = repositionOpponentCardsInHand newPositionedPlayer.positionedTableHand oldPositionedPlayer.positionedTableHand }
+
+            else
+                oldPositionedPlayer
+    in
+    { leftPlayer = Maybe.map2 updateHand opponentsDisposition.leftPlayer leftPlayer
+    , topLeftPlayer = Maybe.map2 updateHand opponentsDisposition.topLeftPlayer topLeftPlayer
+    , topRightPlayer = Maybe.map2 updateHand opponentsDisposition.topRightPlayer topRightPlayer
+    , rightPlayer = Maybe.map2 updateHand opponentsDisposition.rightPlayer rightPlayer
+    }
+
+
+repositionOwnCardsInHand : Positions -> List ( FCard, Timeline GBPosition ) -> List ( FCard, Timeline GBPosition )
+repositionOwnCardsInHand { ownCardsDisposition } oldOwnCardsDisposition =
+    List.indexedMap
+        (\index ( card, position ) ->
+            case List.Extra.getAt index ownCardsDisposition of
+                Just ( _, newPos ) ->
+                    ( card, Timeline.to (Anim.ms animDuration) (Timeline.current newPos) position )
+
+                Nothing ->
+                    ( card, position )
+        )
+        oldOwnCardsDisposition
 
 
 animDuration : Float

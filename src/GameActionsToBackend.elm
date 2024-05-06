@@ -775,8 +775,8 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
                                                     )
                                     in
                                     ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) updatedPlayers
-                                      -- , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just <| AnimationTamalouFailed sessionId)) updatedPlayers
+                                      -- , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) updatedPlayers
+                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just <| AnimationTamalouFailed sessionId)) updatedPlayers
                                     )
 
                                 ( Nothing, _ ) ->
