@@ -20,6 +20,7 @@ type BPlayerToPlayStatus
     | BPlayerHasDiscard Power
     | BPlayerLookACard LookACardStatus
     | BPlayerSwitch2Cards Switch2CardsStatus
+    | BPlayerDisplayTamalouFailure Counter
 
 
 type alias FPlayer =
