@@ -6,3 +6,7 @@
 	path = elm-animator
 	url = https://github.com/mdgriffith/elm-animator.git
 	branch = v2
+[submodule "elm-ui15:49:52"]
+	path = elm-ui15:49:52
+	url = https://github.com/mdgriffith/elm-ui.git
+	branch = 2.0
