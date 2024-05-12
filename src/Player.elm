@@ -1,6 +1,6 @@
 module Player exposing (..)
 
-import Card exposing (Card, FCard, Power, toFCard)
+import Card exposing (Card, FCard(..), Power, toFCard)
 import Counter exposing (Counter)
 import Lamdera exposing (ClientId, SessionId)
 
@@ -20,7 +20,7 @@ type BPlayerToPlayStatus
     | BPlayerHasDiscard Power
     | BPlayerLookACard LookACardStatus
     | BPlayerSwitch2Cards Switch2CardsStatus
-    | BPlayerDisplayTamalouFailure Counter
+    | BPlayerDisplayTamalouFailure (List Card) Counter
 
 
 type alias FPlayer =
@@ -39,6 +39,7 @@ type FPlayerToPlayStatus
     | FPlayerHasDiscard Power
     | FPlayerLookACard LookACardStatus
     | FPlayerSwitch2Cards Switch2CardsStatus
+    | FPlayerDisplayTamalouFailure (List Card) Counter
 
 
 type LookACardStatus

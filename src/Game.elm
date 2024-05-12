@@ -160,6 +160,13 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
                     else
                         FPlayerToPlay (toFPlayer False bPlayer) (FPlayerSwitch2Cards switch2CardsStatus)
 
+                BPlayerDisplayTamalouFailure cards counter ->
+                    if maybeSessionId == Just bPlayer.sessionId then
+                        FYourTurn (FPlayerDisplayTamalouFailure cards counter)
+
+                    else
+                        FPlayerToPlay (toFPlayer False bPlayer) (FPlayerDisplayTamalouFailure cards counter)
+
         BEndTimerRunning timer ->
             FEndTimerRunning timer
 

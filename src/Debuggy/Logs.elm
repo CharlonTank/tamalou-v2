@@ -63,6 +63,9 @@ bPlayerToPlayStatusLogs status =
         BPlayerSwitch2Cards switch2CardsStatus ->
             "BPlayerSwitch2Cards: " ++ switch2CardsStatusLogs switch2CardsStatus
 
+        BPlayerDisplayTamalouFailure cards counter ->
+            "BPlayerDisplayTamalouFailure: " ++ (List.map Card.toString cards |> String.join ", ") ++ ", " ++ counterToString counter
+
 
 counterToString : Counter -> String
 counterToString counter =

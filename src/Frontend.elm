@@ -4,14 +4,14 @@ import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Events
 import Browser.Navigation as Nav
-import Card exposing (FCard)
+import Card exposing (FCard(..))
 import Delay
 import Display.Admin exposing (displayAdmin)
 import Display.Game exposing (game)
-import Game exposing (FGame(..))
+import Game exposing (FGame(..), FGameInProgressStatus(..))
 import Lamdera exposing (SessionId)
 import List.Extra
-import Player exposing (FPlayer)
+import Player exposing (FPlayer, FPlayerToPlayStatus(..))
 import Positioning.Animate exposing (animDuration, animatePlayerAction, updateEveryTimelineOnFrame)
 import Positioning.Helpers exposing (scrollToBottom)
 import Positioning.Positioning exposing (..)
@@ -304,6 +304,9 @@ getOpponents maybeSessionId players =
 getOwnedCards : FGame -> List FCard
 getOwnedCards fGame =
     case fGame of
+        FGameInProgress _ _ _ _ _ (FYourTurn (FPlayerDisplayTamalouFailure hand _)) ->
+            List.map FaceUp hand
+
         FGameInProgress _ hand _ _ _ _ ->
             hand
 

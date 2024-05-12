@@ -50,6 +50,9 @@ tickEverySecond games =
                     BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerSwitch2Cards (OpponentCardChosen _ _ _))) _ _ ->
                         Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
 
+                    BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerDisplayTamalouFailure _ _)) _ _ ->
+                        Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
+
                     BGameInProgress _ _ _ _ (BEndTimerRunning _) _ _ ->
                         Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
 
@@ -298,6 +301,49 @@ update msg ({ games } as model) =
                                             in
                                             ( { model | games = updateGame newGame games }
                                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) (Just <| AnimationSwitchCards ( bPlayer.sessionId, ownCardIndex ) ( opponentCard.sessionId, opponentCard.index ))) players
+                                            )
+
+                                BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerDisplayTamalouFailure cards counter)) lastMoveIsDouble canUsePowerFromLastPlayer ->
+                                    case Counter.decrement counter of
+                                        Just nb ->
+                                            let
+                                                newGame : BGame
+                                                newGame =
+                                                    { game | status = BGameInProgress maybeTamalouOwner a b players (BPlayerToPlay bPlayer (BPlayerDisplayTamalouFailure cards nb)) lastMoveIsDouble canUsePowerFromLastPlayer }
+                                            in
+                                            ( { model | games = updateGame newGame games }
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
+                                            )
+
+                                        Nothing ->
+                                            let
+                                                maybeNextPlayer : Maybe BPlayer
+                                                maybeNextPlayer =
+                                                    nextPlayer maybeTamalouOwner bPlayer.sessionId players
+
+                                                newGame : BGame
+                                                newGame =
+                                                    case maybeNextPlayer of
+                                                        Just nextPlayer_ ->
+                                                            { game
+                                                                | status =
+                                                                    BGameInProgress maybeTamalouOwner
+                                                                        a
+                                                                        b
+                                                                        (stopDisplayCards Nothing players)
+                                                                        (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing))
+                                                                        lastMoveIsDouble
+                                                                        canUsePowerFromLastPlayer
+                                                            }
+
+                                                        Nothing ->
+                                                            { game
+                                                                | status =
+                                                                    BGameInProgress maybeTamalouOwner a b (stopDisplayCards Nothing players) (BEndTimerRunning Five) lastMoveIsDouble canUsePowerFromLastPlayer
+                                                            }
+                                            in
+                                            ( { model | games = updateGame newGame games }
+                                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
                                             )
 
                                 _ ->
