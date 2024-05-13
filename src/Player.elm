@@ -1,6 +1,6 @@
 module Player exposing (..)
 
-import Card exposing (Card, FCard(..), Power, toFCard)
+import Card exposing (Card, FCard, Power, toFCard)
 import Counter exposing (Counter)
 import Lamdera exposing (ClientId, SessionId)
 

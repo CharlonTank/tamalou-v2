@@ -5,16 +5,13 @@ import Display.Common exposing (..)
 import Display.Lobby as Lobby
 import Game exposing (FGame(..), FGameInProgressStatus(..))
 import Html.Attributes as HA
-import Lamdera exposing (SessionId)
 import List.Extra
 import Palette.Anim as Anim
 import Palette.Color exposing (..)
 import Player exposing (FPlayer, FPlayerToPlayStatus(..), LookACardStatus(..), Switch2CardsStatus(..))
-import Positioning.Types exposing (GBPosition)
 import Positioning.Ui exposing (..)
 import Types exposing (..)
 import Ui exposing (..)
-import Ui.Anim exposing (Timeline)
 import Ui.Events as Events
 import Ui.Font as Font
 import Utils.Ui exposing (DeviceClass(..), Orientation(..), actionBorder)
@@ -199,6 +196,40 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                             )
                             []
 
+                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerDisplayTamalouFailure cardsToDisplay counter)) ->
+                        let
+                            opponentsDispositionWithCardsToDisplay : OpponentsDisposition
+                            opponentsDispositionWithCardsToDisplay =
+                                { leftPlayer = updatePlayerCardsToDisplay opponentsDisposition.leftPlayer
+                                , topLeftPlayer = updatePlayerCardsToDisplay opponentsDisposition.topLeftPlayer
+                                , topRightPlayer = updatePlayerCardsToDisplay opponentsDisposition.topRightPlayer
+                                , rightPlayer = updatePlayerCardsToDisplay opponentsDisposition.rightPlayer
+                                }
+
+                            updatePlayerCardsToDisplay : Maybe PositionedPlayer -> Maybe PositionedPlayer
+                            updatePlayerCardsToDisplay maybePositionedPlayer =
+                                maybePositionedPlayer
+                                    |> Maybe.map
+                                        (\positionedPlayer ->
+                                            if positionedPlayer.player.sessionId == fPlayer.sessionId then
+                                                { positionedPlayer | positionedTableHand = List.map2 (\( _, timeline ) card -> ( FaceUp card, timeline )) positionedPlayer.positionedTableHand cardsToDisplay }
+
+                                            else
+                                                positionedPlayer
+                                        )
+                        in
+                        column
+                            ([ width <| px <| viewPort.width - 14
+                             , htmlAttribute (HA.style "user-select" "none")
+                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
+                             , displayMiddleText middleTextPosition ("Tamalou failed! " ++ displayEndTimer counter)
+                             ]
+                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False (always Nothing) opponentsDispositionWithCardsToDisplay
+                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
+                                ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                            )
+                            []
+
                     FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FYourTurn (FWaitingPlayerAction maybePowerCard)) ->
                         let
                             tamalouButton : Element FrontendMsg
@@ -340,40 +371,6 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                              , displayMiddleText middleTextPosition ("Tamalou failed! " ++ displayEndTimer counter)
                              ]
                                 ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
-                                ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
-                            )
-                            []
-
-                    FGameInProgress maybeTamalouOwner _ drawPile discardPile _ (FPlayerToPlay fPlayer (FPlayerDisplayTamalouFailure cardsToDisplay counter)) ->
-                        let
-                            updatePlayerCardsToDisplay : Maybe PositionedPlayer -> Maybe PositionedPlayer
-                            updatePlayerCardsToDisplay maybePositionedPlayer =
-                                maybePositionedPlayer
-                                    |> Maybe.map
-                                        (\positionedPlayer ->
-                                            if positionedPlayer.player.sessionId == fPlayer.sessionId then
-                                                { positionedPlayer | positionedTableHand = List.map2 (\( _, timeline ) card -> ( FaceUp card, timeline )) positionedPlayer.positionedTableHand cardsToDisplay }
-
-                                            else
-                                                positionedPlayer
-                                        )
-
-                            opponentsDispositionWithCardsToDisplay : OpponentsDisposition
-                            opponentsDispositionWithCardsToDisplay =
-                                { leftPlayer = updatePlayerCardsToDisplay opponentsDisposition.leftPlayer
-                                , topLeftPlayer = updatePlayerCardsToDisplay opponentsDisposition.topLeftPlayer
-                                , topRightPlayer = updatePlayerCardsToDisplay opponentsDisposition.topRightPlayer
-                                , rightPlayer = updatePlayerCardsToDisplay opponentsDisposition.rightPlayer
-                                }
-                        in
-                        column
-                            ([ width <| px <| viewPort.width - 14
-                             , htmlAttribute (HA.style "user-select" "none")
-                             , elPlaced drawPilePosition (displayDrawColumn drawPile False)
-                             , displayMiddleText middleTextPosition ("Tamalou failed! " ++ displayEndTimer counter)
-                             ]
-                                ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False (always Nothing) opponentsDispositionWithCardsToDisplay
                                 ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                 ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
                             )

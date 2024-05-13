@@ -730,8 +730,12 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
                 BGameInProgress Nothing drawPile discardPile players (BPlayerToPlay bPlayer (BWaitingPlayerAction _)) lastMoveIsDouble canUsePowerFromLastPlayer ->
                     if sessionId == bPlayer.sessionId then
                         let
-                            addPenalty : Bool
-                            addPenalty =
+                            currentPlayer : Maybe BPlayer
+                            currentPlayer =
+                                List.Extra.find ((==) sessionId << .sessionId) players
+
+                            tamalouFailed : Bool
+                            tamalouFailed =
                                 case currentPlayer of
                                     Just p ->
                                         p.tableHand
@@ -740,59 +744,26 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
 
                                     Nothing ->
                                         False
-
-                            -- For now, let's just add a penalty if the current player hand is not tamalou using handScore and handIsLessThanFive functions
-                            currentPlayer : Maybe BPlayer
-                            currentPlayer =
-                                List.Extra.find ((==) sessionId << .sessionId) players
-
-                            nextPlayer_ : BPlayer
-                            nextPlayer_ =
-                                nextPlayer Nothing bPlayer.sessionId players |> Maybe.withDefault bPlayer
                         in
-                        if addPenalty then
-                            case drawCardFromDrawPile game of
-                                ( Just singleCard, ( newDrawPile, newDiscardPile, newSeed ) ) ->
-                                    let
-                                        newGameStatus : BGameStatus
-                                        newGameStatus =
-                                            BGameInProgress Nothing newDrawPile newDiscardPile updatedPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer
-
-                                        updatedPlayers : List BPlayer
-                                        updatedPlayers =
-                                            players
-                                                |> List.map
-                                                    (\p ->
-                                                        if p.sessionId == sessionId then
-                                                            { p
-                                                                | tableHand =
-                                                                    p.tableHand
-                                                                        ++ [ { singleCard | show = False } ]
-                                                            }
-
-                                                        else
-                                                            p
-                                                    )
-                                    in
-                                    ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
-                                      -- , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) updatedPlayers
-                                    , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just <| AnimationTamalouFailed sessionId)) updatedPlayers
-                                    )
-
-                                ( Nothing, _ ) ->
-                                    -- TODO: Terminate game because this should not happen, we need to log this...
-                                    let
-                                        newGameStatus : BGameStatus
-                                        newGameStatus =
-                                            BGameEnded (assignRanks (Just sessionId) (stopDisplayCards (Just sessionId) players))
-                                    in
-                                    updateGameStateAndNotifyPlayers model game.urlPath ( newGameStatus, game.seed ) players Nothing
+                        if tamalouFailed then
+                            let
+                                newGameStatus : BGameStatus
+                                newGameStatus =
+                                    BGameInProgress Nothing drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerDisplayTamalouFailure bPlayer.tableHand Counter.Three)) lastMoveIsDouble canUsePowerFromLastPlayer
+                            in
+                            ( { model | games = updateGameStatus urlPath ( newGameStatus, game.seed ) games }
+                            , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) players
+                            )
 
                         else
                             let
                                 newGameStatus : BGameStatus
                                 newGameStatus =
                                     BGameInProgress (Just sessionId) drawPile discardPile updatedPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer
+
+                                nextPlayer_ : BPlayer
+                                nextPlayer_ =
+                                    nextPlayer Nothing bPlayer.sessionId players |> Maybe.withDefault bPlayer
 
                                 updatedPlayers : List BPlayer
                                 updatedPlayers =
