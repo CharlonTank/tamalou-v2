@@ -8,6 +8,7 @@ import Game exposing (..)
 import Lamdera exposing (ClientId, SessionId)
 import Player exposing (FPlayer)
 import Positioning.Types exposing (GBPosition)
+import Router exposing (Route)
 import Time exposing (Posix)
 import Url exposing (Url)
 import Utils.Ui exposing (Device)
@@ -70,7 +71,8 @@ type CardClickMsg
 type alias FrontendModel =
     { key : Key
     , device : Device
-    , fGame : FGame
+    , fGame : Maybe FGame
+    , roomName : String
     , clientId : Maybe ClientId
     , sessionId : Maybe SessionId
     , urlPath : String
@@ -90,6 +92,7 @@ type alias FrontendModel =
     -- , animDur : Maybe Int
     -- , nextStates : List ( FGame, PlayerAction )
     -- , animations : List (Timeline GBPosition)
+    , route : Route
     }
 
 
@@ -111,6 +114,8 @@ type FrontendMsg
       -- | AnimMsg Ui.Anim.Msg
     | Frame Posix
     | UpdateFGamePostAnimationFrontend FGame PlayerActionAnimation
+    | ChangeRoomNameFrontend String
+    | JoinRoomGameFrontend String
 
 
 type GameDisposition

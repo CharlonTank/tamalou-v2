@@ -6,7 +6,7 @@ import Game exposing (BGame, BGameInProgressStatus(..), BGameStatus(..), toFGame
 import GameActionsToBackend exposing (handleActionFromGameToBackend)
 import GameLogics exposing (assignRanks, nextPlayer)
 import Lamdera exposing (ClientId, SessionId)
-import List.Extra
+import List.Extra as List
 import Player exposing (BPlayer, BPlayerToPlayStatus(..), LookACardStatus(..), Switch2CardsStatus(..), showAllCardsOfAllPlayers, stopDisplayCards)
 import Random
 import Task
@@ -125,7 +125,7 @@ update msg ({ games } as model) =
                     let
                         maybeGame : Maybe BGame
                         maybeGame =
-                            List.Extra.find ((==) urlPath << .urlPath) games
+                            List.find ((==) urlPath << .urlPath) games
                     in
                     case maybeGame of
                         Just game ->
@@ -390,7 +390,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                 init
 
             else
-                case List.Extra.find ((==) urlPath << .urlPath) games of
+                case List.find (.urlPath >> (==) urlPath) games of
                     Just game ->
                         handleActionFromGameToBackend model urlPath sessionId clientId game toBackendActionFromGame
 

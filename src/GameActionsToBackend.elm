@@ -20,20 +20,12 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
             case game.status of
                 BWaitingForPlayers players ->
                     let
-                        frontendGame : FGame
-                        frontendGame =
-                            toFGame Nothing newGameStatus
-
                         ( funnyName, newSeed ) =
                             generateRandomFunnyName game.seed (List.map .name players)
 
-                        newGameStatus : BGameStatus
-                        newGameStatus =
-                            BWaitingForPlayers newPlayers
-
                         newPlayers : List BPlayer
                         newPlayers =
-                            case List.Extra.find ((==) sessionId << .sessionId) players of
+                            case List.Extra.find (.sessionId >> (==) sessionId) players of
                                 Just _ ->
                                     players
 
@@ -49,11 +41,11 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
                     ( { model | games = updateGameStatus urlPath ( BWaitingForPlayers newPlayers, newSeed ) games }
                     , Cmd.batch <|
                         Lamdera.sendToFrontend clientId (UpdateChatToFrontend game.chat)
-                            :: List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend frontendGame Nothing)) newPlayers
+                            :: List.map (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend (toFGame Nothing (BWaitingForPlayers newPlayers)) Nothing)) newPlayers
                     )
 
                 BGameInProgress maybeTamalouOwner drawPile discardPile players progressStatus lastMoveIsDouble canUsePowerFromLastPlayer ->
-                    case List.Extra.find ((==) sessionId << .sessionId) players of
+                    case List.Extra.find (.sessionId >> (==) sessionId) players of
                         Just _ ->
                             let
                                 newGameStatus : BGameStatus
@@ -174,7 +166,7 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
 
                             newChat : List ( String, String )
                             newChat =
-                                game.chat ++ [ ( Maybe.withDefault "" (List.Extra.find ((==) sessionId << .sessionId) newPlayers |> Maybe.map .name), "Let's go I'm ready!" ) ]
+                                game.chat ++ [ ( Maybe.withDefault "" (List.Extra.find (.sessionId >> (==) sessionId) newPlayers |> Maybe.map .name), "Let's go I'm ready!" ) ]
 
                             newGame : BGame
                             newGame =
@@ -226,7 +218,7 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
                             players
                                 -- Warning, here we remove all the other players in case they disconnect wihtout clicking restart, In the future, we want to send the score instead of the players so that we can remove them from the game on disconnect
                                 |> List.map Tuple.first
-                                |> List.filter ((==) sessionId << .sessionId)
+                                |> List.filter (.sessionId >> (==) sessionId)
                                 |> List.map
                                     (\p ->
                                         { p
@@ -331,7 +323,7 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
 
                             maybeCurrentPlayer : Maybe BPlayer
                             maybeCurrentPlayer =
-                                List.Extra.find ((==) sessionId << .sessionId) players
+                                List.Extra.find (.sessionId >> (==) sessionId) players
                         in
                         case maybeCardToDiscard of
                             Just cardToDiscard ->
@@ -429,7 +421,7 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
 
                         currentPlayer : Maybe BPlayer
                         currentPlayer =
-                            List.Extra.find ((==) sessionId << .sessionId) players
+                            List.Extra.find (.sessionId >> (==) sessionId) players
                     in
                     case ( canTryToDouble, cardFromPlayer ) of
                         ( True, Just card ) ->
@@ -732,7 +724,7 @@ handleActionFromGameToBackend ({ games, errors } as model) urlPath sessionId cli
                         let
                             currentPlayer : Maybe BPlayer
                             currentPlayer =
-                                List.Extra.find ((==) sessionId << .sessionId) players
+                                List.Extra.find (.sessionId >> (==) sessionId) players
 
                             tamalouFailed : Bool
                             tamalouFailed =

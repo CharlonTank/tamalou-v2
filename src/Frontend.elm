@@ -11,15 +11,18 @@ import Display.Game exposing (game)
 import Game exposing (FGame(..), FGameInProgressStatus(..))
 import Lamdera exposing (SessionId)
 import List.Extra
+import Palette.Color exposing (..)
 import Player exposing (FPlayer, FPlayerToPlayStatus(..))
 import Positioning.Animate exposing (animDuration, animatePlayerAction, updateEveryTimelineOnFrame)
 import Positioning.Helpers exposing (scrollToBottom)
 import Positioning.Positioning exposing (..)
+import Router
 import Task
 import Time
 import Types exposing (..)
 import Ui exposing (..)
 import Ui.Font as Font
+import Ui.Input as Input
 import Url
 import Utils.Ui exposing (..)
 
@@ -42,7 +45,7 @@ subscriptions fModel =
     Sub.batch
         [ Browser.Events.onResize (\w h -> GotWindowSize { height = h, width = w })
         , case fModel.fGame of
-            FGameInProgress _ _ _ _ _ _ ->
+            Just (FGameInProgress _ _ _ _ _ _) ->
                 Browser.Events.onAnimationFrame Frame
 
             _ ->
@@ -54,7 +57,8 @@ init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
 init url key =
     ( { key = key
       , device = Device Phone Landscape
-      , fGame = FWaitingForPlayers []
+      , fGame = Nothing
+      , roomName = ""
       , clientId = Nothing
       , sessionId = Nothing
       , urlPath = url.path
@@ -70,6 +74,7 @@ init url key =
       --   , animationState = Anim.init
       , alreadyInAction = False
       , posix = Time.millisToPosix 0
+      , route = Router.parseUrl url
       }
     , Task.perform
         (\v ->
@@ -107,7 +112,13 @@ update msg ({ urlPath } as model) =
             ( { model
                 | device = classifyDevice viewPort
                 , viewPort = viewPort
-                , gameDisposition = Calculated <| calculateGameDisposition viewPort (fPlayersFromFGame model.fGame |> getOpponents model.sessionId) (getOwnedCards model.fGame)
+                , gameDisposition =
+                    case model.fGame of
+                        Just fGame ->
+                            Calculated <| calculateGameDisposition viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
+
+                        Nothing ->
+                            NotCalculated
               }
             , Cmd.none
             )
@@ -188,7 +199,7 @@ update msg ({ urlPath } as model) =
         UpdateFGamePostAnimationFrontend fGame _ ->
             -- based on the playerAction, let's update the model's gameDisposition
             ( { model
-                | fGame = fGame
+                | fGame = Just fGame
                 , maybeName =
                     case model.maybeName of
                         Just _ ->
@@ -200,6 +211,18 @@ update msg ({ urlPath } as model) =
                 , alreadyInAction = False
               }
             , Cmd.none
+            )
+
+        ChangeRoomNameFrontend newRoomName ->
+            ( { model | roomName = newRoomName }, Cmd.none )
+
+        JoinRoomGameFrontend roomName ->
+            ( model
+            , Cmd.batch
+                [ Nav.load roomName
+
+                -- , Lamdera.sendToBackend (ActionFromGameToBackend roomName ConnectToBackend)
+                ]
             )
 
 
@@ -235,7 +258,7 @@ updateFromBackend msg model =
 
                 Nothing ->
                     ( { model
-                        | fGame = fGame
+                        | fGame = Just fGame
                         , maybeName =
                             case model.maybeName of
                                 Just _ ->
@@ -251,7 +274,7 @@ updateFromBackend msg model =
 
         UpdateGameAndChatToFrontend ( fGame, chat ) ->
             ( { model
-                | fGame = fGame
+                | fGame = Just fGame
                 , maybeName =
                     case model.maybeName of
                         Just _ ->
@@ -268,15 +291,21 @@ updateFromBackend msg model =
             ( { model | chat = chat }, scrollToBottom "chatty" )
 
         GotSessionIdAndClientIdToFrontend sessionId clientId ->
-            if model.urlPath == "/admin" then
-                ( { model | clientId = Just clientId, sessionId = Just sessionId, admin = True }
-                , Lamdera.sendToBackend ConnectToAdminToBackend
-                )
+            case model.route of
+                Router.Home ->
+                    ( { model | clientId = Just clientId, sessionId = Just sessionId }
+                    , Cmd.none
+                    )
 
-            else
-                ( { model | clientId = Just clientId, sessionId = Just sessionId }
-                , Lamdera.sendToBackend (ActionFromGameToBackend model.urlPath ConnectToBackend)
-                )
+                Router.Admin ->
+                    ( { model | clientId = Just clientId, sessionId = Just sessionId, admin = True }
+                    , Lamdera.sendToBackend ConnectToAdminToBackend
+                    )
+
+                Router.Game urlPath ->
+                    ( { model | clientId = Just clientId, sessionId = Just sessionId }
+                    , Lamdera.sendToBackend (ActionFromGameToBackend urlPath ConnectToBackend)
+                    )
 
 
 fPlayersFromFGame : FGame -> List FPlayer
@@ -331,18 +360,50 @@ view model =
             , height fill
             ]
           <|
-            case model.gameDisposition of
-                NotCalculated ->
-                    none
+            case ( model.route, model.admin, model.gameDisposition ) of
+                ( Router.Home, _, _ ) ->
+                    displayHome model
 
-                Calculated positions ->
+                ( Router.Admin, True, _ ) ->
+                    displayAdmin model
+
+                ( Router.Game urlPath, _, Calculated positions ) ->
                     column
                         [ height fill ]
-                        [ if model.admin then
-                            displayAdmin model
+                        [ game model positions ]
 
-                          else
-                            game model positions
-                        ]
+                _ ->
+                    text "401 Unauthorized"
         ]
     }
+
+
+displayHome : FrontendModel -> Element FrontendMsg
+displayHome model =
+    column
+        [ padding 20
+        , height fill
+        , Font.center
+        , spacing 20
+        , Font.size 16
+        ]
+        [ el [ Font.size 20, centerX ] <| text "Welcome on Tamalou!"
+        , text "Enter the room you want to join here!"
+        , Input.text [ centerX, width <| px 200, Font.size 24 ]
+            { label = Input.labelHidden "Room name"
+            , onChange = ChangeRoomNameFrontend
+            , placeholder = Just "keuh-kli"
+            , text = model.roomName
+            }
+        , el
+            [ centerX
+            , Input.button <| JoinRoomGameFrontend model.roomName
+            , rounded 8
+            , border 2
+            , paddingXY 4 2
+            , background green
+            , borderColor strongerBlue
+            ]
+          <|
+            text "Join the room"
+        ]

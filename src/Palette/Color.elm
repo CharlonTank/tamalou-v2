@@ -1,4 +1,4 @@
-module Palette.Color exposing (blue, green, lightGrey, red, veryLightGrey, yellow)
+module Palette.Color exposing (..)
 
 import Ui exposing (Color, rgb)
 
@@ -6,6 +6,11 @@ import Ui exposing (Color, rgb)
 blue : Color
 blue =
     rgb 0 68 221
+
+
+strongerBlue : Color
+strongerBlue =
+    rgb 0 102 255
 
 
 green : Color
