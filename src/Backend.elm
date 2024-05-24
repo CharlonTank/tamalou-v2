@@ -18,10 +18,10 @@ import Utils.Random exposing (drawCardFromDrawPile, generateRandomFunnyName)
 
 app : { init : ( BackendModel, Cmd BackendMsg ), subscriptions : BackendModel -> Sub BackendMsg, update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg ), updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg ) }
 app =
-    Debuggy.App.backend
-        NoOpBackendMsg
-        "cf254562487070e4"
-        -- Lamdera.backend
+    -- Debuggy.App.backend
+    --     NoOpBackendMsg
+    --     "cf254562487070e4"
+    Lamdera.backend
         { init = init
         , subscriptions = subscriptions
         , update = update
