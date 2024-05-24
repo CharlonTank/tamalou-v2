@@ -18,7 +18,7 @@ import Utils.Ui exposing (DeviceClass(..), Orientation(..), actionBorder)
 
 
 game : FrontendModel -> Positions -> Element FrontendMsg
-game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, cardsFromDrawPileMovingPositions, drewCardMovingPosition, middleTextPosition, discardPilePosition, cardFromDiscardPileMovingPositions, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition } =
+game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, cardsFromDrawPileMovingPositions, drewCardMovingPosition, drewCardPosition, middleTextPosition, discardPilePosition, cardFromDiscardPileMovingPosition, playAgainOrPassPosition, opponentsDisposition, ownCardsDisposition } =
     case ( model.device.class, model.device.orientation ) of
         ( Phone, Portrait ) ->
             column [ Font.center, contentCenterY, height fill ]
@@ -58,7 +58,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -67,12 +67,12 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                     ([ width <| px <| viewPort.width - 14
                                      , htmlAttribute (HA.style "user-select" "none")
                                      , elPlaced drawPilePosition (displayDrawColumn drawPile False)
-                                     , elPlacedTimelined (displayFCard Nothing FaceDown) drewCardMovingPosition
+                                     , elPlacedTimelined (displayFCard Nothing FaceDown) (Maybe.withDefault drewCardPosition drewCardMovingPosition)
                                      , displayMiddleText middleTextPosition ("It's " ++ fPlayer.name ++ "'s turn")
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -85,7 +85,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -119,7 +119,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         -- A fix
                                         ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False maybeHighlightCard opponentsDisposition
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                     )
                                     []
@@ -133,7 +133,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -155,7 +155,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         -- a fix avec le maybeindex
                                         ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False maybeHighlightCard opponentsDisposition
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
                                     )
                                     []
@@ -193,7 +193,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         --fix avec le maybeindex
                                         ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False maybeHighlightCard opponentsDisposition
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                         ++ displayOwnCards ownCardsDisposition Nothing maybeOwnIndex
                                     )
                                     []
@@ -228,7 +228,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner (Just fPlayer.sessionId) False (always Nothing) opponentsDispositionWithCardsToDisplay
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -252,7 +252,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile True maybePowerCard cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile True maybePowerCard cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -261,12 +261,12 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                     ([ width <| px <| viewPort.width - 14
                                      , htmlAttribute (HA.style "user-select" "none")
                                      , elPlaced drawPilePosition (displayDrawColumn drawPile False)
-                                     , elPlacedTimelined (displayFCard (Just DiscardCardFrontend) fCard) drewCardMovingPosition
+                                     , elPlacedTimelined (displayFCard (Just DiscardCardFrontend) fCard) (Maybe.withDefault drewCardPosition drewCardMovingPosition)
                                      , displayMiddleText middleTextPosition "You just drew a card"
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (Just CardClickReplacement) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -287,7 +287,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False (Just power) cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False (Just power) cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -300,7 +300,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (Just LookAtCardFrontend) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -313,7 +313,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) (Just index)
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -326,7 +326,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (Just ChooseOwnCardToSwitchFrontend) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -339,7 +339,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing True (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition Nothing (Just index)
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -360,7 +360,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      , displayMiddleText middleTextPosition ("Remember! " ++ displayEndTimer counter)
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing True maybeHighlightCard opponentsDisposition
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                         ++ displayOwnCards ownCardsDisposition Nothing (Just index)
                                     )
                                     []
@@ -374,7 +374,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 
@@ -387,7 +387,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                      ]
                                         ++ displayAllOpponents maybeTamalouOwner Nothing False (always Nothing) opponentsDisposition
                                         ++ displayOwnCards ownCardsDisposition (doubleCardClickMsg sessionId maybeTamalouOwner discardPile alreadyInAction) Nothing
-                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPositions
+                                        ++ displayDiscardCards discardPilePosition discardPile False Nothing cardFromDiscardPileMovingPosition
                                     )
                                     []
 

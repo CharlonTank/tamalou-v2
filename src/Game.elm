@@ -4,7 +4,7 @@ import Card exposing (Card, FCard(..), showAllCards, toFCard)
 import Counter exposing (Counter)
 import Lamdera exposing (SessionId)
 import List.Extra as List
-import Player exposing (BPlayer, BPlayerToPlayStatus(..), FPlayer, FPlayerToPlayStatus(..), showTamalouOwnerCards, stopDisplayCards, toFPlayer)
+import Player exposing (BPlayer, BPlayerToPlayStatus(..), CurrentPlayer, FPlayer, FPlayerToPlayStatus(..), showTamalouOwnerCards, stopDisplayCards, toFPlayer)
 import Random
 import Utils.List exposing (findAndRearrange)
 
@@ -35,7 +35,7 @@ type alias BGame =
 
 type BGameInProgressStatus
     = BStartTimerRunning Counter
-    | BPlayerToPlay BPlayer BPlayerToPlayStatus
+    | BPlayerToPlay CurrentPlayer BPlayerToPlayStatus
     | BEndTimerRunning Counter
 
 
@@ -54,7 +54,7 @@ type FGame
 
 type FGameInProgressStatus
     = FStartTimerRunning Counter
-    | FPlayerToPlay FPlayer FPlayerToPlayStatus
+    | FPlayerToPlay CurrentPlayer FPlayerToPlayStatus
     | FYourTurn FPlayerToPlayStatus
     | FEndTimerRunning Counter
 
@@ -67,12 +67,9 @@ toFGame maybeSessionId backendGame =
 
         BGameInProgress (Just tamalouOwnerSessionId) bDrawPile discardPile players bGameInProgressStatus _ _ ->
             let
-                newPlayers : List BPlayer
-                newPlayers =
-                    showTamalouOwnerCards tamalouOwnerSessionId players
-
                 ( tableHand, opponents ) =
-                    newPlayers
+                    players
+                        |> showTamalouOwnerCards tamalouOwnerSessionId
                         |> findAndRearrange ((==) maybeSessionId << Just << .sessionId)
                         |> (\( maybeCurrentPlayer, opponents_ ) ->
                                 case maybeCurrentPlayer of
@@ -84,11 +81,17 @@ toFGame maybeSessionId backendGame =
 
                                           else
                                             List.map toFCard currentPlayer.tableHand
-                                        , opponents_ |> stopDisplayCards (Just tamalouOwnerSessionId) |> List.map (toFPlayer False)
+                                        , opponents_
+                                            |> stopDisplayCards (Just tamalouOwnerSessionId)
+                                            |> List.map (toFPlayer False)
                                         )
 
                                     Nothing ->
-                                        ( [], opponents_ |> stopDisplayCards (Just tamalouOwnerSessionId) |> List.map (toFPlayer False) )
+                                        ( []
+                                        , opponents_
+                                            |> stopDisplayCards (Just tamalouOwnerSessionId)
+                                            |> List.map (toFPlayer False)
+                                        )
                            )
 
                 tamalouOwner : Maybe TamalouOwner
@@ -101,14 +104,23 @@ toFGame maybeSessionId backendGame =
         BGameInProgress Nothing bDrawPile discardPile players bGameInProgressStatus _ _ ->
             let
                 ( tableHand, opponents ) =
-                    findAndRearrange ((==) maybeSessionId << Just << .sessionId) players
+                    players
+                        |> findAndRearrange ((==) maybeSessionId << Just << .sessionId)
                         |> (\( maybeCurrentPlayer, opponents_ ) ->
                                 case maybeCurrentPlayer of
                                     Just currentPlayer ->
-                                        ( List.map toFCard currentPlayer.tableHand, opponents_ |> stopDisplayCards Nothing |> List.map (toFPlayer False) )
+                                        ( List.map toFCard currentPlayer.tableHand
+                                        , opponents_
+                                            |> stopDisplayCards Nothing
+                                            |> List.map (toFPlayer False)
+                                        )
 
                                     Nothing ->
-                                        ( [], opponents_ |> stopDisplayCards Nothing |> List.map (toFPlayer False) )
+                                        ( []
+                                        , opponents_
+                                            |> stopDisplayCards Nothing
+                                            |> List.map (toFPlayer False)
+                                        )
                            )
             in
             FGameInProgress Nothing tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile opponents (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
@@ -130,42 +142,42 @@ toFGameProgressStatus maybeSessionId bGameInProgressStatus =
                         FYourTurn (FWaitingPlayerAction maybePowerCard)
 
                     else
-                        FPlayerToPlay (toFPlayer False bPlayer) (FWaitingPlayerAction maybePowerCard)
+                        FPlayerToPlay bPlayer (FWaitingPlayerAction maybePowerCard)
 
                 BPlayerHasDrawn card ->
                     if maybeSessionId == Just bPlayer.sessionId then
                         FYourTurn (FPlayerHasDraw (FaceUp card))
 
                     else
-                        FPlayerToPlay (toFPlayer False bPlayer) (FPlayerHasDraw FaceDown)
+                        FPlayerToPlay bPlayer (FPlayerHasDraw FaceDown)
 
                 BPlayerHasDiscard powerCard ->
                     if maybeSessionId == Just bPlayer.sessionId then
                         FYourTurn (FPlayerHasDiscard powerCard)
 
                     else
-                        FPlayerToPlay (toFPlayer False bPlayer) (FPlayerHasDiscard powerCard)
+                        FPlayerToPlay bPlayer (FPlayerHasDiscard powerCard)
 
                 BPlayerLookACard lookAtCardStatus ->
                     if maybeSessionId == Just bPlayer.sessionId then
                         FYourTurn (FPlayerLookACard lookAtCardStatus)
 
                     else
-                        FPlayerToPlay (toFPlayer False bPlayer) (FPlayerLookACard lookAtCardStatus)
+                        FPlayerToPlay bPlayer (FPlayerLookACard lookAtCardStatus)
 
                 BPlayerSwitch2Cards switch2CardsStatus ->
                     if maybeSessionId == Just bPlayer.sessionId then
                         FYourTurn (FPlayerSwitch2Cards switch2CardsStatus)
 
                     else
-                        FPlayerToPlay (toFPlayer False bPlayer) (FPlayerSwitch2Cards switch2CardsStatus)
+                        FPlayerToPlay bPlayer (FPlayerSwitch2Cards switch2CardsStatus)
 
                 BPlayerDisplayTamalouFailure cards counter ->
                     if maybeSessionId == Just bPlayer.sessionId then
                         FYourTurn (FPlayerDisplayTamalouFailure cards counter)
 
                     else
-                        FPlayerToPlay (toFPlayer False bPlayer) (FPlayerDisplayTamalouFailure cards counter)
+                        FPlayerToPlay bPlayer (FPlayerDisplayTamalouFailure cards counter)
 
         BEndTimerRunning timer ->
             FEndTimerRunning timer

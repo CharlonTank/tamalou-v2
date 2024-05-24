@@ -3,7 +3,7 @@ module Debuggy.Logs exposing (bGameInProgressLogs)
 import Card
 import Counter exposing (Counter(..))
 import Game exposing (BGameInProgressStatus(..), BGameStatus(..))
-import Player exposing (BPlayer, BPlayerToPlayStatus(..), LookACardStatus(..), Switch2CardsStatus(..))
+import Player exposing (BPlayer, BPlayerToPlayStatus(..), CurrentPlayer, LookACardStatus(..), Switch2CardsStatus(..))
 import Utils.String as String
 
 
@@ -27,10 +27,15 @@ bGameInProgressStatusLogs status =
             "BStartTimerRunning: " ++ counterToString counter
 
         BPlayerToPlay player playerToPlayStatus ->
-            "BPlayerToPlay: " ++ bPlayerLogs player ++ ", playerToPlayStatus: " ++ bPlayerToPlayStatusLogs playerToPlayStatus
+            "BPlayerToPlay: " ++ currentPlayerLogs player ++ ", playerToPlayStatus: " ++ bPlayerToPlayStatusLogs playerToPlayStatus
 
         BEndTimerRunning counter ->
             "BEndTimerRunning: " ++ counterToString counter
+
+
+currentPlayerLogs : CurrentPlayer -> String
+currentPlayerLogs player =
+    "name: " ++ player.name ++ " clientId: " ++ player.clientId ++ " sessionId: " ++ player.sessionId
 
 
 bPlayerLogs : BPlayer -> String

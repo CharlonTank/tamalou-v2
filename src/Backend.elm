@@ -8,7 +8,7 @@ import GameActionsToBackend exposing (handleActionFromGameToBackend)
 import GameLogics exposing (assignRanks, nextPlayer)
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra as List
-import Player exposing (BPlayer, BPlayerToPlayStatus(..), LookACardStatus(..), Switch2CardsStatus(..), showAllCardsOfAllPlayers, stopDisplayCards)
+import Player exposing (BPlayer, BPlayerToPlayStatus(..), CurrentPlayer, LookACardStatus(..), Switch2CardsStatus(..), showAllCardsOfAllPlayers, stopDisplayCards, toCurrentPlayer)
 import Random
 import Task
 import Time
@@ -18,10 +18,10 @@ import Utils.Random exposing (drawCardFromDrawPile, generateRandomFunnyName)
 
 app : { init : ( BackendModel, Cmd BackendMsg ), subscriptions : BackendModel -> Sub BackendMsg, update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg ), updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg ) }
 app =
-    -- Debuggy.App.backend
-    --     NoOpBackendMsg
-    --     "cf254562487070e4"
-    Lamdera.backend
+    Debuggy.App.backend
+        NoOpBackendMsg
+        "cf254562487070e4"
+        -- Lamdera.backend
         { init = init
         , subscriptions = subscriptions
         , update = update
@@ -142,7 +142,7 @@ update msg ({ games } as model) =
                                                             BGameInProgress m a b (p1 :: restOfBPlayers) (BStartTimerRunning newNb_) False False
 
                                                         Nothing ->
-                                                            BGameInProgress m a b (stopDisplayCards Nothing (p1 :: restOfBPlayers)) (BPlayerToPlay p1 (BWaitingPlayerAction Nothing)) False False
+                                                            BGameInProgress m a b (stopDisplayCards Nothing (p1 :: restOfBPlayers)) (BPlayerToPlay (toCurrentPlayer p1) (BWaitingPlayerAction Nothing)) False False
                                             }
 
                                         newNb : Maybe Counter
@@ -204,7 +204,7 @@ update msg ({ games } as model) =
                                             -- , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGame.status) Nothing) players
                                             -- )
                                             let
-                                                maybeNextPlayer : Maybe BPlayer
+                                                maybeNextPlayer : Maybe CurrentPlayer
                                                 maybeNextPlayer =
                                                     nextPlayer maybeTamalouOwner bPlayer.sessionId players
 
@@ -266,7 +266,7 @@ update msg ({ games } as model) =
                                         --     )
                                         Nothing ->
                                             let
-                                                maybeNextPlayer : Maybe BPlayer
+                                                maybeNextPlayer : Maybe CurrentPlayer
                                                 maybeNextPlayer =
                                                     nextPlayer maybeTamalouOwner bPlayer.sessionId players
 
@@ -324,7 +324,7 @@ update msg ({ games } as model) =
                                                         newGameStatus =
                                                             BGameInProgress Nothing newDrawPile newDiscardPile updatedPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer
 
-                                                        nextPlayer_ : BPlayer
+                                                        nextPlayer_ : CurrentPlayer
                                                         nextPlayer_ =
                                                             case nextPlayer maybeTamalouOwner bPlayer.sessionId updatedPlayers of
                                                                 Just nextPlayer__ ->

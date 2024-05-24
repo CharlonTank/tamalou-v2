@@ -270,13 +270,17 @@ updateEveryTimelineOnFrame model posix =
                                 |> List.map (Timeline.update posix)
                                 |> List.filter Timeline.isRunning
                         , drewCardMovingPosition =
-                            if Timeline.isRunning positions.drewCardMovingPosition then
-                                Timeline.update posix positions.drewCardMovingPosition
+                            positions.drewCardMovingPosition
+                                |> Maybe.andThen
+                                    (\anim ->
+                                        if Timeline.isRunning anim then
+                                            Just <| Timeline.update posix anim
 
-                            else
-                                positions.drewCardMovingPosition
-                        , cardFromDiscardPileMovingPositions =
-                            positions.cardFromDiscardPileMovingPositions
+                                        else
+                                            Nothing
+                                    )
+                        , cardFromDiscardPileMovingPosition =
+                            positions.cardFromDiscardPileMovingPosition
                                 |> Maybe.map (Timeline.update posix)
                                 |> Maybe.andThen
                                     (\a ->
@@ -311,7 +315,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                 { positions
                                     | cardsFromDrawPileMovingPositions =
                                         (Timeline.init positions.drawPilePosition
-                                            |> Timeline.to (Anim.ms animDuration) (Timeline.current positions.drewCardMovingPosition)
+                                            |> Timeline.to (Anim.ms animDuration) (Timeline.current positions.drewCardPosition)
                                         )
                                             :: positions.cardsFromDrawPileMovingPositions
                                 }
@@ -322,10 +326,10 @@ animatePlayerAction playerAction newGameDisposition fModel =
                         | gameDisposition =
                             Calculated
                                 { positions
-                                    | cardFromDiscardPileMovingPositions =
+                                    | cardFromDiscardPileMovingPosition =
                                         Just
                                             (Timeline.init positions.discardPilePosition
-                                                |> Timeline.to (Anim.ms animDuration) (Timeline.current positions.drewCardMovingPosition)
+                                                |> Timeline.to (Anim.ms animDuration) (Timeline.current positions.drewCardPosition)
                                             )
                                 }
                     }
@@ -344,7 +348,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                     Calculated
                                         { positions
                                             | drewCardMovingPosition =
-                                                Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardMovingPosition
+                                                Just <| Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardPosition
                                             , opponentsDisposition =
                                                 positions.opponentsDisposition
                                                     |> applyReplaceCardAnimationsToOpponent sessionId cardIndex ( discardedCard, oldCardPosition ) newGameDisposition
@@ -366,7 +370,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                             Calculated
                                                 { positions
                                                     | drewCardMovingPosition =
-                                                        Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardMovingPosition
+                                                        Just <| Timeline.to (Anim.ms animDuration) (fixReverseSpinningEffectRotation <| Timeline.current oldCardPosition) positions.drewCardPosition
                                                     , ownCardsDisposition =
                                                         positions.ownCardsDisposition
                                                             |> applyReplaceCardAnimationsToOwnCard cardIndex ( discardedCard, oldCardPosition ) newGameDisposition
@@ -554,8 +558,9 @@ animatePlayerAction playerAction newGameDisposition fModel =
                             Calculated
                                 { positions
                                     | drewCardMovingPosition =
-                                        positions.drewCardMovingPosition
+                                        positions.drewCardPosition
                                             |> Timeline.to (Anim.ms animDuration) positions.discardPilePosition
+                                            |> Just
                                 }
                     }
 

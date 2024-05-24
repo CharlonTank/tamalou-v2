@@ -4,7 +4,7 @@ import Card
 import Game exposing (BDrawPile)
 import Lamdera exposing (SessionId)
 import List.Extra as List
-import Player exposing (BPlayer)
+import Player exposing (BPlayer, CurrentPlayer, toCurrentPlayer)
 
 
 assignRanks : Maybe SessionId -> List BPlayer -> List ( BPlayer, Int )
@@ -66,7 +66,7 @@ assignRanks maybeTamalouOwner players =
         |> List.reverse
 
 
-nextPlayer : Maybe SessionId -> SessionId -> List BPlayer -> Maybe BPlayer
+nextPlayer : Maybe SessionId -> SessionId -> List BPlayer -> Maybe CurrentPlayer
 nextPlayer maybeTamalouOwnerSessionId sessionId players =
     List.findIndex ((==) sessionId << .sessionId) players
         |> Maybe.andThen (\index_ -> List.getAt (modBy (List.length players) (index_ + 1)) players)
@@ -78,6 +78,7 @@ nextPlayer maybeTamalouOwnerSessionId sessionId players =
                 else
                     Just p
             )
+        |> Maybe.map toCurrentPlayer
 
 
 distribute4CardsToPlayer : BDrawPile -> BPlayer -> ( BDrawPile, BPlayer )

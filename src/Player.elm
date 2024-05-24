@@ -14,6 +14,21 @@ type alias BPlayer =
     }
 
 
+type alias CurrentPlayer =
+    { name : String
+    , clientId : ClientId
+    , sessionId : SessionId
+    }
+
+
+toCurrentPlayer : BPlayer -> CurrentPlayer
+toCurrentPlayer player =
+    { name = player.name
+    , clientId = player.clientId
+    , sessionId = player.sessionId
+    }
+
+
 type BPlayerToPlayStatus
     = BWaitingPlayerAction (Maybe Power)
     | BPlayerHasDrawn Card

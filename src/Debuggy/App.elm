@@ -9,81 +9,81 @@ import Time
 import Types exposing (..)
 
 
+backend :
+    backendMsg
+    -> String
+    ->
+        { init : ( backendModel, Cmd backendMsg )
+        , update : backendMsg -> backendModel -> ( backendModel, Cmd backendMsg )
+        , updateFromFrontend : SessionId -> ClientId -> toBackend -> backendModel -> ( backendModel, Cmd backendMsg )
+        , subscriptions : backendModel -> Sub backendMsg
+        }
+    ->
+        { init : ( backendModel, Cmd backendMsg )
+        , update : backendMsg -> backendModel -> ( backendModel, Cmd backendMsg )
+        , updateFromFrontend : SessionId -> ClientId -> toBackend -> backendModel -> ( backendModel, Cmd backendMsg )
+        , subscriptions : backendModel -> Sub backendMsg
+        }
+backend backendNoOp sessionName { init, update, updateFromFrontend, subscriptions } =
+    { init =
+        let
+            ( model, cmd ) =
+                init
+        in
+        ( model
+        , Cmd.batch
+            [ cmd
+            , sendToViewer
+                backendNoOp
+                (Init { sessionName = sessionName, model = Debug.toString model })
+            ]
+        )
+    , update =
+        \msg model ->
+            let
+                ( newModel, cmd ) =
+                    update msg model
+            in
+            ( newModel
+            , Cmd.batch
+                [ cmd
+                , if backendNoOp == msg then
+                    Cmd.none
 
--- backend :
---     backendMsg
---     -> String
---     ->
---         { init : ( backendModel, Cmd backendMsg )
---         , update : backendMsg -> backendModel -> ( backendModel, Cmd backendMsg )
---         , updateFromFrontend : SessionId -> ClientId -> toBackend -> backendModel -> ( backendModel, Cmd backendMsg )
---         , subscriptions : backendModel -> Sub backendMsg
---         }
---     ->
---         { init : ( backendModel, Cmd backendMsg )
---         , update : backendMsg -> backendModel -> ( backendModel, Cmd backendMsg )
---         , updateFromFrontend : SessionId -> ClientId -> toBackend -> backendModel -> ( backendModel, Cmd backendMsg )
---         , subscriptions : backendModel -> Sub backendMsg
---         }
--- backend backendNoOp sessionName { init, update, updateFromFrontend, subscriptions } =
---     { init =
---         let
---             ( model, cmd ) =
---                 init
---         in
---         ( model
---         , Cmd.batch
---             [ cmd
---             , sendToViewer
---                 backendNoOp
---                 (Init { sessionName = sessionName, model = Debug.toString model })
---             ]
---         )
---     , update =
---         \msg model ->
---             let
---                 ( newModel, cmd ) =
---                     update msg model
---             in
---             ( newModel
---             , Cmd.batch
---                 [ cmd
---                 , if backendNoOp == msg then
---                     Cmd.none
---                   else
---                     sendToViewer
---                         backendNoOp
---                         (Update
---                             { sessionName = sessionName
---                             , msg = Debug.toString msg
---                             , newModel = Debug.toString newModel
---                             }
---                         )
---                 ]
---             )
---     , updateFromFrontend =
---         \sessionId clientId msg model ->
---             let
---                 ( newModel, cmd ) =
---                     updateFromFrontend sessionId clientId msg model
---             in
---             ( newModel
---             , Cmd.batch
---                 [ cmd
---                 , sendToViewer
---                     backendNoOp
---                     (UpdateFromFrontend
---                         { sessionName = sessionName
---                         , msg = Debug.toString msg
---                         , newModel = Debug.toString newModel
---                         , sessionId = sessionId
---                         , clientId = clientId
---                         }
---                     )
---                 ]
---             )
---     , subscriptions = subscriptions
---     }
+                  else
+                    sendToViewer
+                        backendNoOp
+                        (Update
+                            { sessionName = sessionName
+                            , msg = Debug.toString msg
+                            , newModel = Debug.toString newModel
+                            }
+                        )
+                ]
+            )
+    , updateFromFrontend =
+        \sessionId clientId msg model ->
+            let
+                ( newModel, cmd ) =
+                    updateFromFrontend sessionId clientId msg model
+            in
+            ( newModel
+            , Cmd.batch
+                [ cmd
+                , sendToViewer
+                    backendNoOp
+                    (UpdateFromFrontend
+                        { sessionName = sessionName
+                        , msg = Debug.toString msg
+                        , newModel = Debug.toString newModel
+                        , sessionId = sessionId
+                        , clientId = clientId
+                        }
+                    )
+                ]
+            )
+    , subscriptions = subscriptions
+    }
 
 
 type DataType

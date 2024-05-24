@@ -174,9 +174,7 @@ update msg ({ roomName } as model) =
         CardClickMsg cardClickMsg ->
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
-                    ( { model | alreadyInAction = True }
-                    , Lamdera.sendToBackend <| ActionFromGameToBackend roomName DrawFromDrawPileToBackend
-                    )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName DrawFromDrawPileToBackend )
 
                 DrawFromDiscardPileFrontend ->
                     ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName DrawFromDiscardPileToBackend )
@@ -210,7 +208,7 @@ update msg ({ roomName } as model) =
         Frame posix ->
             ( updateEveryTimelineOnFrame model posix, Cmd.none )
 
-        UpdateFGamePostAnimationFrontend fGame _ ->
+        UpdateFGamePostAnimationFrontend fGame playerActionAnimation ->
             -- based on the playerAction, let's update the model's gameDisposition
             ( { model
                 | fGame = Just fGame
@@ -221,7 +219,13 @@ update msg ({ roomName } as model) =
 
                         Nothing ->
                             getMyName model.sessionId fGame
-                , gameDisposition = Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
+                , gameDisposition =
+                    case model.gameDisposition of
+                        NotCalculated ->
+                            Calculated <| calculateGameDisposition model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame)
+
+                        Calculated oldPositions ->
+                            Calculated <| calculateGameDispositionBasedOnAnimation model.sessionId model.viewPort (fPlayersFromFGame fGame |> getOpponents model.sessionId) (getOwnedCards fGame) oldPositions playerActionAnimation
                 , alreadyInAction = False
               }
             , Cmd.none

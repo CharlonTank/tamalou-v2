@@ -1,15 +1,16 @@
-module Positioning.Positioning exposing (calculateGameDisposition, getGBPosition, moveUpBasedOnRotation, updateCardPosition, updateOpponentsDisposition)
+module Positioning.Positioning exposing (calculateGameDisposition, calculateGameDispositionBasedOnAnimation, getGBPosition, moveUpBasedOnRotation, updateCardPosition, updateOpponentsDisposition)
 
 import Animator.Timeline as Timeline exposing (Timeline)
 import Animator.Transition
 import Animator.Value
 import Card exposing (FCard)
 import Internal.Style2 exposing (toRadians)
+import Lamdera exposing (SessionId)
 import Player exposing (FPlayer)
 import Positioning.Helpers exposing (wantedSpinningRotationValue)
 import Positioning.Types exposing (GBPosition, OpponentDisposition(..), VisibleAngle(..))
 import Time exposing (Posix)
-import Types exposing (OpponentsDisposition, PositionedPlayer, Positions)
+import Types exposing (OpponentsDisposition, PlayerActionAnimation(..), PositionedPlayer, Positions)
 import Ui
 
 
@@ -17,14 +18,82 @@ calculateGameDisposition : { height : Int, width : Int } -> List FPlayer -> List
 calculateGameDisposition viewPort opponents ownCards =
     { drawPilePosition = calculateCardPosition viewPort.width viewPort.height 0.35 0.35
     , cardsFromDrawPileMovingPositions = []
-    , drewCardMovingPosition = Timeline.init (calculateCardPosition viewPort.width viewPort.height 0.5 0.35)
+    , drewCardMovingPosition = Nothing
+    , drewCardPosition = Timeline.init (calculateCardPosition viewPort.width viewPort.height 0.5 0.35)
     , middleTextPosition = calculateCardPosition viewPort.width viewPort.height 0.5 0.74
     , discardPilePosition = calculateCardPosition viewPort.width viewPort.height 0.65 0.35
-    , cardFromDiscardPileMovingPositions = Nothing
+    , cardFromDiscardPileMovingPosition = Nothing
     , playAgainOrPassPosition = calculatePlayAgainOrPassPosition viewPort.width viewPort.height
     , opponentsDisposition = toOpponentsDisposition viewPort.width opponents
     , ownCardsDisposition = toOwnCardsDisposition viewPort ownCards
     }
+
+
+
+-- type PlayerActionAnimation
+--     = AnimationDrawCardFromDeck
+--     | AnimationDrawCardFromDiscardPile
+--     | AnimationReplaceCardInTableHand SessionId Int Card
+--     | AnimationDoubleCardSuccess SessionId Int Card
+--     | AnimationDoubleCardFailed SessionId Int Card
+--     | AnimationSwitchCards ( SessionId, Int ) ( SessionId, Int )
+--     | AnimationDiscardCard
+--     | AnimationTamalouFailed SessionId
+--     | NoPlayerAction
+
+
+{-| Calculate the new disposition of the game based on the finished animation.
+We want to change only what changed based on the type of animation
+-}
+calculateGameDispositionBasedOnAnimation : Maybe SessionId -> { height : Int, width : Int } -> List FPlayer -> List FCard -> Positions -> PlayerActionAnimation -> Positions
+calculateGameDispositionBasedOnAnimation maybeSessionId viewPort opponents ownCards oldPositions playerActionAnimation =
+    case playerActionAnimation of
+        AnimationDrawCardFromDeck ->
+            { oldPositions | drewCardMovingPosition = Nothing }
+
+        AnimationDrawCardFromDiscardPile ->
+            { oldPositions | cardFromDiscardPileMovingPosition = Nothing }
+
+        AnimationReplaceCardInTableHand sessionId_ _ _ ->
+            if maybeSessionId == Just sessionId_ then
+                { oldPositions | ownCardsDisposition = toOwnCardsDisposition viewPort ownCards }
+
+            else
+                { oldPositions | opponentsDisposition = toOpponentsDisposition viewPort.width opponents }
+
+        AnimationDoubleCardSuccess sessionId_ _ _ ->
+            if maybeSessionId == Just sessionId_ then
+                { oldPositions | ownCardsDisposition = toOwnCardsDisposition viewPort ownCards }
+
+            else
+                { oldPositions | opponentsDisposition = toOpponentsDisposition viewPort.width opponents }
+
+        AnimationDoubleCardFailed sessionId_ _ _ ->
+            if maybeSessionId == Just sessionId_ then
+                { oldPositions | ownCardsDisposition = toOwnCardsDisposition viewPort ownCards }
+
+            else
+                { oldPositions | opponentsDisposition = toOpponentsDisposition viewPort.width opponents }
+
+        AnimationSwitchCards ( sessionId1, _ ) ( sessionId2, _ ) ->
+            if maybeSessionId == Just sessionId1 || maybeSessionId == Just sessionId2 then
+                { oldPositions | opponentsDisposition = toOpponentsDisposition viewPort.width opponents, ownCardsDisposition = toOwnCardsDisposition viewPort ownCards }
+
+            else
+                { oldPositions | opponentsDisposition = toOpponentsDisposition viewPort.width opponents }
+
+        AnimationDiscardCard ->
+            oldPositions
+
+        AnimationTamalouFailed sessionId_ ->
+            if maybeSessionId == Just sessionId_ then
+                { oldPositions | ownCardsDisposition = toOwnCardsDisposition viewPort ownCards }
+
+            else
+                { oldPositions | opponentsDisposition = toOpponentsDisposition viewPort.width opponents }
+
+        NoPlayerAction ->
+            oldPositions
 
 
 getGBPosition : Timeline GBPosition -> GBPosition

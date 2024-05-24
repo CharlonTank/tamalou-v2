@@ -154,10 +154,11 @@ type alias PositionedPlayer =
 type alias Positions =
     { drawPilePosition : GBPosition
     , cardsFromDrawPileMovingPositions : List (Timeline GBPosition)
-    , drewCardMovingPosition : Timeline GBPosition
+    , drewCardMovingPosition : Maybe (Timeline GBPosition)
+    , drewCardPosition : Timeline GBPosition
     , middleTextPosition : GBPosition
     , discardPilePosition : GBPosition
-    , cardFromDiscardPileMovingPositions : Maybe (Timeline GBPosition)
+    , cardFromDiscardPileMovingPosition : Maybe (Timeline GBPosition)
     , playAgainOrPassPosition : GBPosition
     , opponentsDisposition : OpponentsDisposition
     , ownCardsDisposition : List ( FCard, Timeline GBPosition )

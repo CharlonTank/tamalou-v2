@@ -639,7 +639,9 @@ handleActionFromGameToBackend ({ games, errors } as model) roomName sessionId cl
 
                         ownCard : Maybe Card
                         ownCard =
-                            bPlayer.tableHand |> List.getAt cardIndex
+                            players
+                                |> List.find ((==) sessionId << .sessionId)
+                                |> Maybe.andThen (\p -> List.getAt cardIndex p.tableHand)
                     in
                     updateGameStateAndNotifyPlayers model game.name ( newGameStatus, game.seed ) players Nothing
 
@@ -735,9 +737,18 @@ handleActionFromGameToBackend ({ games, errors } as model) roomName sessionId cl
                         in
                         if tamalouFailed then
                             let
+                                cardsToShow : List Card
+                                cardsToShow =
+                                    case currentPlayer of
+                                        Just p ->
+                                            p.tableHand
+
+                                        Nothing ->
+                                            []
+
                                 newGameStatus : BGameStatus
                                 newGameStatus =
-                                    BGameInProgress Nothing drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerDisplayTamalouFailure bPlayer.tableHand Counter.Three)) lastMoveIsDouble canUsePowerFromLastPlayer
+                                    BGameInProgress Nothing drawPile discardPile players (BPlayerToPlay bPlayer (BPlayerDisplayTamalouFailure cardsToShow Counter.Three)) lastMoveIsDouble canUsePowerFromLastPlayer
                             in
                             ( { model | games = updateGameStatus roomName ( newGameStatus, game.seed ) games }
                             , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) Nothing) players
@@ -749,7 +760,7 @@ handleActionFromGameToBackend ({ games, errors } as model) roomName sessionId cl
                                 newGameStatus =
                                     BGameInProgress (Just sessionId) drawPile discardPile updatedPlayers (BPlayerToPlay nextPlayer_ (BWaitingPlayerAction Nothing)) lastMoveIsDouble canUsePowerFromLastPlayer
 
-                                nextPlayer_ : BPlayer
+                                nextPlayer_ : CurrentPlayer
                                 nextPlayer_ =
                                     nextPlayer Nothing bPlayer.sessionId players |> Maybe.withDefault bPlayer
 
