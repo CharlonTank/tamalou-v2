@@ -3,6 +3,7 @@ module Debuggy.App exposing (..)
 import Card exposing (Rank(..))
 import Http
 import Json.Encode
+import Lamdera exposing (ClientId, SessionId)
 import Task
 import Time
 import Types exposing (..)

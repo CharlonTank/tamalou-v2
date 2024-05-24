@@ -10,7 +10,7 @@ import Display.Admin exposing (displayAdmin)
 import Display.Game exposing (game)
 import Game exposing (FGame(..), FGameInProgressStatus(..))
 import Lamdera exposing (SessionId)
-import List.Extra
+import List.Extra as List
 import Palette.Color exposing (..)
 import Player exposing (FPlayer, FPlayerToPlayStatus(..))
 import Positioning.Animate exposing (animDuration, animatePlayerAction, updateEveryTimelineOnFrame)
@@ -55,13 +55,25 @@ subscriptions fModel =
 
 init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
 init url key =
+    let
+        route : Router.Route
+        route =
+            Router.parseUrl url
+    in
     ( { key = key
       , device = Device Phone Landscape
       , fGame = Nothing
-      , roomName = ""
+      , roomName =
+            case route of
+                Router.Game roomName ->
+                    roomName
+
+                _ ->
+                    ""
       , clientId = Nothing
       , sessionId = Nothing
-      , urlPath = url.path
+
+      --   , urlPath = url.path
       , errors = []
       , admin = False
       , viewPort = { height = 0, width = 0 }
@@ -74,7 +86,7 @@ init url key =
       --   , animationState = Anim.init
       , alreadyInAction = False
       , posix = Time.millisToPosix 0
-      , route = Router.parseUrl url
+      , route = route
       }
     , Task.perform
         (\v ->
@@ -88,7 +100,7 @@ init url key =
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
-update msg ({ urlPath } as model) =
+update msg ({ roomName } as model) =
     case msg of
         NoOpFrontendMsg ->
             ( model, Cmd.none )
@@ -124,27 +136,29 @@ update msg ({ urlPath } as model) =
             )
 
         ChangeCurrentPlayerNameFrontend newName ->
-            ( { model | maybeName = Just newName }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChangeCurrentPlayerNameToBackend newName) )
+            ( { model | maybeName = Just newName }
+            , Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ChangeCurrentPlayerNameToBackend newName)
+            )
 
         ImReadyFrontend ->
             ( { model
                 | ready = True
                 , chat = model.chat ++ [ ( Maybe.withDefault "" model.maybeName, "Let's go I'm ready!" ) ]
               }
-            , Lamdera.sendToBackend <| ActionFromGameToBackend urlPath ImReadyToBackend
+            , Lamdera.sendToBackend <| ActionFromGameToBackend roomName ImReadyToBackend
             )
 
         ReStartGameFrontend fPlayer ->
-            ( { model | ready = False }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReStartGameToBackend fPlayer) )
+            ( { model | ready = False }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ReStartGameToBackend fPlayer) )
 
         TamalouFrontend ->
-            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath TamalouToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend roomName TamalouToBackend )
 
         PowerIsUsedFrontend ->
-            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath PowerIsUsedToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend roomName PowerIsUsedToBackend )
 
         PowerPassFrontend ->
-            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath PowerIsNotUsedToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend roomName PowerIsNotUsedToBackend )
 
         ChangeChatInputFrontend newChatInput ->
             ( { model | chatInput = newChatInput }, Cmd.none )
@@ -152,7 +166,7 @@ update msg ({ urlPath } as model) =
         SendMessageFrontend ->
             ( { model | chatInput = "", chat = model.chat ++ [ ( Maybe.withDefault "" model.maybeName, model.chatInput ) ] }
             , Cmd.batch
-                [ Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (SendMessageToBackend model.chatInput)
+                [ Lamdera.sendToBackend <| ActionFromGameToBackend roomName (SendMessageToBackend model.chatInput)
                 , scrollToBottom "chatty"
                 ]
             )
@@ -161,29 +175,29 @@ update msg ({ urlPath } as model) =
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
                     ( { model | alreadyInAction = True }
-                    , Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDrawPileToBackend
+                    , Lamdera.sendToBackend <| ActionFromGameToBackend roomName DrawFromDrawPileToBackend
                     )
 
                 DrawFromDiscardPileFrontend ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DrawFromDiscardPileToBackend )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName DrawFromDiscardPileToBackend )
 
                 DiscardCardFrontend ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath DiscardCardInHandToBackend )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName DiscardCardInHandToBackend )
 
                 CardClickReplacement cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ReplaceCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ReplaceCardInTableHandToBackend cardIndex) )
 
                 DoubleCardFrontend cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (DoubleCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (DoubleCardInTableHandToBackend cardIndex) )
 
                 LookAtCardFrontend cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (LookAtCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (LookAtCardInTableHandToBackend cardIndex) )
 
                 ChooseOwnCardToSwitchFrontend cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOwnCardToSwitchToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ChooseOwnCardToSwitchToBackend cardIndex) )
 
                 ChooseOpponentCardToSwitchFrontend sessionId cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend urlPath (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
 
         -- AnimMsg animMsg ->
         --     let
@@ -216,13 +230,9 @@ update msg ({ urlPath } as model) =
         ChangeRoomNameFrontend newRoomName ->
             ( { model | roomName = newRoomName }, Cmd.none )
 
-        JoinRoomGameFrontend roomName ->
+        JoinRoomGameFrontend roomNameToJoin ->
             ( model
-            , Cmd.batch
-                [ Nav.load roomName
-
-                -- , Lamdera.sendToBackend (ActionFromGameToBackend roomName ConnectToBackend)
-                ]
+            , Nav.load roomNameToJoin
             )
 
 
@@ -302,9 +312,9 @@ updateFromBackend msg model =
                     , Lamdera.sendToBackend ConnectToAdminToBackend
                     )
 
-                Router.Game urlPath ->
+                Router.Game roomName ->
                     ( { model | clientId = Just clientId, sessionId = Just sessionId }
-                    , Lamdera.sendToBackend (ActionFromGameToBackend urlPath ConnectToBackend)
+                    , Lamdera.sendToBackend (ActionFromGameToBackend roomName ConnectToBackend)
                     )
 
 
@@ -346,7 +356,7 @@ getOwnedCards fGame =
 getMyName : Maybe SessionId -> FGame -> Maybe String
 getMyName maybeSessionId fGame =
     fPlayersFromFGame fGame
-        |> List.Extra.find (\player -> maybeSessionId == Just player.sessionId)
+        |> List.find (\player -> maybeSessionId == Just player.sessionId)
         |> Maybe.map .name
 
 
@@ -367,7 +377,12 @@ view model =
                 ( Router.Admin, True, _ ) ->
                     displayAdmin model
 
-                ( Router.Game urlPath, _, Calculated positions ) ->
+                ( Router.Game _, _, NotCalculated ) ->
+                    column
+                        [ height fill ]
+                        [ text "Loading..." ]
+
+                ( Router.Game _, _, Calculated positions ) ->
                     column
                         [ height fill ]
                         [ game model positions ]

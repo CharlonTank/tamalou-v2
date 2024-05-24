@@ -125,7 +125,7 @@ Here are some of the features that are yet to be implemented:
 - [x] Looking at a card
 - [x] Choosing an owned card to switch with the Queen
 - [x] Choosing an opponent card to switch with the Queen
-- [ ] Tamalou failure
+- [x] Tamalou failure
 
 ## Known issues
 

@@ -1,6 +1,6 @@
 module Utils.List exposing (..)
 
-import List.Extra
+import List.Extra as List
 
 
 findAndRemove : (a -> Bool) -> List a -> ( Maybe a, List a )
@@ -19,7 +19,7 @@ findAndRemove predicate list =
 
 findAndRearrange : (a -> Bool) -> List a -> ( Maybe a, List a )
 findAndRearrange predicate list =
-    case List.Extra.findIndex predicate list of
+    case List.findIndex predicate list of
         Just index ->
             let
                 after : List a
@@ -27,7 +27,7 @@ findAndRearrange predicate list =
                     List.drop 1 foundAndAfter
 
                 ( before, foundAndAfter ) =
-                    List.Extra.splitAt index list
+                    List.splitAt index list
 
                 found : Maybe a
                 found =

@@ -69,7 +69,6 @@ display fModel players =
                             [ el [ centerX ] <| text <| "Players playing"
                             , column [ spacing 8, centerX ] <| List.map displayPlayerName players
                             ]
-                        , actionButton { label = el [ link fModel.urlPath ] <| text "Refresh", onPress = Nothing }
                         ]
 
         Nothing ->

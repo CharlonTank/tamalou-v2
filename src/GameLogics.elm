@@ -3,7 +3,7 @@ module GameLogics exposing (..)
 import Card
 import Game exposing (BDrawPile)
 import Lamdera exposing (SessionId)
-import List.Extra
+import List.Extra as List
 import Player exposing (BPlayer)
 
 
@@ -68,8 +68,8 @@ assignRanks maybeTamalouOwner players =
 
 nextPlayer : Maybe SessionId -> SessionId -> List BPlayer -> Maybe BPlayer
 nextPlayer maybeTamalouOwnerSessionId sessionId players =
-    List.Extra.findIndex ((==) sessionId << .sessionId) players
-        |> Maybe.andThen (\index_ -> List.Extra.getAt (modBy (List.length players) (index_ + 1)) players)
+    List.findIndex ((==) sessionId << .sessionId) players
+        |> Maybe.andThen (\index_ -> List.getAt (modBy (List.length players) (index_ + 1)) players)
         |> Maybe.andThen
             (\p ->
                 if maybeTamalouOwnerSessionId == Just p.sessionId then

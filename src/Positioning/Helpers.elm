@@ -4,7 +4,7 @@ import Animator.Timeline exposing (Timeline)
 import Browser.Dom
 import Internal.Style2 exposing (toRadians)
 import Lamdera exposing (SessionId)
-import List.Extra
+import List.Extra as List
 import Positioning.Types exposing (GBPosition)
 import Task
 import Types exposing (FrontendMsg(..), OpponentsDisposition, PositionedPlayer)
@@ -18,7 +18,7 @@ findCardPosition sessionId index { leftPlayer, topLeftPlayer, topRightPlayer, ri
         findInPlayer positionedPlayer =
             if sessionId == positionedPlayer.player.sessionId then
                 positionedPlayer.positionedTableHand
-                    |> List.Extra.getAt index
+                    |> List.getAt index
                     |> Maybe.map Tuple.second
 
             else

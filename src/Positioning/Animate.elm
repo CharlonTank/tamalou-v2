@@ -3,7 +3,7 @@ module Positioning.Animate exposing (..)
 import Animator.Timeline as Timeline exposing (Timeline)
 import Card exposing (Card, FCard(..))
 import Lamdera exposing (SessionId)
-import List.Extra
+import List.Extra as List
 import Positioning.Helpers exposing (findCardPosition, fixReverseSpinningEffectRotation, fixSpinningEffectRotation)
 import Positioning.Positioning exposing (updateCardPosition, updateOpponentsDisposition)
 import Positioning.Types exposing (GBPosition)
@@ -31,7 +31,7 @@ applyDoubleAnimationToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { dis
                     , let
                         newCardPosition : Timeline GBPosition
                         newCardPosition =
-                            case List.Extra.getAt index ownCardsDisposition of
+                            case List.getAt index ownCardsDisposition of
                                 Just ( _, newPos ) ->
                                     newPos
 
@@ -56,7 +56,7 @@ applyDoubleAnimationToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { dis
                     newPosition : Timeline GBPosition
                     newPosition =
                         if addCardOrRemoveCard == Remove && index > cardIndex then
-                            case List.Extra.getAt (index - 1) ownCardsDisposition of
+                            case List.getAt (index - 1) ownCardsDisposition of
                                 Just ( _, newPos ) ->
                                     newPos
 
@@ -64,7 +64,7 @@ applyDoubleAnimationToOwnCard cardIndex ( cardToAnimate, oldCardPosition ) { dis
                                     position
 
                         else
-                            case List.Extra.getAt index ownCardsDisposition of
+                            case List.getAt index ownCardsDisposition of
                                 Just ( _, newPos ) ->
                                     newPos
 
@@ -99,7 +99,7 @@ applyDoubleAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosi
                                 , let
                                     newCardPosition : Timeline GBPosition
                                     newCardPosition =
-                                        case List.Extra.getAt index newPositionedPlayer.positionedTableHand of
+                                        case List.getAt index newPositionedPlayer.positionedTableHand of
                                             Just ( _, newPos ) ->
                                                 newPos
 
@@ -124,7 +124,7 @@ applyDoubleAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosi
                                 newPosition : Timeline GBPosition
                                 newPosition =
                                     if addCardOrRemoveCard == Remove && index > cardIndex then
-                                        case List.Extra.getAt (index - 1) newPositionedPlayer.positionedTableHand of
+                                        case List.getAt (index - 1) newPositionedPlayer.positionedTableHand of
                                             Just ( _, newPos ) ->
                                                 newPos
 
@@ -132,7 +132,7 @@ applyDoubleAnimationsToOpponent sessionId cardIndex ( cardToAnimate, oldCardPosi
                                                 position
 
                                     else
-                                        case List.Extra.getAt index newPositionedPlayer.positionedTableHand of
+                                        case List.getAt index newPositionedPlayer.positionedTableHand of
                                             Just ( _, newPos ) ->
                                                 newPos
 
@@ -239,8 +239,8 @@ applyPenaltyAnimationToOpponent : SessionId -> Positions -> Timeline GBPosition
 applyPenaltyAnimationToOpponent sessionId { drawPilePosition, opponentsDisposition } =
     [ opponentsDisposition.leftPlayer, opponentsDisposition.topLeftPlayer, opponentsDisposition.topRightPlayer, opponentsDisposition.rightPlayer ]
         |> List.filterMap identity
-        |> List.Extra.find (\player -> player.player.sessionId == sessionId)
-        |> Maybe.andThen (.positionedTableHand >> List.Extra.last >> Maybe.map Tuple.second)
+        |> List.find (\player -> player.player.sessionId == sessionId)
+        |> Maybe.andThen (.positionedTableHand >> List.last >> Maybe.map Tuple.second)
         |> Maybe.map (\newCardPosition -> Timeline.to (Anim.ms animDuration) (Timeline.current newCardPosition) (Timeline.init <| fixSpinningEffectRotation drawPilePosition))
         |> Maybe.withDefault (Timeline.init drawPilePosition)
 
@@ -248,7 +248,7 @@ applyPenaltyAnimationToOpponent sessionId { drawPilePosition, opponentsDispositi
 applyPenaltyAnimationToUs : Positions -> Timeline GBPosition
 applyPenaltyAnimationToUs { drawPilePosition, ownCardsDisposition } =
     ownCardsDisposition
-        |> List.Extra.last
+        |> List.last
         |> Maybe.map Tuple.second
         |> Maybe.map (\newCardPosition -> Timeline.to (Anim.ms animDuration) (Timeline.current newCardPosition) (Timeline.init <| fixSpinningEffectRotation drawPilePosition))
         |> Maybe.withDefault (Timeline.init drawPilePosition)
@@ -356,7 +356,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                 maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
                                 maybeOwnOldCardPosition =
                                     positions.ownCardsDisposition
-                                        |> List.Extra.getAt cardIndex
+                                        |> List.getAt cardIndex
                                         |> Maybe.map Tuple.second
                             in
                             case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
@@ -400,7 +400,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                 maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
                                 maybeOwnOldCardPosition =
                                     positions.ownCardsDisposition
-                                        |> List.Extra.getAt cardIndex
+                                        |> List.getAt cardIndex
                                         |> Maybe.map Tuple.second
                                         |> Maybe.map (Timeline.to (Anim.ms animDuration) positions.discardPilePosition)
                             in
@@ -447,7 +447,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                 maybeOwnOldCardPosition : Maybe (Timeline GBPosition)
                                 maybeOwnOldCardPosition =
                                     positions.ownCardsDisposition
-                                        |> List.Extra.getAt cardIndex
+                                        |> List.getAt cardIndex
                                         |> Maybe.map Tuple.second
                             in
                             case ( fModel.sessionId == Just sessionId, maybeOwnOldCardPosition ) of
@@ -497,7 +497,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                 maybeOwnOldCardPosition2 : Maybe (Timeline GBPosition)
                                 maybeOwnOldCardPosition2 =
                                     positions.ownCardsDisposition
-                                        |> List.Extra.getAt cardIndex2
+                                        |> List.getAt cardIndex2
                                         |> Maybe.map Tuple.second
                             in
                             case ( fModel.sessionId == Just sessionId2, maybeOwnOldCardPosition2 ) of
@@ -523,7 +523,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                 maybeOwnOldCardPosition1 : Maybe (Timeline GBPosition)
                                 maybeOwnOldCardPosition1 =
                                     positions.ownCardsDisposition
-                                        |> List.Extra.getAt cardIndex1
+                                        |> List.getAt cardIndex1
                                         |> Maybe.map Tuple.second
                             in
                             case ( fModel.sessionId == Just sessionId1, maybeOwnOldCardPosition1 ) of
@@ -591,7 +591,7 @@ animatePlayerAction playerAction newGameDisposition fModel =
                     fModel
 
         _ ->
-            fModel
+            { fModel | gameDisposition = Calculated newGameDisposition }
 
 
 repositionOpponentsCardsInHand : SessionId -> Positions -> OpponentsDisposition -> OpponentsDisposition
@@ -601,7 +601,7 @@ repositionOpponentsCardsInHand sessionId { opponentsDisposition } { leftPlayer, 
         repositionOpponentCardsInHand newHand oldHand =
             List.indexedMap
                 (\index ( card, position ) ->
-                    case List.Extra.getAt index newHand of
+                    case List.getAt index newHand of
                         Just ( _, newPos ) ->
                             ( card, Timeline.to (Anim.ms animDuration) (Timeline.current newPos) position )
 
@@ -629,7 +629,7 @@ repositionOwnCardsInHand : Positions -> List ( FCard, Timeline GBPosition ) -> L
 repositionOwnCardsInHand { ownCardsDisposition } oldOwnCardsDisposition =
     List.indexedMap
         (\index ( card, position ) ->
-            case List.Extra.getAt index ownCardsDisposition of
+            case List.getAt index ownCardsDisposition of
                 Just ( _, newPos ) ->
                     ( card, Timeline.to (Anim.ms animDuration) (Timeline.current newPos) position )
 

@@ -5,7 +5,7 @@ import Display.Common exposing (..)
 import Display.Lobby as Lobby
 import Game exposing (FGame(..), FGameInProgressStatus(..))
 import Html.Attributes as HA
-import List.Extra
+import List.Extra as List
 import Palette.Anim as Anim
 import Palette.Color exposing (..)
 import Player exposing (FPlayer, FPlayerToPlayStatus(..), LookACardStatus(..), Switch2CardsStatus(..))
@@ -183,7 +183,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
 
                                     opponent : Maybe FPlayer
                                     opponent =
-                                        List.Extra.find (\player -> player.sessionId == opponentCard.sessionId) players
+                                        List.find (\player -> player.sessionId == opponentCard.sessionId) players
                                 in
                                 column
                                     ([ width <| px <| viewPort.width - 14
@@ -395,7 +395,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                 let
                                     currentPlayerAndRank : Maybe ( FPlayer, Int )
                                     currentPlayerAndRank =
-                                        List.Extra.find (\( player, _ ) -> Just player.sessionId == sessionId) orderedPlayersAndRank
+                                        List.find (\( player, _ ) -> Just player.sessionId == sessionId) orderedPlayersAndRank
                                 in
                                 column
                                     [ spacing 12, padding 12 ]

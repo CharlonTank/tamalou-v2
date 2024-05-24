@@ -2,6 +2,7 @@ module Backend exposing (app)
 
 import Card
 import Counter exposing (Counter(..))
+import Debuggy.App
 import Game exposing (BGame, BGameInProgressStatus(..), BGameStatus(..), toFGame, updateGame, updateGameStatus)
 import GameActionsToBackend exposing (handleActionFromGameToBackend)
 import GameLogics exposing (assignRanks, nextPlayer)
@@ -17,9 +18,9 @@ import Utils.Random exposing (drawCardFromDrawPile, generateRandomFunnyName)
 
 app : { init : ( BackendModel, Cmd BackendMsg ), subscriptions : BackendModel -> Sub BackendMsg, update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg ), updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg ) }
 app =
-    -- DebugApp.backend
-    -- NoOpBackendMsg
-    -- "e465a26049dfca11"
+    -- Debuggy.App.backend
+    --     NoOpBackendMsg
+    --     "cf254562487070e4"
     Lamdera.backend
         { init = init
         , subscriptions = subscriptions
@@ -42,19 +43,19 @@ tickEverySecond games =
             (\g ->
                 case g.status of
                     BGameInProgress _ _ _ _ (BStartTimerRunning _) _ _ ->
-                        Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
+                        Time.every 1000 (BackendMsgFromGame g.name << TimerTick)
 
                     BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerLookACard (LookingACard _ _))) _ _ ->
-                        Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
+                        Time.every 1000 (BackendMsgFromGame g.name << TimerTick)
 
                     BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerSwitch2Cards (OpponentCardChosen _ _ _))) _ _ ->
-                        Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
+                        Time.every 1000 (BackendMsgFromGame g.name << TimerTick)
 
                     BGameInProgress _ _ _ _ (BPlayerToPlay _ (BPlayerDisplayTamalouFailure _ _)) _ _ ->
-                        Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
+                        Time.every 1000 (BackendMsgFromGame g.name << TimerTick)
 
                     BGameInProgress _ _ _ _ (BEndTimerRunning _) _ _ ->
-                        Time.every 1000 (BackendMsgFromGame g.urlPath << TimerTick)
+                        Time.every 1000 (BackendMsgFromGame g.name << TimerTick)
 
                     _ ->
                         Sub.none
@@ -119,13 +120,13 @@ update msg ({ games } as model) =
             in
             ( { model | games = updatedGames }, Cmd.batch cmds )
 
-        BackendMsgFromGame urlPath toBackend ->
+        BackendMsgFromGame roomName toBackend ->
             case toBackend of
                 TimerTick _ ->
                     let
                         maybeGame : Maybe BGame
                         maybeGame =
-                            List.find ((==) urlPath << .urlPath) games
+                            List.find ((==) roomName << .name) games
                     in
                     case maybeGame of
                         Just game ->
@@ -348,7 +349,7 @@ update msg ({ games } as model) =
                                                                             p
                                                                     )
                                                     in
-                                                    ( { model | games = updateGameStatus urlPath ( newGameStatus, newSeed ) games }
+                                                    ( { model | games = updateGameStatus roomName ( newGameStatus, newSeed ) games }
                                                     , Cmd.batch <| List.map (\player -> Lamdera.sendToFrontend player.clientId <| UpdateGameStatusToFrontend (toFGame (Just player.sessionId) newGameStatus) (Just <| AnimationTamalouFailed bPlayer.sessionId)) updatedPlayers
                                                     )
 
@@ -368,7 +369,7 @@ update msg ({ games } as model) =
 
                         newGame : BGame
                         newGame =
-                            { urlPath = urlPath
+                            { name = roomName
                             , status = BWaitingForPlayers [ { name = funnyName, tableHand = [], clientId = clientId, sessionId = sessionId, ready = False } ]
                             , chat = []
                             , seed = newSeed
@@ -385,19 +386,19 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
         NoOpToBackend ->
             ( model, Cmd.none )
 
-        ActionFromGameToBackend urlPath toBackendActionFromGame ->
-            if urlPath == "/reload" then
+        ActionFromGameToBackend roomName toBackendActionFromGame ->
+            if roomName == "reload" then
                 init
 
             else
-                case List.find (.urlPath >> (==) urlPath) games of
+                case List.find (.name >> (==) roomName) games of
                     Just game ->
-                        handleActionFromGameToBackend model urlPath sessionId clientId game toBackendActionFromGame
+                        handleActionFromGameToBackend model roomName sessionId clientId game toBackendActionFromGame
 
                     Nothing ->
                         if toBackendActionFromGame == ConnectToBackend then
                             ( model
-                            , Task.perform (\posix -> BackendMsgFromGame urlPath (CreateGame posix clientId sessionId)) Time.now
+                            , Task.perform (\posix -> BackendMsgFromGame roomName (CreateGame posix clientId sessionId)) Time.now
                             )
 
                         else

@@ -75,7 +75,8 @@ type alias FrontendModel =
     , roomName : String
     , clientId : Maybe ClientId
     , sessionId : Maybe SessionId
-    , urlPath : String
+
+    -- , urlPath : String
     , errors : List String
     , admin : Bool
     , viewPort : { height : Int, width : Int }

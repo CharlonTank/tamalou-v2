@@ -3,7 +3,7 @@ module Game exposing (..)
 import Card exposing (Card, FCard(..), showAllCards, toFCard)
 import Counter exposing (Counter)
 import Lamdera exposing (SessionId)
-import List.Extra
+import List.Extra as List
 import Player exposing (BPlayer, BPlayerToPlayStatus(..), FPlayer, FPlayerToPlayStatus(..), showTamalouOwnerCards, stopDisplayCards, toFPlayer)
 import Random
 import Utils.List exposing (findAndRearrange)
@@ -26,7 +26,7 @@ type alias FTableHand =
 
 
 type alias BGame =
-    { urlPath : String
+    { name : String
     , status : BGameStatus
     , chat : List ( String, String )
     , seed : Random.Seed
@@ -93,7 +93,7 @@ toFGame maybeSessionId backendGame =
 
                 tamalouOwner : Maybe TamalouOwner
                 tamalouOwner =
-                    List.Extra.find ((==) tamalouOwnerSessionId << .sessionId) players
+                    List.find ((==) tamalouOwnerSessionId << .sessionId) players
                         |> Maybe.map (\p -> TamalouOwner p.sessionId p.tableHand)
             in
             FGameInProgress tamalouOwner tableHand (List.map (always Card.FaceDown) bDrawPile) discardPile opponents (toFGameProgressStatus maybeSessionId bGameInProgressStatus)
@@ -195,7 +195,7 @@ playerName sessionId bGame =
     let
         player : Maybe BPlayer
         player =
-            List.Extra.find ((==) sessionId << .sessionId) players
+            List.find ((==) sessionId << .sessionId) players
 
         players : List BPlayer
         players =
@@ -211,15 +211,15 @@ playerName sessionId bGame =
 
 updateGameStatus : String -> ( BGameStatus, Random.Seed ) -> List BGame -> List BGame
 updateGameStatus urlPath ( newGameStatus, newSeed ) games =
-    List.Extra.updateIf
-        ((==) urlPath << .urlPath)
+    List.updateIf
+        ((==) urlPath << .name)
         (\g -> { g | status = newGameStatus, seed = newSeed })
         games
 
 
 updateGame : BGame -> List BGame -> List BGame
 updateGame newGame games =
-    List.Extra.updateIf
-        ((==) newGame.urlPath << .urlPath)
+    List.updateIf
+        ((==) newGame.name << .name)
         (always newGame)
         games

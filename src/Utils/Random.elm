@@ -2,7 +2,7 @@ module Utils.Random exposing (..)
 
 import Card exposing (Card)
 import Game exposing (BDrawPile, BGame, BGameStatus(..), DiscardPile)
-import List.Extra
+import List.Extra as List
 import Random
 
 
@@ -14,7 +14,7 @@ generateRandomFunnyName seed alreadyNames =
             List.filter (\name -> not (List.member name alreadyNames)) listOfFunnyPlaceHolderNames
     in
     Random.step (Random.int 0 (List.length filteredNames - 1)) seed
-        |> (\( n, newSeed ) -> ( List.Extra.getAt n filteredNames |> Maybe.withDefault "Anonymous", newSeed ))
+        |> (\( n, newSeed ) -> ( List.getAt n filteredNames |> Maybe.withDefault "Anonymous", newSeed ))
 
 
 listOfFunnyPlaceHolderNames : List String
@@ -82,7 +82,7 @@ drawCardFromDrawPile game =
                         ( shuffledRestDiscardPile, newSeed ) =
                             shuffleWithSeed game.seed restOfDiscardPile
                     in
-                    case List.Extra.uncons shuffledRestDiscardPile of
+                    case List.uncons shuffledRestDiscardPile of
                         Just ( cardDrew, newDrawPile ) ->
                             ( Just cardDrew, ( newDrawPile, [ firstCard ], newSeed ) )
 
