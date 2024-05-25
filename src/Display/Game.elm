@@ -275,8 +275,8 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                     displayUsePowerOrPass : Element FrontendMsg
                                     displayUsePowerOrPass =
                                         column [ spacing 12 ]
-                                            [ actionButton { label = text <| Card.powerToString power, onPress = Just PowerIsUsedFrontend }
-                                            , actionButton { label = text "Pass", onPress = Just PowerPassFrontend }
+                                            [ actionButton [ centerX ] { label = text <| Card.powerToString power, onPress = Just PowerIsUsedFrontend }
+                                            , actionButton [ centerX ] { label = text "Pass", onPress = Just PowerPassFrontend }
                                             ]
                                 in
                                 column
@@ -421,7 +421,7 @@ game ({ sessionId, viewPort, alreadyInAction } as model) { drawPilePosition, car
                                                     "Game ended!"
                                     , column [ width shrink, centerX, spacing 4, width <| px <| (viewPort.width * 80 // 100) ] <|
                                         List.map (\player -> displayPlayerAndCards player) orderedPlayersAndRank
-                                    , el [ width shrink, centerX ] <| actionButton { label = text "Play again!", onPress = Just (ReStartGameFrontend (currentPlayerAndRank |> Maybe.map Tuple.first)) }
+                                    , el [ width shrink, centerX ] <| actionButton [ centerX ] { label = text "Play again!", onPress = Just (ReStartGameFrontend (currentPlayerAndRank |> Maybe.map Tuple.first)) }
                                     ]
 
                             FGameAlreadyStartedWithoutYou ->

@@ -2,7 +2,6 @@ module Backend exposing (app)
 
 import Card
 import Counter exposing (Counter(..))
-import Debuggy.App
 import Game exposing (BGame, BGameInProgressStatus(..), BGameStatus(..), toFGame, updateGame, updateGameStatus)
 import GameActionsToBackend exposing (handleActionFromGameToBackend)
 import GameLogics exposing (assignRanks, nextPlayer)
@@ -18,9 +17,9 @@ import Utils.Random exposing (drawCardFromDrawPile, generateRandomFunnyName)
 
 app : { init : ( BackendModel, Cmd BackendMsg ), subscriptions : BackendModel -> Sub BackendMsg, update : BackendMsg -> BackendModel -> ( BackendModel, Cmd BackendMsg ), updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg ) }
 app =
-    -- Debuggy.App.backend
-    --     NoOpBackendMsg
-    --     "cf254562487070e4"
+    --     Debuggy.App.backend
+    --         NoOpBackendMsg
+    --         "da77721f1f10920c"
     Lamdera.backend
         { init = init
         , subscriptions = subscriptions
@@ -81,7 +80,7 @@ update msg ({ games } as model) =
         FeedSessionIdAndClientId sessionId clientId ->
             ( model, Lamdera.sendToFrontend clientId (GotSessionIdAndClientIdToFrontend sessionId clientId) )
 
-        GotUserDisconnected sessionId _ ->
+        GotUserDisconnected _ clientId ->
             let
                 ( updatedGames, cmds ) =
                     games
@@ -92,30 +91,35 @@ update msg ({ games } as model) =
                                         let
                                             newPlayers : List BPlayer
                                             newPlayers =
-                                                List.filter ((/=) sessionId << .sessionId) players
+                                                List.filter ((/=) clientId << .clientId) players
                                         in
                                         if List.length newPlayers /= List.length players then
-                                            let
-                                                newGameStatus : BGameStatus
-                                                newGameStatus =
-                                                    BWaitingForPlayers newPlayers
-                                            in
-                                            ( { game | status = newGameStatus }
-                                            , List.map
-                                                (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend (toFGame Nothing newGameStatus) Nothing))
-                                                newPlayers
-                                            )
+                                            if List.isEmpty newPlayers then
+                                                ( Nothing, [] )
+
+                                            else
+                                                let
+                                                    newGameStatus : BGameStatus
+                                                    newGameStatus =
+                                                        BWaitingForPlayers newPlayers
+                                                in
+                                                ( Just { game | status = newGameStatus }
+                                                , List.map
+                                                    (\player -> Lamdera.sendToFrontend player.clientId (UpdateGameStatusToFrontend (toFGame Nothing newGameStatus) Nothing))
+                                                    newPlayers
+                                                )
 
                                         else
-                                            ( game, [] )
+                                            ( Just game, [] )
 
                                     BGameInProgress _ _ _ _ _ _ _ ->
-                                        ( game, [] )
+                                        ( Just game, [] )
 
                                     BGameEnded _ ->
-                                        ( game, [] )
+                                        ( Just game, [] )
                             )
                         |> List.unzip
+                        |> Tuple.mapFirst (List.filterMap identity)
                         |> Tuple.mapSecond List.concat
             in
             ( { model | games = updatedGames }, Cmd.batch cmds )
@@ -386,7 +390,7 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
         NoOpToBackend ->
             ( model, Cmd.none )
 
-        ActionFromGameToBackend roomName toBackendActionFromGame ->
+        ActionFromGameToBackendWrapper roomName toBackendActionFromGame ->
             if roomName == "reload" then
                 init
 
@@ -396,13 +400,18 @@ updateFromFrontend sessionId clientId msg ({ games, errors } as model) =
                         handleActionFromGameToBackend model roomName sessionId clientId game toBackendActionFromGame
 
                     Nothing ->
-                        if toBackendActionFromGame == ConnectToBackend then
+                        if toBackendActionFromGame == ConnectGameToBackend then
                             ( model
                             , Task.perform (\posix -> BackendMsgFromGame roomName (CreateGame posix clientId sessionId)) Time.now
                             )
 
                         else
                             ( model, Cmd.none )
+
+        ActionFromHomeToBackendWrapper actionFromHomeToBackend ->
+            case actionFromHomeToBackend of
+                GetGamesToBackend ->
+                    ( model, Lamdera.sendToFrontend clientId (UpdateGamesToFrontend games) )
 
         ConnectToAdminToBackend ->
             ( model, Lamdera.sendToFrontend clientId (UpdateAdminToFrontend errors) )

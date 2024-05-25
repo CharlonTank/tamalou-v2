@@ -1,5 +1,7 @@
 module Debuggy.App exposing (..)
 
+-- import Lamdera exposing (ClientId, SessionId)
+
 import Card exposing (Rank(..))
 import Http
 import Json.Encode
@@ -9,7 +11,6 @@ import Types exposing (..)
 
 
 
--- import Lamdera exposing (ClientId, SessionId)
 -- backend :
 --     backendMsg
 --     -> String

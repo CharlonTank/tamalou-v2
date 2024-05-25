@@ -64,9 +64,9 @@ displayFCardAtTheEnd =
     displayFCardSized (Just <| px 41) Nothing Nothing
 
 
-actionButton : { label : Element FrontendMsg, onPress : Maybe FrontendMsg } -> Element FrontendMsg
-actionButton { label, onPress } =
-    el (actionBorder yellow ++ [ Events.onMouseUp <| Maybe.withDefault NoOpFrontendMsg onPress, Font.center, centerX ]) <| label
+actionButton : List (Attribute FrontendMsg) -> { label : Element FrontendMsg, onPress : Maybe FrontendMsg } -> Element FrontendMsg
+actionButton attrs { label, onPress } =
+    el (actionBorder yellow ++ [ Events.onMouseUp <| Maybe.withDefault NoOpFrontendMsg onPress, Font.center ] ++ attrs) <| label
 
 
 displayFCard : Maybe CardClickMsg -> FCard -> Element FrontendMsg

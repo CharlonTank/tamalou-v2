@@ -168,7 +168,7 @@ displayDiscardCards discardPilePosition discardPile canDrawCard maybePowerCard m
                         (el
                             [ inFront <|
                                 el [ padding 16, move { offSet | y = 36 } ] <|
-                                    actionButton { label = text <| Card.powerToString Switch2Cards, onPress = Just PowerIsUsedFrontend }
+                                    actionButton [ centerX ] { label = text <| Card.powerToString Switch2Cards, onPress = Just PowerIsUsedFrontend }
                             , height fill
                             ]
                          <|
@@ -181,7 +181,7 @@ displayDiscardCards discardPilePosition discardPile canDrawCard maybePowerCard m
                         (el
                             [ inFront <|
                                 el [ padding 16, move { offSet | y = 36 } ] <|
-                                    actionButton { label = text <| Card.powerToString LookACard, onPress = Just PowerIsUsedFrontend }
+                                    actionButton [ centerX ] { label = text <| Card.powerToString LookACard, onPress = Just PowerIsUsedFrontend }
                             , height fill
                             ]
                          <|

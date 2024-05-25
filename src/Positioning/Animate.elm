@@ -591,10 +591,6 @@ animatePlayerAction playerAction newGameDisposition fModel =
                                     }
                         }
 
-                -- SAME AS DOUBLE FAILED
-                NoPlayerAction ->
-                    fModel
-
         _ ->
             { fModel | gameDisposition = Calculated newGameDisposition }
 

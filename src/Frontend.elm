@@ -8,7 +8,7 @@ import Card exposing (FCard(..))
 import Delay
 import Display.Admin exposing (displayAdmin)
 import Display.Game exposing (game)
-import Game exposing (FGame(..), FGameInProgressStatus(..))
+import Game exposing (BGame, BGameStatus(..), FGame(..), FGameInProgressStatus(..))
 import Lamdera exposing (SessionId)
 import List.Extra as List
 import Palette.Color exposing (..)
@@ -72,8 +72,6 @@ init url key =
                     ""
       , clientId = Nothing
       , sessionId = Nothing
-
-      --   , urlPath = url.path
       , errors = []
       , admin = False
       , viewPort = { height = 0, width = 0 }
@@ -82,11 +80,10 @@ init url key =
       , chatInput = ""
       , chat = []
       , gameDisposition = NotCalculated
-
-      --   , animationState = Anim.init
       , alreadyInAction = False
       , posix = Time.millisToPosix 0
       , route = route
+      , games = []
       }
     , Task.perform
         (\v ->
@@ -137,7 +134,7 @@ update msg ({ roomName } as model) =
 
         ChangeCurrentPlayerNameFrontend newName ->
             ( { model | maybeName = Just newName }
-            , Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ChangeCurrentPlayerNameToBackend newName)
+            , Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName (ChangeCurrentPlayerNameToBackend newName)
             )
 
         ImReadyFrontend ->
@@ -145,20 +142,20 @@ update msg ({ roomName } as model) =
                 | ready = True
                 , chat = model.chat ++ [ ( Maybe.withDefault "" model.maybeName, "Let's go I'm ready!" ) ]
               }
-            , Lamdera.sendToBackend <| ActionFromGameToBackend roomName ImReadyToBackend
+            , Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName ImReadyToBackend
             )
 
         ReStartGameFrontend fPlayer ->
-            ( { model | ready = False }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ReStartGameToBackend fPlayer) )
+            ( { model | ready = False }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName (ReStartGameToBackend fPlayer) )
 
         TamalouFrontend ->
-            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend roomName TamalouToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName TamalouToBackend )
 
         PowerIsUsedFrontend ->
-            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend roomName PowerIsUsedToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName PowerIsUsedToBackend )
 
         PowerPassFrontend ->
-            ( model, Lamdera.sendToBackend <| ActionFromGameToBackend roomName PowerIsNotUsedToBackend )
+            ( model, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName PowerIsNotUsedToBackend )
 
         ChangeChatInputFrontend newChatInput ->
             ( { model | chatInput = newChatInput }, Cmd.none )
@@ -166,7 +163,7 @@ update msg ({ roomName } as model) =
         SendMessageFrontend ->
             ( { model | chatInput = "", chat = model.chat ++ [ ( Maybe.withDefault "" model.maybeName, model.chatInput ) ] }
             , Cmd.batch
-                [ Lamdera.sendToBackend <| ActionFromGameToBackend roomName (SendMessageToBackend model.chatInput)
+                [ Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName (SendMessageToBackend model.chatInput)
                 , scrollToBottom "chatty"
                 ]
             )
@@ -174,42 +171,33 @@ update msg ({ roomName } as model) =
         CardClickMsg cardClickMsg ->
             case cardClickMsg of
                 DrawCardFromDeckFrontend ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName DrawFromDrawPileToBackend )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName DrawFromDrawPileToBackend )
 
                 DrawFromDiscardPileFrontend ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName DrawFromDiscardPileToBackend )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName DrawFromDiscardPileToBackend )
 
                 DiscardCardFrontend ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName DiscardCardInHandToBackend )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName DiscardCardInHandToBackend )
 
                 CardClickReplacement cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ReplaceCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName (ReplaceCardInTableHandToBackend cardIndex) )
 
                 DoubleCardFrontend cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (DoubleCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName (DoubleCardInTableHandToBackend cardIndex) )
 
                 LookAtCardFrontend cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (LookAtCardInTableHandToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName (LookAtCardInTableHandToBackend cardIndex) )
 
                 ChooseOwnCardToSwitchFrontend cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ChooseOwnCardToSwitchToBackend cardIndex) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName (ChooseOwnCardToSwitchToBackend cardIndex) )
 
                 ChooseOpponentCardToSwitchFrontend sessionId cardIndex ->
-                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackend roomName (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
+                    ( { model | alreadyInAction = True }, Lamdera.sendToBackend <| ActionFromGameToBackendWrapper roomName (ChooseOpponentCardToSwitchToBackend ( sessionId, cardIndex )) )
 
-        -- AnimMsg animMsg ->
-        --     let
-        --         ( newAnimationState, cmds ) =
-        --             Anim.update AnimMsg animMsg model.animationState
-        --     in
-        --     ( { model | animationState = newAnimationState }
-        --     , cmds
-        --     )
         Frame posix ->
             ( updateEveryTimelineOnFrame model posix, Cmd.none )
 
         UpdateFGamePostAnimationFrontend fGame playerActionAnimation ->
-            -- based on the playerAction, let's update the model's gameDisposition
             ( { model
                 | fGame = Just fGame
                 , maybeName =
@@ -238,6 +226,9 @@ update msg ({ roomName } as model) =
             ( model
             , Nav.load roomNameToJoin
             )
+
+        BackHomeFrontend ->
+            ( model, Nav.load "/" )
 
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -283,7 +274,6 @@ updateFromBackend msg model =
                         , gameDisposition = Calculated newGameDisposition
                       }
                     , Cmd.none
-                      -- , Delay.after (round animDuration) (UpdateFGamePostAnimationFrontend fGame NoPlayerAction)
                     )
 
         UpdateGameAndChatToFrontend ( fGame, chat ) ->
@@ -308,7 +298,7 @@ updateFromBackend msg model =
             case model.route of
                 Router.Home ->
                     ( { model | clientId = Just clientId, sessionId = Just sessionId }
-                    , Cmd.none
+                    , Lamdera.sendToBackend (ActionFromHomeToBackendWrapper GetGamesToBackend)
                     )
 
                 Router.Admin ->
@@ -318,8 +308,11 @@ updateFromBackend msg model =
 
                 Router.Game roomName ->
                     ( { model | clientId = Just clientId, sessionId = Just sessionId }
-                    , Lamdera.sendToBackend (ActionFromGameToBackend roomName ConnectToBackend)
+                    , Lamdera.sendToBackend (ActionFromGameToBackendWrapper roomName ConnectGameToBackend)
                     )
+
+        UpdateGamesToFrontend games ->
+            ( { model | games = games }, Cmd.none )
 
 
 fPlayersFromFGame : FGame -> List FPlayer
@@ -341,7 +334,7 @@ fPlayersFromFGame game =
 getOpponents : Maybe SessionId -> List FPlayer -> List FPlayer
 getOpponents maybeSessionId players =
     players
-        |> List.filter (\player -> maybeSessionId /= Just player.sessionId)
+        |> List.filter (\p -> maybeSessionId /= Just p.sessionId)
 
 
 getOwnedCards : FGame -> List FCard
@@ -360,7 +353,7 @@ getOwnedCards fGame =
 getMyName : Maybe SessionId -> FGame -> Maybe String
 getMyName maybeSessionId fGame =
     fPlayersFromFGame fGame
-        |> List.find (\player -> maybeSessionId == Just player.sessionId)
+        |> List.find (\p -> maybeSessionId == Just p.sessionId)
         |> Maybe.map .name
 
 
@@ -372,6 +365,7 @@ view model =
             [ behindContent <| image [ height fill ] { description = "background", onLoad = Nothing, source = "/background.png" }
             , Font.size 12
             , height fill
+            , scrollableAll
             ]
           <|
             case ( model.route, model.admin, model.gameDisposition ) of
@@ -408,21 +402,162 @@ displayHome model =
         ]
         [ el [ Font.size 20, centerX ] <| text "Welcome on Tamalou!"
         , text "Enter the room you want to join here!"
-        , Input.text [ centerX, width <| px 200, Font.size 24 ]
-            { label = Input.labelHidden "Room name"
-            , onChange = ChangeRoomNameFrontend
-            , placeholder = Just "keuh-kli"
-            , text = model.roomName
-            }
-        , el
-            [ centerX
-            , Input.button <| JoinRoomGameFrontend model.roomName
-            , rounded 8
-            , border 2
-            , paddingXY 4 2
-            , background green
-            , borderColor strongerBlue
+        , row [ spacing 12, width shrink, centerX ]
+            [ Input.text [ centerX, width <| px 200, Font.size 24, rounded 8 ]
+                { label = Input.labelHidden "Room name"
+                , onChange = ChangeRoomNameFrontend
+                , placeholder = Just "keuh-kli"
+                , text = model.roomName
+                }
+            , el
+                [ centerX
+                , Input.button <| JoinRoomGameFrontend model.roomName
+                , rounded 8
+
+                -- , border 2
+                , paddingXY 16 0
+                , background green
+                , Font.color white
+
+                -- , borderColor strongerBlue
+                , Font.size 24
+                , height <| px 53
+                ]
+              <|
+                el [ centerY ] <|
+                    text "Join!"
             ]
-          <|
-            text "Join the room"
+        , displayGames model.games
         ]
+
+
+displayGames : List BGame -> Element FrontendMsg
+displayGames games =
+    let
+        displayCategory : String -> List BGame -> Element FrontendMsg
+        displayCategory title gamesList =
+            if List.isEmpty gamesList then
+                none
+
+            else
+                column []
+                    [ el [ centerX, Font.bold ] <| text title
+                    , column [ spacing 10 ] (List.map displayGame gamesList)
+                    ]
+
+        finishedGames : List BGame
+        finishedGames =
+            List.filter
+                (\game ->
+                    case game.status of
+                        BGameEnded _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+                games
+
+        ongoingGames : List BGame
+        ongoingGames =
+            List.filter
+                (\game ->
+                    case game.status of
+                        BGameInProgress _ _ _ _ _ _ _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+                games
+
+        waitingGames : List BGame
+        waitingGames =
+            List.filter
+                (\game ->
+                    case game.status of
+                        BWaitingForPlayers _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+                games
+    in
+    column
+        [ spacing 20
+        , Font.size 16
+        ]
+        [ displayCategory "Available Rooms" waitingGames
+        , displayCategory "Ongoing Games" ongoingGames
+        , displayCategory "Finished Games" finishedGames
+        ]
+
+
+displayGame : BGame -> Element FrontendMsg
+displayGame game =
+    row
+        [ spacing 5
+        , padding 10
+        , border 1
+        , rounded 8
+        , widthMax 600
+        , centerX
+        ]
+        [ el [] <| text game.name
+        , row [ contentCenterX, width <| portion 2 ]
+            (case game.status of
+                BWaitingForPlayers players ->
+                    [ List.map (\player -> text <| getOnlyTheFirstNbCharactersButFullWords 10 player.name) players
+                        |> List.intersperse (el [ width shrink, alignLeft ] <| text "-")
+                        |> row [ width shrink, alignLeft, spacing 4 ]
+                    , el [ alignRight ] <| text <| (String.fromInt (List.length players) ++ "/5")
+                    ]
+                        ++ (if List.length players < 5 then
+                                [ el [ alignRight, Input.button <| JoinRoomGameFrontend game.name, rounded 8, padding 8, background green, Font.color white ] <| text "Join!" ]
+
+                            else
+                                [ el [ alignRight, rounded 8, padding 8, background lightGrey, Font.color strongerGrey ] <| text "Full" ]
+                           )
+
+                BGameInProgress _ _ _ _ _ _ _ ->
+                    [ el [ centerX ] <| text "Game in progress", text "Spectate! (coming soon)" ]
+
+                BGameEnded orderedPlayers ->
+                    [ orderedPlayers
+                        |> List.head
+                        |> Maybe.map (\( player, score ) -> player.name ++ " won with " ++ String.fromInt score ++ " points")
+                        |> Maybe.withDefault "Game ended"
+                        |> text
+                        |> el [ centerX ]
+                    ]
+            )
+        ]
+
+
+getOnlyTheFirstNbCharactersButFullWords : Int -> String -> String
+getOnlyTheFirstNbCharactersButFullWords nb str =
+    List.foldl
+        (\word ( remaining, acc ) ->
+            if String.isEmpty acc then
+                if String.length word > nb then
+                    ( 0, String.left (nb - 3) word ++ "..." )
+
+                else
+                    ( remaining - String.length word, word )
+
+            else
+                let
+                    newAcc : String
+                    newAcc =
+                        acc ++ " " ++ word
+                in
+                if String.length newAcc > nb then
+                    ( 0, acc )
+
+                else
+                    ( remaining - String.length word - 1, newAcc )
+        )
+        ( nb, "" )
+        (String.words str)
+        |> Tuple.second

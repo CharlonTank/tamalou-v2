@@ -1,4 +1,4 @@
-module Types exposing (ActionFromGameToBackend(..), AddOrRemove(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), FrontendModel, FrontendMsg(..), GameDisposition(..), OpponentsDisposition, PlayerActionAnimation(..), PositionedPlayer, Positions, ToBackend(..), ToFrontend(..))
+module Types exposing (ActionFromGameToBackend(..), ActionFromHomeToBackend(..), AddOrRemove(..), BackendModel, BackendMsg(..), BackendMsgFromGame(..), CardClickMsg(..), FrontendModel, FrontendMsg(..), GameDisposition(..), OpponentsDisposition, PlayerActionAnimation(..), PositionedPlayer, Positions, ToBackend(..), ToFrontend(..))
 
 import Animator.Timeline exposing (Timeline)
 import Browser exposing (UrlRequest)
@@ -15,7 +15,7 @@ import Utils.Ui exposing (Device)
 
 
 type ActionFromGameToBackend
-    = ConnectToBackend
+    = ConnectGameToBackend
     | ChangeCurrentPlayerNameToBackend String
     | ImReadyToBackend
     | ReStartGameToBackend (Maybe FPlayer)
@@ -31,6 +31,10 @@ type ActionFromGameToBackend
     | PowerIsNotUsedToBackend
     | TamalouToBackend
     | SendMessageToBackend String
+
+
+type ActionFromHomeToBackend
+    = GetGamesToBackend
 
 
 type AddOrRemove
@@ -94,6 +98,7 @@ type alias FrontendModel =
     -- , nextStates : List ( FGame, PlayerAction )
     -- , animations : List (Timeline GBPosition)
     , route : Route
+    , games : List BGame
     }
 
 
@@ -117,6 +122,7 @@ type FrontendMsg
     | UpdateFGamePostAnimationFrontend FGame PlayerActionAnimation
     | ChangeRoomNameFrontend String
     | JoinRoomGameFrontend String
+    | BackHomeFrontend
 
 
 type GameDisposition
@@ -141,7 +147,6 @@ type PlayerActionAnimation
     | AnimationSwitchCards ( SessionId, Int ) ( SessionId, Int )
     | AnimationDiscardCard
     | AnimationTamalouFailed SessionId
-    | NoPlayerAction
 
 
 type alias PositionedPlayer =
@@ -167,7 +172,8 @@ type alias Positions =
 
 type ToBackend
     = NoOpToBackend
-    | ActionFromGameToBackend String ActionFromGameToBackend
+    | ActionFromGameToBackendWrapper String ActionFromGameToBackend
+    | ActionFromHomeToBackendWrapper ActionFromHomeToBackend
     | ConnectToAdminToBackend
 
 
@@ -178,3 +184,4 @@ type ToFrontend
     | UpdateGameAndChatToFrontend ( FGame, List ( String, String ) )
     | UpdateChatToFrontend (List ( String, String ))
     | GotSessionIdAndClientIdToFrontend SessionId ClientId
+    | UpdateGamesToFrontend (List BGame)

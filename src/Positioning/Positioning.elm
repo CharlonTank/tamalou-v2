@@ -39,7 +39,6 @@ calculateGameDisposition viewPort opponents ownCards =
 --     | AnimationSwitchCards ( SessionId, Int ) ( SessionId, Int )
 --     | AnimationDiscardCard
 --     | AnimationTamalouFailed SessionId
---     | NoPlayerAction
 
 
 {-| Calculate the new disposition of the game based on the finished animation.
@@ -91,9 +90,6 @@ calculateGameDispositionBasedOnAnimation maybeSessionId viewPort opponents ownCa
 
             else
                 { oldPositions | opponentsDisposition = toOpponentsDisposition viewPort.width opponents }
-
-        NoPlayerAction ->
-            oldPositions
 
 
 getGBPosition : Timeline GBPosition -> GBPosition

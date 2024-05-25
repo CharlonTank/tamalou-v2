@@ -16,7 +16,7 @@ import Utils.Random exposing (drawCardFromDrawPile, generateRandomFunnyName, shu
 handleActionFromGameToBackend : BackendModel -> String -> SessionId -> ClientId -> BGame -> ActionFromGameToBackend -> ( BackendModel, Cmd BackendMsg )
 handleActionFromGameToBackend ({ games, errors } as model) roomName sessionId clientId game toBackendActionFromGame =
     case toBackendActionFromGame of
-        ConnectToBackend ->
+        ConnectGameToBackend ->
             case game.status of
                 BWaitingForPlayers players ->
                     let

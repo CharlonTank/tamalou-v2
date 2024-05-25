@@ -21,8 +21,8 @@ display fModel players =
                 Just currentPlayer ->
                     row
                         [ height fill ]
-                        [ column [ width shrink, width <| portion 3, height fill, spacing 20 ]
-                            [ el [ width shrink, centerX ] <| text "Tamalou!"
+                        [ column [ width <| portion 3, height fill, spacing 20, padding 12 ]
+                            [ row [] [ backButton, el [ width shrink, centerX ] <| text "Tamalou!" ]
                             , let
                                 label : { element : Element FrontendMsg, id : Input.Label }
                                 label =
@@ -56,7 +56,7 @@ display fModel players =
                                 el [ width shrink, centerX ] <| text "Waiting for other players to be ready"
 
                               else
-                                el [ width shrink, centerX ] <| actionButton { label = text "I'm ready!", onPress = Just ImReadyFrontend }
+                                el [ width shrink, centerX ] <| actionButton [ centerX ] { label = text "I'm ready!", onPress = Just ImReadyFrontend }
                             ]
                         , displayChat fModel.viewPort.width fModel.viewPort.height fModel.chatInput fModel.chat
                         ]
@@ -73,3 +73,8 @@ display fModel players =
 
         Nothing ->
             el [ width shrink, centerX, centerY ] <| text "-"
+
+
+backButton : Element FrontendMsg
+backButton =
+    actionButton [ alignLeft ] { label = text "Back", onPress = Just BackHomeFrontend }
